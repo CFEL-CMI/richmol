@@ -1,3 +1,20 @@
+"""Module for solving the TDSE with the Hamiltonian represented by a sum of the molecular stationary
+Hamiltonian H0 and the time-dependent molecule-field interaction potential V(t).
+
+The potential V(t) for interaction with electric field is represented by a multipole-moment expansion
+V(t) = -mu_A E_A(t) - 1/2 alpha_AB E_A(t) E_B(t) -1/6 beta_ABC E_A(t) E_B(t) E_C(t) - ....,
+where mu, alpha, and beta are molecular permanent dipole moment, polarisability, and first
+hyperpolarizability, respectively, E(t) is the time-dependent electric field,
+and A, B, C are X, Y, or Z Cartesian components in the laboratory frame.
+
+The wavepacket is constructed as a linear combination of molecular stationary states,
+i.e., eigenstates of H0, with time-dependent coefficients. The molecular energies (eigenvalues of H0)
+and the matrix elements of mu, alpha, beta, etc. Cartesian tensors in the basis of molecular
+stationary states are assumed to be computed with some other program and stored in separate files
+using the so-called Richmol format. The energies and tensor matrix elements can be loaded using
+Psi() and Etensor() classes, respectively.
+"""
+
 import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
 import re
@@ -193,7 +210,7 @@ class Etensor():
                 conv = {"DEBYE":np.float64(0.393456)}[units.upper()]
                 print(f"Etensor: using factor {conv} to convert from Debye to atomic units")
             except KeyError:
-                raise NotImplementedError(f"Tensor units in 'units={units}' are not implemented") from None
+                raise KeyError(f"Unknown tensor units in 'units={units}'") from None
             self.prefac *= conv
 
         # read Richmol matrix elements for all combinations of bra and ket F quanta spanned by basis
@@ -434,11 +451,27 @@ class Etensor():
         """Computes psi(t2) = U(t2, t1) psi(t1) using split-operator approach.
 
         Hamiltonian can be naturally split into stationary and field-dependent parts, i.e,
-        H = H0 + H'(t), where H0 is field-free molecular Hamiltonian, diagonal by the choice
+        H = H0 + V(t), where H0 is field-free molecular Hamiltonian, diagonal by the choice
         of the basis set.
         Using split-operator approach, the time-evolution operator can be calculated as
-        exp(-i*dt/hbar*H) ~ exp(-i*dt/hbar/2*H0) * exp(-i*dt/hbar*H'(t)) * exp(-i*dt/hbar/2*H0)
+        exp(-i*dt/hbar*H) ~ exp(-i*dt/hbar/2*H0) * exp(-i*dt/hbar*V(t)) * exp(-i*dt/hbar/2*H0).
 
+        Args:
+            t2, t1 (float): Final and initial propagation times.
+            psi (Psi()): Wavepacket at time t1, psi(t1).
+            kwargs:
+                units (str): Units of time, use 'ps' for picoseconds, 'fs' for femtoseconds.
+                method (str): Method for computing matrix exponential exp(-i*dt/hbar*V(t)):
+                              'taylor' - use Taylor series expansion
+                              'lanszos' - (not implemented)
+                              'pade' - (not implemented)
+                maxorder (int): Maximal order in the Taylor series expansion (for method='taylor'),
+                                default is 20.
+                taylor_conv (float): Taylor series convergence tolerance (for method='taylor'),
+                                     default is 1e-12.
+
+        Returns:
+            psi_new (Psi()): Wavepacket at time t2, psi(t2).
         """
 
         # time units
@@ -456,8 +489,8 @@ class Etensor():
             method = kwargs["method"].lower()
             try:
                 ind = ["taylor"].index(method)
-            except IndexError:
-                raise IndexError(f"Unknown method in 'method={method}'") from None
+            except ValueError:
+                raise ValueError(f"Unknown method in 'method={method}'") from None
         else:
             method = "taylor"
 
@@ -466,6 +499,12 @@ class Etensor():
             maxorder = kwargs["maxorder"]
         else:
             maxorder = 20
+
+        # Taylor expansion convergence tolerance
+        if "taylor_conv" in kwargs:
+            taylor_conv = kwargs["taylor_conv"]
+        else:
+            taylor_conv = 1e-12
 
         dt = t2 - t1
 
@@ -500,10 +539,13 @@ class Etensor():
             # higher powers
 
             facp = fac
+            coefs_iorder = {f:np.zeros(psi.coefs[f].shape, dtype=np.complex128) for f in psi.flist}
 
             for iorder in range(2,maxorder):
 
                 facp = facp * fac / float(iorder)
+                for f in psi.flist:
+                    coefs_iorder[f][:] = 0
 
                 for fkey in list(set(Mpow.keys()) & set(Kpow.keys())):
                     f1, f2 = fkey
@@ -521,7 +563,28 @@ class Etensor():
                         Mt = [np.dot(x, y) for x,y in zip(M,Mp)]
                         Kt = [csr_matrix.dot(x, y) for x,y in zip(K,Kp)]
                         coefs_ = self.MKvec({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
-                        coefs_new[f1] += coefs_[f1] * facp
+                        coefs_iorder[f1] += coefs_[f1]
+
+                for f in coefs_iorder.keys():
+                    coefs_new[f] += coefs_iorder[f] * facp
+
+                if all([all(np.abs(c*facp)**2<taylor_conv) for c in coefs_iorder.values()]):
+                    break
+
+                if iorder==maxorder:
+                    raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
+                            +f"to converge, max expansion order {maxorder} reached")
+
+        # apply again exp(-i*dt/hbar/2 H0) to wavepacket
+
+        for f in psi.flist:
+            coefs_new[f] = coefs_new[f] * expH0[f]
+
+        # return result in Psi() class
+
+        psi_new = copy.deepcopy(psi)
+        psi_new.coefs = coefs_new
+        return psi_new
 
 
 def read_states(filename, **kwargs):
@@ -780,41 +843,4 @@ def retrieve_name(var):
         names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
         if len(names) > 0:
             return names[0]
-
-
-
-if __name__ == "__main__":
-
-    # read basis
-    fname_enr = "../data/richmol_files_camphor/camphor_energies_j0_j20.rchm"
-    psi = Psi(fname_enr, fmin=0, fmax=30, mmin=-30, mmax=30, dm=1, df=1, sym=['A','B1','B2','B3'])
-
-    # inital wavepacket (f,m,id,ideg,coef)
-    psi.j_m_id = (0, 0, 1, 1, 1.0)
-
-    # read tensor(s)
-    fname_tens = "../data/richmol_files_camphor/camphor_matelem_alpha_j<j1>_j<j2>.rchm"
-    alpha = Etensor(fname_tens, psi)
-
-    # time grid for time in ps
-    time_grid = np.linspace(0,300,(300)/1+1)
-    # time_grid = np.linspace(0,300,(300)/0.01+1)
-
-    # set up field (must be in units of V/m)
-    E0 = 1e+10
-    t0 = 100
-    sigma = 200
-    two_pi_c = 2.0 * np.pi * lightspeed_ * 1e-12 * 1e2 # in cm/ps
-    omega = 12500*two_pi_c
-    field_func = lambda t: E0*np.exp(-(t-t0)**2/(2*sigma**2))*np.cos(omega*t)
-    field = [[0,0,field_func(t)] for t in time_grid]
-
-    for it,t in enumerate(time_grid):
-        print(it,t)
-        hamiltonian = -0.5 * alpha * field[it] # NOTE: this only accounts for perturbation Hamiltonian
-                                               #       the field-free part is in psi.energy[f]
-        psi2 = hamiltonian * psi
-        psi = psi2
-        hamiltonian.U(0.02, 0.01, psi, method='taylor')
-        sys.exit()
 
