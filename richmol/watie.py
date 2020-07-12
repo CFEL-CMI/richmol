@@ -1,4 +1,4 @@
-"""Tools for computing molecular rotational energy levels, wave functions, and matrix elements
+"""Tools for computing rigid-molecule rotational energy levels, wave functions, and matrix elements
 of various rotation-dependent operators, such as laboratory-frame Cartesian tensor operators.
 """
 import numpy as np
@@ -10,11 +10,16 @@ import copy
 
 
 bohr_to_angstrom_ = 0.529177249    # converts distances from atomic units to Angstrom
+planck_ = 6.62606896e-27           # Plank constant in erg a second
+avogno_ = 6.0221415e+23            # Avogadro constant
+vellgt_ = 2.99792458e+10           # Speed of light constant in centimetres per second
+boltz_ = 1.380658e-16              # Boltzmann constant in erg per Kelvin
 
 
 def atom_data_from_label(atom_label):
-    """ Given atom label, returns its mass. Combine atom labels with integer mass numbers
-    to specify different isotopologues, e.g., 'H2' (deuterium), 'C13', 'N15', etc.
+    """ Given atom label, returns its properties, e.g. mass.
+    Combine atom labels with integer mass numbers to specify different isotopologues,
+    e.g., 'H2' (deuterium), 'C13', 'N15', etc.
     """
     r = re.compile("([a-zA-Z]+)([0-9]+)")
     m = r.match(atom_label)
@@ -30,20 +35,20 @@ def atom_data_from_label(atom_label):
     try:
         ind = [iso.mass_number for iso in elem.isotopes].index(mass_number)
     except ValueError:
-        raise ValueError(f"Isotope {mass_number} of the element {atom} is not found in the mendeleev " \
+        raise ValueError(f"Isotope {mass_number} of the element {atom} is not found in mendeleev " \
                 +f"database") from None
     mass = [iso.mass for iso in elem.isotopes][ind]
     return {"mass":mass}
 
 
-class Molecule():
+class RigidMolecule():
 
     @property
     def XYZ(self):
         try:
             x = self.atoms
         except AttributeError:
-            raise AttributeError(f"No atoms were specified") from None
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute 'XYZ'") from None
         res = self.atoms.copy()
         try:
             res['xyz'] = np.dot(res['xyz'], np.transpose(self.frame_rotation))
@@ -55,7 +60,7 @@ class Molecule():
     @XYZ.setter
     def XYZ(self, arg):
 
-        to_angstrom = 1 # default units are Angstrom
+        to_angstrom = 1 # default distance units are Angstrom
         xyz = []
         mass = []
         label = []
@@ -74,9 +79,9 @@ class Molecule():
                 try:
                     x,y,z = (float(ww) for ww in w[1:])
                 except ValueError:
-                    raise ValueError(f"Atom specification '{atom_label}' in XYZ file {arg} " \
+                    raise ValueError(f"Atom specification '{atom_label}' in the XYZ file {arg} " \
                             +f"is not followed by the three floating-point values of x, y, and z " \
-                            +f"coordinates") from None
+                            +f"atom coordinates") from None
                 atom_mass = atom_data_from_label(atom_label.upper())["mass"]
                 xyz.append([x,y,z])
                 mass.append(atom_mass)
@@ -100,12 +105,13 @@ class Molecule():
                             x,y,z = (float(val) for val in arg[ielem+1:ielem+4])
                         except ValueError:
                             raise ValueError(f"Atom specification '{atom_label}' is not followed " \
-                                    +f"by the three floating-point values of x, y, and z coordinates") from None
+                                    +f"by the three floating-point values of x, y, and z " \
+                                    +f"atom coordinates") from None
                         xyz.append([float(val)*to_angstrom for val in (x,y,z)])
                         mass.append(atom_mass)
                         label.append(atom_label)
         else:
-            raise TypeError(f"Unsupported argument type for atoms specification: {type(arg)}") from None
+            raise TypeError(f"Unsupported argument type {type(arg)} for atoms' specification") from None
 
         self.atoms = np.array( [(lab, mass, cart) for lab,mass,cart in zip(label,mass,xyz)], \
                                dtype=[('label','U10'),('mass','f8'),('xyz','f8',(3))] )
@@ -113,23 +119,26 @@ class Molecule():
 
     @property
     def tensor(self):
+        """ Returns a dict of all initialised tensors. """
         try:
             x = self.tens
         except AttributeError:
-            raise AttributeError(f"None molecular tensors were specified") from None
+            raise AttributeError(f"'{retrieve_name(self)}' has no attribute 'tensor'") from None
         tens = copy.copy(self.tens)
         try:
             sa = "abcdefgh"
             si = "ijklmnop"
-            for name,array in tens:
+            for name,array in tens.items():
                 ndim = array.ndim
                 if ndim>len(sa):
-                    raise ValueError(f"Number of dimensions for tensor '{name}' is too large > {len(sa)}") from None
+                    raise ValueError(f"Number of dimensions for tensor '{name}' is equal to {ndim} " \
+                            +f"and it exceeds the maximum {len(sa)}") from None
                 key = "".join(sa[i]+si[i]+"," for i in range(ndim)) \
                     + "".join(si[i] for i in range(ndim)) + "->" \
                     + "".join(sa[i] for i in range(ndim))
                 rot_mat = [self.frame_rotation for i in range(ndim)]
                 array = np.einsum(key, *rot_mat, array)
+                tens[name] = array
         except AttributeError:
             pass
         return tens
@@ -137,26 +146,128 @@ class Molecule():
 
     @tensor.setter
     def tensor(self, arg):
+        """Defines Cartesian tensor.
+
+        Examples:
+            tensor = ("mu", [0.5, -0.1, 0]) to add a permanent dipole moment vector.
+            tensor = ("my_alpha", [[10,0,0],[0,20,0],[0,0,30]]) to add a rank-2 tensor, such as,
+                for example, polarizability.
+        """
         try:
             name, tens = arg
         except ValueError:
-            raise ValueError(f"Pass an iterable with two items, tensor = (name, tensor)") from None
+            raise ValueError(f"Pass an iterable with two items, tensor = ('name', tensor)") from None
         if not isinstance(name, str):
-            raise TypeError(f"Unsupported argument type for tensor name: {type(name)}") from None
+            raise TypeError(f"Unsupported argument type {type(name)} for tensor name, must be 'str'") from None
         if isinstance(tens, (tuple, list)):
             tens = np.array(tens)
         elif isinstance(arg, np.ndarray):
             pass
         else:
-            raise TypeError(f"Unsupported argument type for tensor: {type(tens)}") from None
+            raise TypeError(f"Unsupported argument type {type(tens)} for tensor values, " \
+                    +f"must be one of: 'list', 'np.ndarray'") from None
         if not all(dim==tens.shape[0] for dim in tens.shape):
-            raise ValueError(f"Input tensor dimensions are not all equal, shape = {tens.shape}") from None
+            raise ValueError(f"Tensor dimensions are not all equal, shape = {tens.shape}") from None
         try:
             x = self.tens
         except AttributeError:
-            self.tens = []
-        self.tens.append([name,tens])
+            self.tens = {}
+        if name in self.tens:
+            raise ValueError(f"Tensor with name '{name}' already exists")
+        self.tens[name] = tens
 
+
+    @property
+    def frame(self):
+        """Returns type of molecular frame (str) and frame rotation matrix (array (3,3)).
+        """
+        try:
+            rotmat = self.frame_rotation
+            frame_type = self.frame_type
+        except AttributeError:
+            rotmat = np.eye(3, dtype=np.float64)
+            frame_type = "I"
+        return frame_type, rotmat
+
+
+    @frame.setter
+    def frame(self, arg):
+        """Defines rotation of molecular frame.
+        Cartesian coordinates of atoms and all Cartesian tensors will be rotated to a new frame.
+
+        Examples:
+            frame = "pas" will rotate to a principal axes system with x,y,z = a,b,c.
+            frame = "tens_name" will rotate to a principal axes system of a tensor with the name 
+                "tens_name", this tensor must be initialized before using the command
+                'tensor = ("name", array)'.
+            frame = "zxy" will permute axes x-->z, y-->x, and y-->z.
+            frame = "zxy,pas" will rotate to "pas" and permute x-->z, y-->x, and y-->z.
+        """
+        if isinstance(arg, str):
+            rotmat0 = np.eye(3, dtype=np.float64)
+            for fr in reversed([v.strip() for v in arg.split(',')]):
+                if fr.lower()=="pas":
+                    # principal axes system
+                    diag, rotmat = np.linalg.eigh(self.imom())
+                    rotmat0 = np.dot(np.transpose(rotmat), rotmat0)
+                    self.frame_diag = diag
+                    convert_to_cm = planck_ * avogno_ * 1e+16 / (8.0 * np.pi * np.pi * vellgt_) 
+                    self.ABC = [convert_to_cm/val for val in diag]
+                elif "".join(sorted(fr.lower()))=="xyz":
+                    # axes permutation
+                    ind = [("x","y","z").index(s) for s in list(fr.lower())]
+                    rotmat = np.zeros((3,3), dtype=np.float64)
+                    for i in range(3):
+                        rotmat[i,ind[i]] = 1.0
+                    rotmat0 = np.dot(rotmat, rotmat0)
+                else:
+                    # axes system defined by to-diagonal rotation of arbitrary rank-2 (3x3) tensor
+                    # the tensor must be initialized before, with the name matching fr
+                    try:
+                        tens = self.tensor[fr]
+                    except (AttributeError, ValueError):
+                        raise AttributeError(f"Tensor '{fr}' intended for frame rotation was not " \
+                                +f"initialised, try {retrieve_name(self)}.tensor " \
+                                +f"= ('{fr}', [[x,x,x],[x,x,x],[x,x,x]])") from None
+                    if tens.ndim!=2:
+                        raise ValueError(f"Tensor '{fr}' intended for frame rotation has a bad rank: " \
+                                +f"{tens.ndim} != 2") from None
+                    if tens.shape!=(3,3):
+                        raise ValueError(f"Tensor '{fr}' intended for frame rotation has a bad shape: " \
+                                +f"{tens.shape} != (3, 3)") from None
+                    diag, rotmat = np.linalg.eigh(tens)
+                    rotmat0 = np.dot(np.transpose(rotmat), rotmat0)
+                    self.frame_diag = diag
+        else:
+            raise TypeError(f"Unsupported argument type {type(arg)} for frame") from None
+        try:
+            self.frame_rotation = np.dot(rotmat0, self.frame_rotation)
+        except AttributeError:
+            self.frame_rotation = np.transpose(rotmat0)
+        try:
+            self.frame_type += "," + arg
+        except AttributeError:
+            self.frame_type = arg
+
+
+    def imom(self):
+        """ Inertia tensor """
+        xyz = self.XYZ['xyz']
+        mass = self.XYZ['mass']
+        cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0)/np.sum(mass)
+        xyz0 = xyz - cm[np.newaxis,:]
+        imat = np.zeros((3,3), dtype=np.float64)
+        natoms = xyz0.shape[0]
+        # off-diagonals
+        for i in range(3):
+            for j in range(3):
+                if i==j: continue
+                imat[i,j] = -np.sum([ xyz0[iatom,i]*xyz0[iatom,j]*mass[iatom] for iatom in range(natoms) ])
+        # diagonals
+        imat[0,0] = np.sum([ (xyz0[iatom,1]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
+        imat[1,1] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
+        imat[2,2] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,1]**2)*mass[iatom] for iatom in range(natoms) ])
+        return imat
 
 
 def retrieve_name(var):
@@ -172,7 +283,7 @@ def retrieve_name(var):
 if __name__=="__main__":
 
 
-    camphor = Molecule()
+    camphor = RigidMolecule()
 
     camphor.XYZ = ("angstrom", \
     "O",     -2.547204,    0.187936,   -0.213755, \
@@ -205,4 +316,10 @@ if __name__=="__main__":
 
     print(camphor.XYZ)
     camphor.tensor = ("alpha", ((1,2,3),(1,2,3),(3,4,5)))
+    camphor.tensor = ("beta", ((1,2,3),(1,2,3),(3,4,5)))
+    camphor.tensor = ("gamma", ((1,2,3),(1,2,3),(3,4,5)))
     print(camphor.tensor)
+    camphor.frame = "zyx"
+    camphor.frame = "pas"
+    a,b = camphor.frame
+    print(a,b)
