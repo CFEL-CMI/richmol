@@ -465,10 +465,8 @@ class Etensor():
                               'taylor' - use Taylor series expansion
                               'lanszos' - (not implemented)
                               'pade' - (not implemented)
-                maxorder (int): Maximal order in the Taylor series expansion (for method='taylor'),
-                                default is 20.
-                taylor_conv (float): Taylor series convergence tolerance (for method='taylor'),
-                                     default is 1e-12.
+                maxorder (int): Maximum order, default is 20.
+                conv (float): convergence tolerance, default is 1e-12.
 
         Returns:
             psi_new (Psi()): Wavepacket at time t2, psi(t2).
@@ -485,26 +483,27 @@ class Etensor():
             lightspeed = lightspeed_ * 100.0/1.0e12 # default time units = ps
 
         # method
+        methods = {"taylor" : 1}
         if "method" in kwargs:
             method = kwargs["method"].lower()
             try:
-                ind = ["taylor"].index(method)
-            except ValueError:
-                raise ValueError(f"Unknown method in 'method={method}'") from None
+                ind = methods[method]
+            except KeyError:
+                raise KeyError(f"Unknown method in 'method={method}'") from None
         else:
             method = "taylor"
 
-        # maximal order in Taylor series expansion
+        # maximal order
         if "maxorder" in kwargs:
             maxorder = kwargs["maxorder"]
         else:
             maxorder = 20
 
-        # Taylor expansion convergence tolerance
-        if "taylor_conv" in kwargs:
-            taylor_conv = kwargs["taylor_conv"]
+        # convergence tolerance
+        if "conv" in kwargs:
+            conv = kwargs["conv"]
         else:
-            taylor_conv = 1e-12
+            conv = 1e-12
 
         dt = t2 - t1
 
@@ -568,7 +567,7 @@ class Etensor():
                 for f in coefs_iorder.keys():
                     coefs_new[f] += coefs_iorder[f] * facp
 
-                if all([all(np.abs(c*facp)**2<taylor_conv) for c in coefs_iorder.values()]):
+                if all([all(np.abs(c*facp)**2<conv) for c in coefs_iorder.values()]):
                     break
 
                 if iorder==maxorder:
@@ -624,7 +623,7 @@ def read_states(filename, **kwargs):
             if fmax<kwargs['fmax']:
                 print(f"read_states: fmax is set to {fmax} which is maximal F in states file {filename}")
         else:
-            fmax = max([key[0] for key in nstates.keys()]) 
+            fmax = max([key[0] for key in nstates.keys()])
         if 'fmin' in kwargs:
             fmin = max([ kwargs['fmin'], min([key[0] for key in nstates.keys()]) ])
             if fmin>kwargs['fmin']:
@@ -843,4 +842,3 @@ def retrieve_name(var):
         names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
         if len(names) > 0:
             return names[0]
-
