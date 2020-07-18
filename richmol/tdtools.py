@@ -484,7 +484,7 @@ class Etensor():
             lightspeed = lightspeed_ * 100.0/1.0e12 # default time units = ps
 
         # method
-        methods = {"taylor" : 1, "arnoldi" : 2}
+        methods = {"taylor" : 1, "arnoldi" : 2, "lanczos" : 3}
         if "method" in kwargs:
             method = kwargs["method"].lower()
             try:
@@ -522,6 +522,8 @@ class Etensor():
             coefs[f] = psi.coefs[f] * expH0[f]
 
         # compute exp(-i*dt/hbar H'(t))
+
+        coefs_new = {}
 
         if method=="taylor":
 
@@ -568,7 +570,7 @@ class Etensor():
                 for f in coefs_iorder.keys():
                     coefs_new[f] += coefs_iorder[f] * facp
 
-                if all([all(np.abs(c*facp)**2<conv) for c in coefs_iorder.values()]):
+                if sum([np.sum(np.abs(coefs_iorder[f]*facp)**2) for f in coefs_iorder.keys()]) < conv:
                     print(iorder)
                     break
 
@@ -576,40 +578,114 @@ class Etensor():
                     raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
                             +f"to converge, max expansion order {maxorder} reached")
 
-        elif method=="arnoldi":
+        elif method == "arnoldi":
 
             # use Arnoldi iteration
 
             fac = -1j * 2*np.pi*lightspeed * self.prefac
 
-            V, H = [], np.zeros((maxorder, maxorder), dtype=np.complex128)
+            V = []
+            H = np.zeros((maxorder, maxorder), dtype=np.complex128)
 
             # first Krylov basis vector
-            V.append(coefs)
 
-            coefs_kminus1, coefs_k = copy.deepcopy(V[0]), copy.deepcopy(V[0])
-            for k in range(1, maxorder):
+            V.append(copy.deepcopy(coefs))
+
+            coefs_kminus1 = {}
+            coefs_k, conv_k, k = V[0], 1, 1
+            while k < maxorder and conv_k > conv:
 
                 # extend ONB of Krylov subspace by another vector
+
                 v = self.MKvec(self.MF, self.K, V[k - 1])
                 for j in range(k):
                     H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in v.keys()])
-                    v = {f : v[f] - H[j, k - 1] * v[f] for f in v.keys()}
+                    v = {f : v[f] - H[j, k - 1] * V[j][f] for f in v.keys()}
                 H[k, k - 1] = np.sqrt(sum([np.dot(v[f].conj(), v[f]) for f in v.keys()]))
+
+                # calculate current approximation and convergence
+
+                coefs_kminus1 = coefs_k
+                expH_k = la.expm(fac * H[: len(V), : len(V)])
+                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V)]) for f in coefs_k.keys()}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in coefs_k.keys()])
+
+                # stop if new vector vanishes
+
+                if not H[k, k - 1] > 0:
+                    break
+
                 v = {f : v[f] / H[k, k - 1] for f in v.keys()}
                 V.append(v)
 
+                k += 1
+
+            if k == maxorder:
+                raise RuntimeError(f"Arnoldi iteration of matrix exponential failed" \
+                        +f"to converge, max Krylov subspace dimension {maxorder} reached")
+
+            coefs_new = coefs_k
+
+        elif method=="lanczos":
+
+            # use Lanczos iteration
+
+            fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            V, W = [], []
+            T = np.zeros((maxorder, maxorder), dtype=np.complex128)
+
+            # first Krylov basis vector
+
+            V.append(copy.deepcopy(coefs))
+            w0 = self.MKvec(self.MF, self.K, V[0])
+            T[0, 0] = sum([np.dot(w0[f].conj(), V[0][f]) for f in w0.keys()])
+            w0 = {f : w0[f] - T[0, 0] * V[0][f] for f in w0.keys()}
+            W.append(copy.deepcopy(w0))
+
+            coefs_kminus1 = {} 
+            coefs_k, conv_k, k = V[0], 1, 1
+            while k < maxorder and conv_k > conv:
+
+                # extend ONB of Krylov subspace by another vector and
+
+                T[k - 1, k] = np.sqrt(sum([np.dot(W[k - 1][f].conj(), W[k - 1][f]) for f in W[k - 1].keys()]))
+                T[k, k - 1] = T[k - 1, k]
+
+                if not T[k - 1, k] == 0:
+                    v = {f : W[k - 1][f] / T[k - 1, k] for f in W[k - 1].keys()}
+                    V.append(v)
+
+                # reorthonormalize ONB of Krylov subspace, if neccesary
+
+                else:
+                    v = {f : np.ones(V[k - 1][f].shape[0], dtype=np.complex128) for f in V[k - 1].keys()}
+                    for j in range(k):
+                        proj_j = sum([np.dot(V[j][f].conj(), v[f]) for f in v.keys()])
+                        v = {f : v[f] - proj_j * V[j][f] for f in v.keys()}
+                    norm_v = np.sqrt(sum([np.dot(v[f].conj(), v[f]) for f in v.keys()]))
+                    v = {f : v[f] / norm_v for f in v.keys()}
+                    V.append(v)
+
+                w = self.MKvec(self.MF, self.K, V[k])
+                T[k, k] = sum([np.dot(w[f].conj(), V[k][f]) for f in w.keys()])
+                w = {f : w[f] - T[k, k] * V[k][f] - T[k - 1, k] * V[k - 1][f] for f in w.keys()}
+                W.append(w)
+
                 coefs_kminus1 = coefs_k
 
-                expH_k = la.expm(fac * H[: k + 1, : k + 1])
-                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V[: k + 1])]) for f in coefs_k.keys()}
+                expT_k = la.expm(fac * T[: k + 1, : k + 1])
+                coefs_k = {f : sum([v_i[f] * expT_k[i, 0] for i,v_i in enumerate(V)]) for f in coefs_k.keys()}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in coefs_k.keys()])
+                print(conv_k)
 
-                if all([all(np.abs(c_k - c_kminus1)**2<conv) for c_k,c_kminus1 in zip(coefs_k.values(), coefs_kminus1.values())]):
-                    break
+                k += 1
 
-                if k==maxorder:
-                    raise RuntimeError(f"Arnoldi iteration of matrix exponential failed" \
-                            +f"to converge, max Krylov subspace dimension {maxorder} reached")
+            if k == maxorder:
+                raise RuntimeError(f"Lanczos iteration of matrix exponential failed" \
+                        +f"to converge, max Krylov subspace dimension {maxorder} reached")
+
+            coefs_new = coefs_k
 
 
         # apply again exp(-i*dt/hbar/2 H0) to wavepacket
