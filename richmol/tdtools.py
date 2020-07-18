@@ -17,6 +17,7 @@ Psi() and Etensor() classes, respectively.
 
 import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
+from scipy import linalg as la
 import re
 import sys
 import os
@@ -72,7 +73,7 @@ class Psi():
             d = round(dm)
             assert (m2>=m1),f"mmin={mmin} > mmax={mmax}"
             assert (dm>=1),f"dm={dm}<1"
-            self.mlist = [round(m,1) for m in np.linspace(m1,m2,(m2-m1+1)/d)]
+            self.mlist = [round(m,1) for m in np.linspace(m1,m2,int((m2-m1)/d)+1)]
 
         # generate basis: combinations of M and field-free state quanta for each F
 
@@ -422,7 +423,7 @@ class Etensor():
     __rmul__ = __mul__
 
 
-    def MKvec(sefl, MF, K, vec):
+    def MKvec(self, MF, K, vec):
         """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
 
         Args:
@@ -483,7 +484,7 @@ class Etensor():
             lightspeed = lightspeed_ * 100.0/1.0e12 # default time units = ps
 
         # method
-        methods = {"taylor" : 1}
+        methods = {"taylor" : 1, "arnoldi" : 2}
         if "method" in kwargs:
             method = kwargs["method"].lower()
             try:
@@ -568,11 +569,48 @@ class Etensor():
                     coefs_new[f] += coefs_iorder[f] * facp
 
                 if all([all(np.abs(c*facp)**2<conv) for c in coefs_iorder.values()]):
+                    print(iorder)
                     break
 
                 if iorder==maxorder:
                     raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
                             +f"to converge, max expansion order {maxorder} reached")
+
+        elif method=="arnoldi":
+
+            # use Arnoldi iteration
+
+            fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            V, H = [], np.zeros((maxorder, maxorder), dtype=np.complex128)
+
+            # first Krylov basis vector
+            V.append(coefs)
+
+            coefs_kminus1, coefs_k = copy.deepcopy(V[0]), copy.deepcopy(V[0])
+            for k in range(1, maxorder):
+
+                # extend ONB of Krylov subspace by another vector
+                v = self.MKvec(self.MF, self.K, V[k - 1])
+                for j in range(k):
+                    H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in v.keys()])
+                    v = {f : v[f] - H[j, k - 1] * v[f] for f in v.keys()}
+                H[k, k - 1] = np.sqrt(sum([np.dot(v[f].conj(), v[f]) for f in v.keys()]))
+                v = {f : v[f] / H[k, k - 1] for f in v.keys()}
+                V.append(v)
+
+                coefs_kminus1 = coefs_k
+
+                expH_k = la.expm(fac * H[: k + 1, : k + 1])
+                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V[: k + 1])]) for f in coefs_k.keys()}
+
+                if all([all(np.abs(c_k - c_kminus1)**2<conv) for c_k,c_kminus1 in zip(coefs_k.values(), coefs_kminus1.values())]):
+                    break
+
+                if k==maxorder:
+                    raise RuntimeError(f"Arnoldi iteration of matrix exponential failed" \
+                            +f"to converge, max Krylov subspace dimension {maxorder} reached")
+
 
         # apply again exp(-i*dt/hbar/2 H0) to wavepacket
 
@@ -640,7 +678,7 @@ def read_states(filename, **kwargs):
         assert (f1>=0 and f2>=0),f"fmin={fmin} or fmax={fmax} is less than zero"
         assert (f2>=f1),f"fmin={fmin} > fmax={fmax}"
         assert (df>=1),f"df={df}<1"
-        flist = [round(f,1) for f in np.linspace(f1,f2,(f2-f1+1)/d)]
+        flist = [round(f,1) for f in np.linspace(f1,f2,int((f2-f1)/d)+1)]
 
     # create list of state symmetries
     if 'sym' in kwargs:

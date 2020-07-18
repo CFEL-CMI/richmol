@@ -17,7 +17,7 @@ if __name__ == "__main__":
     alpha = Etensor(fname_tens, psi)
 
     # time grid for time in ps
-    time_grid = np.linspace(0,300,(300)/0.01+1)
+    time_grid = np.linspace(0,1,int((0.1)/0.01)+1)
 
     # set up field (must be in units of V/m)
     E0 = 1e+10
@@ -38,4 +38,3 @@ if __name__ == "__main__":
         psi2 = hamiltonian.U(0.02, 0.01, psi, method="taylor")
         psi = psi2
         #sys.exit()
-
