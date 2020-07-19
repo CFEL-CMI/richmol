@@ -1,5 +1,5 @@
 import numpy as np
-import sys, time, copy
+import sys, copy
 from richmol.tdtools import Psi, Etensor
 
 
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     alpha = Etensor(fname_tens, psi)
 
     # time grid for time in ps
-    time_grid = np.linspace(0,1,int((0.1)/0.01)+1)
+    time_grid = np.linspace(0,0.3,11)
 
     # set up field (must be in units of V/m)
     E0 = 1e+10
@@ -39,27 +39,19 @@ if __name__ == "__main__":
         hamiltonian = -0.5 * alpha * field[it] # NOTE: this only accounts for perturbation Hamiltonian
                                                #       the field-free part is in psi.energy[f]
 
-        time0 = time.time()
         psi_t2 = hamiltonian.U(t_in, t_out, psi_t, method="taylor")
-        print("   t_tay = " + str(round(time.time() - time0, 4)) + " sec")
-
-        time0 = time.time()
         psi_a2 = hamiltonian.U(t_in, t_out, psi_a, method="arnoldi")
-        print("   t_arn = " + str(round(time.time() - time0, 4)) + " sec")
+        psi_l2 = hamiltonian.U(t_in, t_out, psi_l, method="lanczos")
 
-        #time0 = time.time()
-        #psi_l2 = hamiltonian.U(t_in, t_out, psi_l, method="lanczos")
-        #print("   t_lan = " + str(round(time.time() - time0, 4)) + " sec")
+        conv = sum([np.sum(np.abs(psi_t2.coefs[f] - psi_a2.coefs[f])**2) for f in psi.coefs.keys()])
+        print("   conv_tay_arn = " + str(conv))
 
-        eps = sum([np.sum(np.abs(psi_t2.coefs[f] - psi_a2.coefs[f])**2) for f in psi.coefs.keys()])
-        print("   eps_tay_arn = " + str(eps))
+        conv = sum([np.sum(np.abs(psi_a2.coefs[f] - psi_l2.coefs[f])**2) for f in psi.coefs.keys()])
+        print("   conv_arn_lan = " + str(conv))
 
-        #eps = np.sqrt(sum([np.sum(np.abs(psi_a2.coefs[f] - psi_l2.coefs[f])**2) for f in psi.coefs.keys()]))
-        #print("   eps_arn_lan = " + str(eps))
-
-        #eps = np.sqrt(sum([np.sum(np.abs(psi_l2.coefs[f] - psi_t2.coefs[f])**2) for f in psi.coefs.keys()]))
-        #print("   eps_lan_tay = " + str(eps))
+        conv = sum([np.sum(np.abs(psi_l2.coefs[f] - psi_t2.coefs[f])**2) for f in psi.coefs.keys()])
+        print("   conv_lan_tay = " + str(conv))
 
         psi_t = psi_t2
         psi_a = psi_a2
-        #psi_l = psi_l2
+        psi_l = psi_l2

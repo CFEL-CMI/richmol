@@ -19,7 +19,7 @@ import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
 from scipy import linalg as la
 import re
-import sys
+import sys, time
 import os
 import itertools
 import inspect
@@ -423,7 +423,7 @@ class Etensor():
     __rmul__ = __mul__
 
 
-    def MKvec(self, MF, K, vec):
+    def MKvec_old(self, MF, K, vec):
         """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
 
         Args:
@@ -442,6 +442,30 @@ class Etensor():
             dim = MF[fkey][0].shape[0] * K[fkey][0].shape[0]
             vecT = np.transpose(vec[f2].reshape(dim1, dim2))
             vec_new[f1] = np.zeros(dim, dtype=np.complex128)
+            for mm,kk in zip(MF[fkey],K[fkey]):
+                tmat = csr_matrix.dot(kk, vecT)
+                vec_new[f1] += np.dot(mm,np.transpose(tmat)).reshape(dim)
+        return vec_new
+
+
+    def MKvec(self, MF, K, vec):
+        """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
+
+        Args:
+            MF (dict): M-tensor contracted with electric field, same as Etensor().MF.
+            K (dict): K-tensor, same as Etensor().K.
+            vec (dict): Wavepacket vector, same as Psi().coefs.
+
+        Returns:
+            vec_new (dict): result of (MF x K) * vec, has the same structure as vec.
+        """
+        vec_new = {f : np.zeros(vec[f].shape, dtype=np.complex128) for f in vec.keys()}
+        for fkey in list(set(MF.keys()) & set(K.keys())):
+            f1, f2 = fkey
+            dim1 = MF[fkey][0].shape[1]
+            dim2 = K[fkey][0].shape[1]
+            dim = MF[fkey][0].shape[0] * K[fkey][0].shape[0]
+            vecT = np.transpose(vec[f2].reshape(dim1, dim2))
             for mm,kk in zip(MF[fkey],K[fkey]):
                 tmat = csr_matrix.dot(kk, vecT)
                 vec_new[f1] += np.dot(mm,np.transpose(tmat)).reshape(dim)
@@ -495,10 +519,11 @@ class Etensor():
             method = "taylor"
 
         # maximal order
+        maxorders = {"taylor" : 100, "arnoldi" : 100, "lanczos" : 100}
         if "maxorder" in kwargs:
             maxorder = kwargs["maxorder"]
         else:
-            maxorder = 20
+            maxorder = maxorders[method]
 
         # convergence tolerance
         if "conv" in kwargs:
@@ -517,15 +542,13 @@ class Etensor():
 
         # apply exp(-i*dt/hbar/2 H0) to wavepacket
 
-        coefs = {}
-        for f in psi.flist:
-            coefs[f] = psi.coefs[f] * expH0[f]
+        coefs = {f : expH0[f] * psi.coefs[f] for f in psi.flist}
 
         # compute exp(-i*dt/hbar H'(t))
 
         coefs_new = {}
 
-        if method=="taylor":
+        if method=="taylor2":
 
             # use Taylor series expansion of matrix exponential
 
@@ -535,7 +558,7 @@ class Etensor():
 
             Mpow = copy.deepcopy(self.MF)
             Kpow = copy.deepcopy(self.K)
-            coefs_ = self.MKvec(Mpow, Kpow, coefs)
+            coefs_ = self.MKvec2(Mpow, Kpow, coefs)
             coefs_new = {f : coefs[f] + coefs_[f] * fac for f in coefs.keys()}
 
             # higher powers
@@ -564,25 +587,62 @@ class Etensor():
                             continue
                         Mt = [np.dot(x, y) for x,y in zip(M,Mp)]
                         Kt = [csr_matrix.dot(x, y) for x,y in zip(K,Kp)]
-                        coefs_ = self.MKvec({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
+                        coefs_ = self.MKvec2({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
                         coefs_iorder[f1] += coefs_[f1]
 
                 for f in coefs_iorder.keys():
                     coefs_new[f] += coefs_iorder[f] * facp
 
                 if sum([np.sum(np.abs(coefs_iorder[f]*facp)**2) for f in coefs_iorder.keys()]) < conv:
-                    print(iorder)
                     break
 
                 if iorder==maxorder:
                     raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
-                            +f"to converge, max expansion order {maxorder} reached")
+                            +f" to converge, max expansion order {maxorder} reached")
+
+
+        elif method=="taylor":
+
+            # use Taylor series expansion of matrix exponential
+
+            fac = -1j * dt * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
+
+            V = []
+
+            # zeroth power
+
+            V.append(copy.deepcopy(coefs))
+
+            # higher powers
+
+            conv_k, k = 1, 0
+            while k < maxorder and conv_k > conv:
+
+                k += 1
+
+                v = self.MKvec(self.MF, self.K, V[k - 1])
+                v = {f : fac / k * v[f] for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(v[f])**2) for f in psi.flist])
+
+                V.append(v)
+
+            print("   t_tay = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
+
+            if k == maxorder:
+                raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
+                        +f" to converge, max expansion order {maxorder} reached")
+
+            coefs_new = {f : sum([v[f] for v in V]) for f in psi.flist}
 
         elif method == "arnoldi":
 
             # use Arnoldi iteration
 
             fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
 
             V = []
             H = np.zeros((maxorder, maxorder), dtype=np.complex128)
@@ -591,34 +651,34 @@ class Etensor():
 
             V.append(copy.deepcopy(coefs))
 
-            coefs_kminus1 = {}
-            coefs_k, conv_k, k = V[0], 1, 1
+            coefs_kminus1, coefs_k, conv_k, k = {}, V[0], 1, 1
             while k < maxorder and conv_k > conv:
 
                 # extend ONB of Krylov subspace by another vector
 
                 v = self.MKvec(self.MF, self.K, V[k - 1])
                 for j in range(k):
-                    H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in v.keys()])
-                    v = {f : v[f] - H[j, k - 1] * V[j][f] for f in v.keys()}
-                H[k, k - 1] = np.sqrt(sum([np.dot(v[f].conj(), v[f]) for f in v.keys()]))
+                    H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                    v = {f : v[f] - H[j, k - 1] * V[j][f] for f in psi.flist}
 
                 # calculate current approximation and convergence
 
                 coefs_kminus1 = coefs_k
-                expH_k = la.expm(fac * H[: len(V), : len(V)])
-                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V)]) for f in coefs_k.keys()}
-                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in coefs_k.keys()])
+                expH_k = la.expm(fac * H[: k, : k])
+                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V)]) for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in psi.flist])
 
                 # stop if new vector vanishes
 
-                if not H[k, k - 1] > 0:
+                H[k, k - 1] = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
+                if not H[k, k - 1] > conv:
                     break
 
-                v = {f : v[f] / H[k, k - 1] for f in v.keys()}
+                v = {f : v[f] / H[k, k - 1] for f in psi.flist}
                 V.append(v)
-
                 k += 1
+
+            print("   t_arn = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
 
             if k == maxorder:
                 raise RuntimeError(f"Arnoldi iteration of matrix exponential failed" \
@@ -626,11 +686,13 @@ class Etensor():
 
             coefs_new = coefs_k
 
-        elif method=="lanczos":
+        elif method == "lanczos" :
 
             # use Lanczos iteration
 
             fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
 
             V, W = [], []
             T = np.zeros((maxorder, maxorder), dtype=np.complex128)
@@ -638,48 +700,47 @@ class Etensor():
             # first Krylov basis vector
 
             V.append(copy.deepcopy(coefs))
-            w0 = self.MKvec(self.MF, self.K, V[0])
-            T[0, 0] = sum([np.dot(w0[f].conj(), V[0][f]) for f in w0.keys()])
-            w0 = {f : w0[f] - T[0, 0] * V[0][f] for f in w0.keys()}
-            W.append(copy.deepcopy(w0))
+            w = self.MKvec(self.MF, self.K, V[0])
+            T[0, 0] = sum([np.dot(w[f].conj(), V[0][f]) for f in psi.flist])
+            W.append({f : w[f] - T[0, 0] * V[0][f] for f in psi.flist})
 
-            coefs_kminus1 = {} 
-            coefs_k, conv_k, k = V[0], 1, 1
+            coefs_kminus1, coefs_k, conv_k, k = {}, V[0], 1, 1
             while k < maxorder and conv_k > conv:
 
                 # extend ONB of Krylov subspace by another vector and
 
-                T[k - 1, k] = np.sqrt(sum([np.dot(W[k - 1][f].conj(), W[k - 1][f]) for f in W[k - 1].keys()]))
+                T[k - 1, k] = np.sqrt(sum([np.sum(np.abs(W[k - 1][f])**2) for f in psi.flist]))
                 T[k, k - 1] = T[k - 1, k]
 
                 if not T[k - 1, k] == 0:
-                    v = {f : W[k - 1][f] / T[k - 1, k] for f in W[k - 1].keys()}
+                    v = {f : W[k - 1][f] / T[k - 1, k] for f in psi.flist}
                     V.append(v)
 
                 # reorthonormalize ONB of Krylov subspace, if neccesary
 
                 else:
-                    v = {f : np.ones(V[k - 1][f].shape[0], dtype=np.complex128) for f in V[k - 1].keys()}
+                    v = {f : np.ones(V[k - 1][f].shape, dtype=np.complex128) for f in psi.flist}
                     for j in range(k):
-                        proj_j = sum([np.dot(V[j][f].conj(), v[f]) for f in v.keys()])
-                        v = {f : v[f] - proj_j * V[j][f] for f in v.keys()}
-                    norm_v = np.sqrt(sum([np.dot(v[f].conj(), v[f]) for f in v.keys()]))
-                    v = {f : v[f] / norm_v for f in v.keys()}
+                        proj_j = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                        v = {f : v[f] - proj_j * V[j][f] for f in psi.flist}
+                    norm_v = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
+                    v = {f : v[f] / norm_v for f in psi.flist}
                     V.append(v)
 
                 w = self.MKvec(self.MF, self.K, V[k])
-                T[k, k] = sum([np.dot(w[f].conj(), V[k][f]) for f in w.keys()])
-                w = {f : w[f] - T[k, k] * V[k][f] - T[k - 1, k] * V[k - 1][f] for f in w.keys()}
+                T[k, k] = sum([np.dot(w[f].conj(), V[k][f]) for f in psi.flist])
+                w = {f : w[f] - T[k, k] * V[k][f] - T[k - 1, k] * V[k - 1][f] for f in psi.flist}
                 W.append(w)
 
                 coefs_kminus1 = coefs_k
 
                 expT_k = la.expm(fac * T[: k + 1, : k + 1])
-                coefs_k = {f : sum([v_i[f] * expT_k[i, 0] for i,v_i in enumerate(V)]) for f in coefs_k.keys()}
-                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in coefs_k.keys()])
-                print(conv_k)
+                coefs_k = {f : sum([v_i[f] * expT_k[i, 0] for i,v_i in enumerate(V)]) for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in psi.flist])
 
                 k += 1
+
+            print("   t_lan = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
 
             if k == maxorder:
                 raise RuntimeError(f"Lanczos iteration of matrix exponential failed" \
@@ -687,11 +748,9 @@ class Etensor():
 
             coefs_new = coefs_k
 
-
         # apply again exp(-i*dt/hbar/2 H0) to wavepacket
 
-        for f in psi.flist:
-            coefs_new[f] = coefs_new[f] * expH0[f]
+        coefs_new = {f : expH0[f] * coefs_new[f] for f in psi.flist}
 
         # return result in Psi() class
 
