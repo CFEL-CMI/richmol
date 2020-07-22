@@ -10,6 +10,7 @@ import re
 import inspect
 import copy
 from ctypes import CDLL, c_double, c_int, POINTER, RTLD_GLOBAL
+import warnings
 
 
 bohr_to_angstrom_ = 0.529177249    # converts distances from atomic units to Angstrom
@@ -18,6 +19,7 @@ avogno_ = 6.0221415e+23            # Avogadro constant
 vellgt_ = 2.99792458e+10           # Speed of light constant in centimetres per second
 boltz_ = 1.380658e-16              # Boltzmann constant in erg per Kelvin
 small_ = np.finfo(float).eps
+large_ = np.finfo(float).max
 
 
 # load Fortran library symtoplib
@@ -120,7 +122,7 @@ class RigidMolecule():
                         mass.append(atom_mass)
                         label.append(atom_label)
         else:
-            raise TypeError(f"Unsupported argument type {type(arg)} for atoms' specification") from None
+            raise TypeError(f"Unsupported argument type '{type(arg)}' for atoms' specification") from None
 
         self.atoms = np.array( [(lab, mass, cart) for lab,mass,cart in zip(label,mass,xyz)], \
                                dtype=[('label','U10'),('mass','f8'),('xyz','f8',(3))] )
@@ -133,7 +135,7 @@ class RigidMolecule():
             x = self.tens
         except AttributeError:
             raise AttributeError(f"'{retrieve_name(self)}.tensor' was not initialized") from None
-        tens = copy.copy(self.tens)
+        tens = copy.deepcopy(self.tens)
         try:
             sa = "abcdefgh"
             si = "ijklmnop"
@@ -154,34 +156,47 @@ class RigidMolecule():
 
     @tensor.setter
     def tensor(self, arg):
-        """Defines Cartesian tensor
+        """Defines Cartesian tensor in the molecule-fixed frame
 
         Examples:
             tensor = ("mu", [0.5, -0.1, 0]) to add a permanent dipole moment vector.
             tensor = ("my_alpha", [[10,0,0],[0,20,0],[0,0,30]]) to add a rank-2 tensor, such as,
                 for example, polarizability.
         """
+        # check if input is (name, tensor)
         try:
             name, tens = arg
+            name = name.strip()
         except ValueError:
             raise ValueError(f"Pass an iterable with two items, tensor = ('name', tensor)") from None
+        # check if name and tensor have proper types
         if not isinstance(name, str):
-            raise TypeError(f"Unsupported argument type {type(name)} for tensor name, must be 'str'") from None
+            raise TypeError(f"Unsupported argument type '{type(name)}' for tensor name, must be 'str'") from None
         if isinstance(tens, (tuple, list)):
             tens = np.array(tens)
-        elif isinstance(arg, np.ndarray):
+        elif isinstance(tens, (np.ndarray,np.generic)):
             pass
         else:
-            raise TypeError(f"Unsupported argument type {type(tens)} for tensor values, " \
-                    +f"must be one of: 'list', 'np.ndarray'") from None
-        if not all(dim==tens.shape[0] for dim in tens.shape):
-            raise ValueError(f"Tensor dimensions are not all equal, shape = {tens.shape}") from None
+            raise TypeError(f"Unsupported argument type '{type(tens)}' for tensor values, " \
+                    +f"must be one of: 'list', 'numpy.ndarray'") from None
+        # check if name and tensor have proper values
+        if "," in name or len(name)==0:
+            raise ValueError(f"Illegal tensor name '{name}', it must not contain commas and must not be empty")
+        if not all(dim==3 for dim in tens.shape):
+            raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+        if np.all(np.abs(tens)<small_):
+            raise ValueError(f"Tensor has all its elements equal to zero") from None
+        if np.any(np.abs(tens)>large_*0.1):
+            raise ValueError(f"Tensor has too large values of its elements") from None
+        if np.any(np.isnan(tens)):
+            raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
+        # save tensor
         try:
             x = self.tens
         except AttributeError:
             self.tens = {}
         if name in self.tens:
-            raise ValueError(f"Tensor with name '{name}' already exists")
+            raise ValueError(f"Tensor with name '{name}' already exists") from None
         self.tens[name] = tens
 
 
@@ -211,44 +226,64 @@ class RigidMolecule():
             frame = "zxy,pas" will rotate to "pas" and permute x-->z, y-->x, and y-->z.
         """
         if isinstance(arg, str):
+
             rotmat0 = np.eye(3, dtype=np.float64)
+
             for fr in reversed([v.strip() for v in arg.split(',')]):
+
+                assert (len(fr)>0), f"Illegal frame type specification: '{arg}'"
+
                 if fr.lower()=="pas":
                     # principal axes system
-                    diag, rotmat = np.linalg.eigh(self.imom())
+                    try:
+                        diag, rotmat = np.linalg.eigh(self.imom())
+                    except np.linalg.LinAlgError:
+                        raise RuntimeError("Eigenvalues did not converge") from None
+                    # append rotation to a total rotation matrix
                     rotmat0 = np.dot(np.transpose(rotmat), rotmat0)
+                    # evaluate and store rotational constants in units cm^-1
                     self.frame_diag = diag
                     convert_to_cm = planck_ * avogno_ * 1e+16 / (8.0 * np.pi * np.pi * vellgt_) 
                     self.ABC = [convert_to_cm/val for val in diag]
+
                 elif "".join(sorted(fr.lower()))=="xyz":
                     # axes permutation
                     ind = [("x","y","z").index(s) for s in list(fr.lower())]
                     rotmat = np.zeros((3,3), dtype=np.float64)
                     for i in range(3):
                         rotmat[i,ind[i]] = 1.0
+                    # append rotation to a total rotation matrix
                     rotmat0 = np.dot(rotmat, rotmat0)
+
                 else:
                     # axes system defined by to-diagonal rotation of arbitrary rank-2 (3x3) tensor
                     # the tensor must be initialized before, with the name matching fr
                     try:
                         tens = self.tensor[fr]
-                    except (AttributeError, ValueError):
-                        raise AttributeError(f"Tensor '{fr}' was not initialised") from None
+                    except KeyError:
+                        raise KeyError(f"Tensor '{fr}' was not initialised") from None
                     if tens.ndim!=2:
-                        raise ValueError(f"Tensor '{fr}' has a bad rank: {tens.ndim} != 2") from None
-                    if tens.shape!=(3,3):
-                        raise ValueError(f"Tensor '{fr}' has a bad shape: {tens.shape} != (3, 3)") from None
-                    if np.any(np.abs(tens-np.transpose(tens))>small_*10.0):
+                        raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} != 2") from None
+                    if np.any(np.abs(tens-tens.T)>small_*10.0):
                         raise ValueError(f"Tensor '{fr}' is not symmetric") from None
-                    diag, rotmat = np.linalg.eigh(tens)
+                    try:
+                        diag, rotmat = np.linalg.eigh(tens)
+                    except np.linalg.LinAlgError:
+                        raise RuntimeError("Eigenvalues did not converge") from None
+                    # append rotation to a total rotation matrix
                     rotmat0 = np.dot(np.transpose(rotmat), rotmat0)
                     self.frame_diag = diag
+
         else:
-            raise TypeError(f"Unsupported argument type {type(arg)} for frame specification, must be 'str'") from None
+            raise TypeError(f"Unsupported argument type '{type(arg)}' for frame specification, must be 'str'") from None
+
+        # update global frame rotation matrix
         try:
             self.frame_rotation = np.dot(rotmat0, self.frame_rotation)
         except AttributeError:
             self.frame_rotation = rotmat0
+
+        # update a string that keeps track of all frame rotations
         try:
             self.frame_type += "," + arg
         except AttributeError:
@@ -324,7 +359,6 @@ class SymtopBasis():
                 self.jk_table['c'][iprim,ibas] = cc
 
 
-
     def wang_coefs(self, j, k, tau):
         """Wang's symmetrization coefficients c1 and c2 for symmetric-top function in the form
         |J,k,tau> = c1|J,k> + c2|J,-k>
@@ -357,6 +391,38 @@ class SymtopBasis():
             elif k>0:
                 coefs = [complex(0.0,fac1), complex(0.0,-fac2)]
         return coefs, kval
+
+
+    def overlap(self, arg):
+        """ Computes overlap matrix elements <self|arg>
+
+        Args:
+            arg (SymtopBasis or J): represents set of linear combinations of symmetric-top functions,
+                can be either a basis set, i.e., SymtopBas(), or a result of an action of angular
+                momentum operator(s) on a basis set, i.e., J() class.
+                It must contain 'jk_table' attribute.
+        Returns:
+            res (np.ndarray): overlap matrix elements <self|arg> between self and arg sets of functions.
+        """
+        try:
+            table_ket = arg.jk_table
+        except AttributeError:
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+        table_bra = self.jk_table
+        jk_ket = [tuple(x) for x in table_ket['jk']]
+        jk_bra = [tuple(x) for x in table_bra['jk']]
+        coefs_ket = table_ket['c']
+        coefs_bra = table_bra['c'].conj().T
+        # find overlapping jk quanta in both bra and ket lists
+        both = set(jk_bra).intersection(jk_ket)
+        ind_bra = [jk_bra.index(x) for x in both]
+        ind_ket = [jk_ket.index(x) for x in both]
+        if len(both)==0:
+            warnings.warn(f"functions {retrieve_name(self)} and {retrieve_name(arg)} have no " \
+                +f"overlapping J,k quanta, the overlap is zero!")
+        # dot product across overlapping jk quanta
+        res = np.dot(coefs_bra[:,ind_bra], coefs_ket[ind_ket,:])
+        return res
 
 
 
@@ -856,15 +922,38 @@ if __name__=="__main__":
     "H",     -0.267696,    1.035608,   -2.160680)
 
     print(camphor.XYZ)
-    camphor.tensor = ("alpha", ((1,2,3),(2,2,3),(3,3,5)))
+    t = np.random.rand(3,3)
+    t = (t+t.T) * 0.5
+    camphor.tensor = ("aa", t)
     print(camphor.tensor)
     print(camphor.imom())
-    camphor.frame = "pas"
+    camphor.frame = "aa"
+    print(camphor.tensor)
+    sys.exit()
     #a,b = camphor.frame
     #print(a,b)
     #print(camphor.XYZ)
     print("\n")
     print(camphor.imom())
     print(camphor.ABC)
-    bas = symmetrize(SymtopBasis(70), sym="D2")
-    #print(bas.jk_table)
+    bas = symmetrize(SymtopBasis(10), sym="D2")
+    print(bas.keys())
+    A,B,C = camphor.ABC
+    for sym,sym_bas in bas.items():
+        Jx2 = Jxx(sym_bas)
+        Jy2 = Jyy(sym_bas)
+        Jz2 = Jzz(sym_bas)
+        h = B * Jx2 + A * Jy2 + C * Jz2 
+        mat = sym_bas.overlap(h)
+        enr, vec = np.linalg.eigh(mat)
+        print(sym, enr)
+
+    # A,B,C = camphor.ABC
+    # bas = SymtopBasis(10)
+    # Jx2 = Jxx(bas)
+    # Jy2 = Jyy(bas)
+    # Jz2 = Jzz(bas)
+    # h = B * Jx2 + C * Jy2 + A * Jz2 
+    # mat = bas.overlap(h)
+    # enr, vec = np.linalg.eigh(mat)
+    # print(enr)
