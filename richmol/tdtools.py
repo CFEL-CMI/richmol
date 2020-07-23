@@ -1,7 +1,25 @@
+"""Module for solving the TDSE with the Hamiltonian represented by a sum of the molecular stationary
+Hamiltonian H0 and the time-dependent molecule-field interaction potential V(t).
+
+The potential V(t) for interaction with electric field is represented by a multipole-moment expansion
+V(t) = -mu_A E_A(t) - 1/2 alpha_AB E_A(t) E_B(t) -1/6 beta_ABC E_A(t) E_B(t) E_C(t) - ....,
+where mu, alpha, and beta are molecular permanent dipole moment, polarisability, and first
+hyperpolarizability, respectively, E(t) is the time-dependent electric field,
+and A, B, C are X, Y, or Z Cartesian components in the laboratory frame.
+
+The wavepacket is constructed as a linear combination of molecular stationary states,
+i.e., eigenstates of H0, with time-dependent coefficients. The molecular energies (eigenvalues of H0)
+and the matrix elements of mu, alpha, beta, etc. Cartesian tensors in the basis of molecular
+stationary states are assumed to be computed with some other program and stored in separate files
+using the so-called Richmol format. The energies and tensor matrix elements can be loaded using
+Psi() and Etensor() classes, respectively.
+"""
+
 import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
+from scipy import linalg as la
 import re
-import sys
+import sys, time
 import os
 import itertools
 import inspect
@@ -55,7 +73,7 @@ class Psi():
             d = round(dm)
             assert (m2>=m1),f"mmin={mmin} > mmax={mmax}"
             assert (dm>=1),f"dm={dm}<1"
-            self.mlist = [round(m,1) for m in np.linspace(m1,m2,(m2-m1+1)/d)]
+            self.mlist = [round(m,1) for m in np.linspace(m1,m2,int((m2-m1)/d)+1)]
 
         # generate basis: combinations of M and field-free state quanta for each F
 
@@ -193,7 +211,7 @@ class Etensor():
                 conv = {"DEBYE":np.float64(0.393456)}[units.upper()]
                 print(f"Etensor: using factor {conv} to convert from Debye to atomic units")
             except KeyError:
-                raise NotImplementedError(f"Tensor units in 'units={units}' are not implemented") from None
+                raise KeyError(f"Unknown tensor units in 'units={units}'") from None
             self.prefac *= conv
 
         # read Richmol matrix elements for all combinations of bra and ket F quanta spanned by basis
@@ -405,7 +423,7 @@ class Etensor():
     __rmul__ = __mul__
 
 
-    def MKvec(sefl, MF, K, vec):
+    def MKvec_old(self, MF, K, vec):
         """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
 
         Args:
@@ -430,15 +448,53 @@ class Etensor():
         return vec_new
 
 
+    def MKvec(self, MF, K, vec):
+        """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
+
+        Args:
+            MF (dict): M-tensor contracted with electric field, same as Etensor().MF.
+            K (dict): K-tensor, same as Etensor().K.
+            vec (dict): Wavepacket vector, same as Psi().coefs.
+
+        Returns:
+            vec_new (dict): result of (MF x K) * vec, has the same structure as vec.
+        """
+        vec_new = {f : np.zeros(vec[f].shape, dtype=np.complex128) for f in vec.keys()}
+        for fkey in list(set(MF.keys()) & set(K.keys())):
+            f1, f2 = fkey
+            dim1 = MF[fkey][0].shape[1]
+            dim2 = K[fkey][0].shape[1]
+            dim = MF[fkey][0].shape[0] * K[fkey][0].shape[0]
+            vecT = np.transpose(vec[f2].reshape(dim1, dim2))
+            for mm,kk in zip(MF[fkey],K[fkey]):
+                tmat = csr_matrix.dot(kk, vecT)
+                vec_new[f1] += np.dot(mm,np.transpose(tmat)).reshape(dim)
+        return vec_new
+
+
     def U(self, t2, t1, psi, **kwargs):
         """Computes psi(t2) = U(t2, t1) psi(t1) using split-operator approach.
 
         Hamiltonian can be naturally split into stationary and field-dependent parts, i.e,
-        H = H0 + H'(t), where H0 is field-free molecular Hamiltonian, diagonal by the choice
+        H = H0 + V(t), where H0 is field-free molecular Hamiltonian, diagonal by the choice
         of the basis set.
         Using split-operator approach, the time-evolution operator can be calculated as
-        exp(-i*dt/hbar*H) ~ exp(-i*dt/hbar/2*H0) * exp(-i*dt/hbar*H'(t)) * exp(-i*dt/hbar/2*H0)
+        exp(-i*dt/hbar*H) ~ exp(-i*dt/hbar/2*H0) * exp(-i*dt/hbar*V(t)) * exp(-i*dt/hbar/2*H0).
 
+        Args:
+            t2, t1 (float): Final and initial propagation times.
+            psi (Psi()): Wavepacket at time t1, psi(t1).
+            kwargs:
+                units (str): Units of time, use 'ps' for picoseconds, 'fs' for femtoseconds.
+                method (str): Method for computing matrix exponential exp(-i*dt/hbar*V(t)):
+                              'taylor' - use Taylor series expansion
+                              'lanszos' - (not implemented)
+                              'pade' - (not implemented)
+                maxorder (int): Maximum order, default is 20.
+                conv (float): convergence tolerance, default is 1e-12.
+
+        Returns:
+            psi_new (Psi()): Wavepacket at time t2, psi(t2).
         """
 
         # time units
@@ -452,20 +508,28 @@ class Etensor():
             lightspeed = lightspeed_ * 100.0/1.0e12 # default time units = ps
 
         # method
+        methods = {"taylor" : 1, "arnoldi" : 2, "lanczos" : 3}
         if "method" in kwargs:
             method = kwargs["method"].lower()
             try:
-                ind = ["taylor"].index(method)
-            except IndexError:
-                raise IndexError(f"Unknown method in 'method={method}'") from None
+                ind = methods[method]
+            except KeyError:
+                raise KeyError(f"Unknown method in 'method={method}'") from None
         else:
             method = "taylor"
 
-        # maximal order in Taylor series expansion
+        # maximal order
+        maxorders = {"taylor" : 100, "arnoldi" : 100, "lanczos" : 100}
         if "maxorder" in kwargs:
             maxorder = kwargs["maxorder"]
         else:
-            maxorder = 20
+            maxorder = maxorders[method]
+
+        # convergence tolerance
+        if "conv" in kwargs:
+            conv = kwargs["conv"]
+        else:
+            conv = 1e-12
 
         dt = t2 - t1
 
@@ -478,13 +542,13 @@ class Etensor():
 
         # apply exp(-i*dt/hbar/2 H0) to wavepacket
 
-        coefs = {}
-        for f in psi.flist:
-            coefs[f] = psi.coefs[f] * expH0[f]
+        coefs = {f : expH0[f] * psi.coefs[f] for f in psi.flist}
 
         # compute exp(-i*dt/hbar H'(t))
 
-        if method=="taylor":
+        coefs_new = {}
+
+        if method=="taylor2":
 
             # use Taylor series expansion of matrix exponential
 
@@ -494,16 +558,19 @@ class Etensor():
 
             Mpow = copy.deepcopy(self.MF)
             Kpow = copy.deepcopy(self.K)
-            coefs_ = self.MKvec(Mpow, Kpow, coefs)
+            coefs_ = self.MKvec2(Mpow, Kpow, coefs)
             coefs_new = {f : coefs[f] + coefs_[f] * fac for f in coefs.keys()}
 
             # higher powers
 
             facp = fac
+            coefs_iorder = {f:np.zeros(psi.coefs[f].shape, dtype=np.complex128) for f in psi.flist}
 
             for iorder in range(2,maxorder):
 
                 facp = facp * fac / float(iorder)
+                for f in psi.flist:
+                    coefs_iorder[f][:] = 0
 
                 for fkey in list(set(Mpow.keys()) & set(Kpow.keys())):
                     f1, f2 = fkey
@@ -520,8 +587,176 @@ class Etensor():
                             continue
                         Mt = [np.dot(x, y) for x,y in zip(M,Mp)]
                         Kt = [csr_matrix.dot(x, y) for x,y in zip(K,Kp)]
-                        coefs_ = self.MKvec({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
-                        coefs_new[f1] += coefs_[f1] * facp
+                        coefs_ = self.MKvec2({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
+                        coefs_iorder[f1] += coefs_[f1]
+
+                for f in coefs_iorder.keys():
+                    coefs_new[f] += coefs_iorder[f] * facp
+
+                if sum([np.sum(np.abs(coefs_iorder[f]*facp)**2) for f in coefs_iorder.keys()]) < conv:
+                    break
+
+                if iorder==maxorder:
+                    raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
+                            +f" to converge, max expansion order {maxorder} reached")
+
+
+        elif method=="taylor":
+
+            # use Taylor series expansion of matrix exponential
+
+            fac = -1j * dt * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
+
+            V = []
+
+            # zeroth power
+
+            V.append(copy.deepcopy(coefs))
+
+            # higher powers
+
+            conv_k, k = 1, 0
+            while k < maxorder and conv_k > conv:
+
+                k += 1
+
+                v = self.MKvec(self.MF, self.K, V[k - 1])
+                v = {f : fac / k * v[f] for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(v[f])**2) for f in psi.flist])
+
+                V.append(v)
+
+            print("   t_tay = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
+
+            if k == maxorder:
+                raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
+                        +f" to converge, max expansion order {maxorder} reached")
+
+            coefs_new = {f : sum([v[f] for v in V]) for f in psi.flist}
+
+        elif method == "arnoldi":
+
+            # use Arnoldi iteration
+
+            fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
+
+            V = []
+            H = np.zeros((maxorder, maxorder), dtype=np.complex128)
+
+            # first Krylov basis vector
+
+            V.append(copy.deepcopy(coefs))
+
+            coefs_kminus1, coefs_k, conv_k, k = {}, V[0], 1, 1
+            while k < maxorder and conv_k > conv:
+
+                # extend ONB of Krylov subspace by another vector
+
+                v = self.MKvec(self.MF, self.K, V[k - 1])
+                for j in range(k):
+                    H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                    v = {f : v[f] - H[j, k - 1] * V[j][f] for f in psi.flist}
+
+                # calculate current approximation and convergence
+
+                coefs_kminus1 = coefs_k
+                expH_k = la.expm(fac * H[: k, : k])
+                coefs_k = {f : sum([v_i[f] * expH_k[i, 0] for i,v_i in enumerate(V)]) for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in psi.flist])
+
+                # stop if new vector vanishes
+
+                H[k, k - 1] = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
+                if not H[k, k - 1] > conv:
+                    break
+
+                v = {f : v[f] / H[k, k - 1] for f in psi.flist}
+                V.append(v)
+                k += 1
+
+            print("   t_arn = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
+
+            if k == maxorder:
+                raise RuntimeError(f"Arnoldi iteration of matrix exponential failed" \
+                        +f"to converge, max Krylov subspace dimension {maxorder} reached")
+
+            coefs_new = coefs_k
+
+        elif method == "lanczos" :
+
+            # use Lanczos iteration
+
+            fac = -1j * 2*np.pi*lightspeed * self.prefac
+
+            time0 = time.time()
+
+            V, W = [], []
+            T = np.zeros((maxorder, maxorder), dtype=np.complex128)
+
+            # first Krylov basis vector
+
+            V.append(copy.deepcopy(coefs))
+            w = self.MKvec(self.MF, self.K, V[0])
+            T[0, 0] = sum([np.dot(w[f].conj(), V[0][f]) for f in psi.flist])
+            W.append({f : w[f] - T[0, 0] * V[0][f] for f in psi.flist})
+
+            coefs_kminus1, coefs_k, conv_k, k = {}, V[0], 1, 1
+            while k < maxorder and conv_k > conv:
+
+                # extend ONB of Krylov subspace by another vector and
+
+                T[k - 1, k] = np.sqrt(sum([np.sum(np.abs(W[k - 1][f])**2) for f in psi.flist]))
+                T[k, k - 1] = T[k - 1, k]
+
+                if not T[k - 1, k] == 0:
+                    v = {f : W[k - 1][f] / T[k - 1, k] for f in psi.flist}
+                    V.append(v)
+
+                # reorthonormalize ONB of Krylov subspace, if neccesary
+
+                else:
+                    v = {f : np.ones(V[k - 1][f].shape, dtype=np.complex128) for f in psi.flist}
+                    for j in range(k):
+                        proj_j = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                        v = {f : v[f] - proj_j * V[j][f] for f in psi.flist}
+                    norm_v = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
+                    v = {f : v[f] / norm_v for f in psi.flist}
+                    V.append(v)
+
+                w = self.MKvec(self.MF, self.K, V[k])
+                T[k, k] = sum([np.dot(w[f].conj(), V[k][f]) for f in psi.flist])
+                w = {f : w[f] - T[k, k] * V[k][f] - T[k - 1, k] * V[k - 1][f] for f in psi.flist}
+                W.append(w)
+
+                coefs_kminus1 = coefs_k
+
+                expT_k = la.expm(fac * T[: k + 1, : k + 1])
+                coefs_k = {f : sum([v_i[f] * expT_k[i, 0] for i,v_i in enumerate(V)]) for f in psi.flist}
+                conv_k = sum([np.sum(np.abs(coefs_k[f] - coefs_kminus1[f])**2) for f in psi.flist])
+
+                k += 1
+
+            print("   t_lan = " + str(round(time.time() - time0, 4)) + " sec   k = " + str(k) + "   conv = " + str(conv_k))
+
+            if k == maxorder:
+                raise RuntimeError(f"Lanczos iteration of matrix exponential failed" \
+                        +f"to converge, max Krylov subspace dimension {maxorder} reached")
+
+            coefs_new = coefs_k
+
+        # apply again exp(-i*dt/hbar/2 H0) to wavepacket
+
+        coefs_new = {f : expH0[f] * coefs_new[f] for f in psi.flist}
+
+        # return result in Psi() class
+
+        psi_new = copy.deepcopy(psi)
+        psi_new.coefs = coefs_new
+        return psi_new
 
 
 def read_states(filename, **kwargs):
@@ -561,7 +796,7 @@ def read_states(filename, **kwargs):
             if fmax<kwargs['fmax']:
                 print(f"read_states: fmax is set to {fmax} which is maximal F in states file {filename}")
         else:
-            fmax = max([key[0] for key in nstates.keys()]) 
+            fmax = max([key[0] for key in nstates.keys()])
         if 'fmin' in kwargs:
             fmin = max([ kwargs['fmin'], min([key[0] for key in nstates.keys()]) ])
             if fmin>kwargs['fmin']:
@@ -578,7 +813,7 @@ def read_states(filename, **kwargs):
         assert (f1>=0 and f2>=0),f"fmin={fmin} or fmax={fmax} is less than zero"
         assert (f2>=f1),f"fmin={fmin} > fmax={fmax}"
         assert (df>=1),f"df={df}<1"
-        flist = [round(f,1) for f in np.linspace(f1,f2,(f2-f1+1)/d)]
+        flist = [round(f,1) for f in np.linspace(f1,f2,int((f2-f1)/d)+1)]
 
     # create list of state symmetries
     if 'sym' in kwargs:
@@ -780,41 +1015,3 @@ def retrieve_name(var):
         names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
         if len(names) > 0:
             return names[0]
-
-
-
-if __name__ == "__main__":
-
-    # read basis
-    fname_enr = "../data/richmol_files_camphor/camphor_energies_j0_j20.rchm"
-    psi = Psi(fname_enr, fmin=0, fmax=30, mmin=-30, mmax=30, dm=1, df=1, sym=['A','B1','B2','B3'])
-
-    # inital wavepacket (f,m,id,ideg,coef)
-    psi.j_m_id = (0, 0, 1, 1, 1.0)
-
-    # read tensor(s)
-    fname_tens = "../data/richmol_files_camphor/camphor_matelem_alpha_j<j1>_j<j2>.rchm"
-    alpha = Etensor(fname_tens, psi)
-
-    # time grid for time in ps
-    time_grid = np.linspace(0,300,(300)/1+1)
-    # time_grid = np.linspace(0,300,(300)/0.01+1)
-
-    # set up field (must be in units of V/m)
-    E0 = 1e+10
-    t0 = 100
-    sigma = 200
-    two_pi_c = 2.0 * np.pi * lightspeed_ * 1e-12 * 1e2 # in cm/ps
-    omega = 12500*two_pi_c
-    field_func = lambda t: E0*np.exp(-(t-t0)**2/(2*sigma**2))*np.cos(omega*t)
-    field = [[0,0,field_func(t)] for t in time_grid]
-
-    for it,t in enumerate(time_grid):
-        print(it,t)
-        hamiltonian = -0.5 * alpha * field[it] # NOTE: this only accounts for perturbation Hamiltonian
-                                               #       the field-free part is in psi.energy[f]
-        psi2 = hamiltonian * psi
-        psi = psi2
-        hamiltonian.U(0.02, 0.01, psi, method='taylor')
-        sys.exit()
-
