@@ -1,4 +1,5 @@
 import unittest
+import TestRunner
 from richmol import watie
 from hypothesis import given, example, settings, assume, strategies as st, HealthCheck
 from hypothesis.extra.numpy import arrays
@@ -204,4 +205,6 @@ class TestRigidMolecule(unittest.TestCase):
 
 
 if __name__=="__main__":
-    unittest.main()
+    #unittest.main()
+    TestRunner.main()
+    runner.run(my_test_suite)

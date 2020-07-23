@@ -13,18 +13,18 @@ from ctypes import CDLL, c_double, c_int, POINTER, RTLD_GLOBAL
 import warnings
 
 
-bohr_to_angstrom_ = 0.529177249    # converts distances from atomic units to Angstrom
-planck_ = 6.62606896e-27           # Plank constant in erg a second
-avogno_ = 6.0221415e+23            # Avogadro constant
-vellgt_ = 2.99792458e+10           # Speed of light constant in centimetres per second
-boltz_ = 1.380658e-16              # Boltzmann constant in erg per Kelvin
-small_ = np.finfo(float).eps
-large_ = np.finfo(float).max
+bohr_to_angstrom = 0.529177249    # converts distances from atomic units to Angstrom
+planck = 6.62606896e-27           # Plank constant in erg a second
+avogno = 6.0221415e+23            # Avogadro constant
+vellgt = 2.99792458e+10           # Speed of light constant in centimetres per second
+boltz = 1.380658e-16              # Boltzmann constant in erg per Kelvin
+small = np.finfo(float).eps
+large = np.finfo(float).max
 
 
 # load Fortran library symtoplib
-_symtoplib_path = os.path.join(os.path.dirname(__file__), 'symtoplib')
-_fsymtop = np.ctypeslib.load_library('symtoplib', _symtoplib_path)
+symtoplib_path = os.path.join(os.path.dirname(__file__), 'symtoplib')
+fsymtop = np.ctypeslib.load_library('symtoplib', symtoplib_path)
 
 
 def atom_data_from_label(atom_label):
@@ -106,7 +106,7 @@ class RigidMolecule():
             for ielem,elem in enumerate(arg):
                 if isinstance(elem, str):
                     if elem[:4].lower()=="bohr":
-                        to_angstrom = bohr_to_angstrom_
+                        to_angstrom = bohr_to_angstrom
                     elif elem[:4].lower()=="angs":
                         to_angstrom = 1
                     else:
@@ -184,9 +184,9 @@ class RigidMolecule():
             raise ValueError(f"Illegal tensor name '{name}', it must not contain commas and must not be empty")
         if not all(dim==3 for dim in tens.shape):
             raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-        if np.all(np.abs(tens)<small_):
+        if np.all(np.abs(tens)<small):
             raise ValueError(f"Tensor has all its elements equal to zero") from None
-        if np.any(np.abs(tens)>large_*0.1):
+        if np.any(np.abs(tens)>large*0.1):
             raise ValueError(f"Tensor has too large values of its elements") from None
         if np.any(np.isnan(tens)):
             raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
@@ -243,7 +243,7 @@ class RigidMolecule():
                     rotmat0 = np.dot(np.transpose(rotmat), rotmat0)
                     # evaluate and store rotational constants in units cm^-1
                     self.frame_diag = diag
-                    convert_to_cm = planck_ * avogno_ * 1e+16 / (8.0 * np.pi * np.pi * vellgt_) 
+                    convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
                     self.ABC = [convert_to_cm/val for val in diag]
 
                 elif "".join(sorted(fr.lower()))=="xyz":
@@ -264,7 +264,7 @@ class RigidMolecule():
                         raise KeyError(f"Tensor '{fr}' was not initialised") from None
                     if tens.ndim!=2:
                         raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} != 2") from None
-                    if np.any(np.abs(tens-tens.T)>small_*10.0):
+                    if np.any(np.abs(tens-tens.T)>small*10.0):
                         raise ValueError(f"Tensor '{fr}' is not symmetric") from None
                     try:
                         diag, rotmat = np.linalg.eigh(tens)
@@ -450,7 +450,7 @@ def symmetrize(arg, sym="D2"):
         nbas_sum = 0
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
             jk_table = symmetry.proj(bas.jk_table, irrep)
-            ind0 = [ifunc for ifunc in range(nbas) if all(abs(val)<small_*1e3 for val in jk_table['c'][:,ifunc]) ]
+            ind0 = [ifunc for ifunc in range(nbas) if all(abs(val)<small*1e3 for val in jk_table['c'][:,ifunc]) ]
             nbas_irrep = nbas - len(ind0)
             nbas_sum += nbas_irrep
             res[sym_lab].jk_table = np.zeros(nbas, dtype=[('jk', 'i4', (2)), ('c', np.complex128, [nbas_irrep])])
@@ -483,7 +483,7 @@ class SymtopSymmetry():
         symtop_grid_r = np.asfortranarray(np.zeros((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1), dtype=np.float64))
         symtop_grid_i = np.asfortranarray(np.zeros((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1), dtype=np.float64))
 
-        _fsymtop.symtop_3d_grid.argtypes = [ \
+        fsymtop.symtop_3d_grid.argtypes = [ \
             c_int, \
             c_int, \
             c_int, \
@@ -491,8 +491,8 @@ class SymtopSymmetry():
             np.ctypeslib.ndpointer(np.float64, ndim=4, flags='F'), \
             np.ctypeslib.ndpointer(np.float64, ndim=4, flags='F') ]
 
-        _fsymtop.symtop_3d_grid.restype = None
-        _fsymtop.symtop_3d_grid(npoints_c, jmin_c, jmax_c, grid, symtop_grid_r, symtop_grid_i)
+        fsymtop.symtop_3d_grid.restype = None
+        fsymtop.symtop_3d_grid(npoints_c, jmin_c, jmax_c, grid, symtop_grid_r, symtop_grid_i)
 
         self.coefs = symtop_grid_r.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1)) \
                    + symtop_grid_i.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1))*1j
