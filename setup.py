@@ -6,21 +6,29 @@ import subprocess
 class Build(build):
     def run(self):
         build.run(self)
-        pass
+        # compile symtoplib in watie
+        command = "cd richmol/symtoplib"
+        command += " && make clean && make"
+        print("\nBuild symtoplib:",command)
+        process = subprocess.Popen(command, shell=True)
+        process.wait()
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
 
 setup(
     name                = "richmol",
-    version             = "",
-    author              = "",
-    author_email        = "",
-    description         = (""),
-    license             = "TBA",
+    version             = "0.1a1",
+    author              = "Andrey Yachmenev, Cem Saribal, Linda Thesing, Emil Zak",
+    author_email        = "andrey.yachmenev@cfel.de",
+    description         = ("Richmol is an open-source suit of programs designed for efficient"
+                           "calculations of the molecular rotational-vibrational energy levels"
+                           "and wave functions, and subsequent molecular dynamics in the presence"
+                           "of internal (induced) and external (laser) electromagnetic fields"),
+    license             = "GPL",
     packages            = ["richmol"],
     cmdclass            = {'build': Build},
-    package_data        = {"richmol":[]},
+    package_data        = {"richmol":["symtoplib/symtoplib*"]},
     scripts             = [],
     long_description    = read("README"),
 )

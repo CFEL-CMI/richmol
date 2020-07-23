@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Fortran and lib files
+*.f90
+*.o
+*.mod
+*.so
+*.dylib
+

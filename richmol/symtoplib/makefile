@@ -70,5 +70,5 @@ wigner_d.o: wigner_dmat2/wigner_d.f90
 	$(FOR) -c wigner_dmat2/wigner_d.f90 $(FFLAGS) $(CPPFLAGS)
 
 clean:
-	rm $(OBJ) *.mod *.so *.dylib
-	cd wigxjpf-1.5  && $(MAKE) clean
+	$(RM) $(OBJ) *.mod *.so *.dylib
+	cd wigxjpf-1.5 && $(MAKE) clean

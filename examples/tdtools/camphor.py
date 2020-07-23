@@ -6,14 +6,14 @@ from richmol.tdtools import Psi, Etensor
 if __name__ == "__main__":
 
     # read basis
-    fname_enr = "../../data/richmol_files_camphor/camphor_energies_j0_j20.rchm"
+    fname_enr = "etc/richmol_files_camphor/camphor_energies_j0_j20.rchm"
     psi = Psi(fname_enr, fmin=0, fmax=30, mmin=-30, mmax=30, dm=1, df=1, sym=['A','B1','B2','B3'])
 
     # inital wavepacket (f,m,id,ideg,coef)
     psi.j_m_id = (0, 0, 1, 1, 1.0)
 
     # read tensor(s)
-    fname_tens = "../../data/richmol_files_camphor/camphor_matelem_alpha_j<j1>_j<j2>.rchm"
+    fname_tens = "etc/richmol_files_camphor/camphor_matelem_alpha_j<j1>_j<j2>.rchm"
     alpha = Etensor(fname_tens, psi)
 
     # time grid for time in ps
