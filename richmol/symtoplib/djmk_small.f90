@@ -6,10 +6,10 @@ function djmk_small(j, m, k, theta)
   real(rk) :: djmk_small
 
   integer(ik) :: itmin1, itmin2, itmin, itmax1, itmax2, itmax, ij1, ij2, it, iphase, ia, ib, ic
-  real(rk) :: cosb2, sinb2, sqrt_fac, sumt, denom, term
+  real(ark) :: cosb2, sinb2, sqrt_fac, sumt, denom, term
 
-  cosb2 = cos(theta*0.5_rk)
-  sinb2 = sin(theta*0.5_rk)
+  cosb2 = cos(theta*0.5_ark)
+  sinb2 = sin(theta*0.5_ark)
 
   itmin1 = 0
   itmin2 = nint(m-k)
@@ -34,7 +34,7 @@ function djmk_small(j, m, k, theta)
     sumt = sumt + term
   enddo
 
-  djmk_small = sqrt_fac * sumt
+  djmk_small = real(sqrt_fac * sumt, rk)
 
 end function djmk_small
 
@@ -43,24 +43,24 @@ end function djmk_small
 function fac10(n)
 
   integer(ik), intent(in) :: n
-  real(rk) :: fac10
+  real(ark) :: fac10
 
   integer(ik) :: i
-  real(rk) :: q
+  real(ark) :: q
 
- ! integer(ik), parameter :: maxn=30
- ! real(rk), save :: fac10_save(1:maxn) = -1.0_rk
+ ! integer(ik), parameter :: maxn=1000
+ ! real(ark), save :: fac10_save(1:maxn) = -1.0_ark
 
   if (n==0) then
-    fac10 = 1.0_rk
+    fac10 = 1.0_ark
  ! elseif (n<=maxn .and. fac10_save(n)>0.0) then
  !   fac10 = fac10_save(n)
   else
-    fac10 = 1.0_rk
-    q = 1.0_rk
+    fac10 = 1.0_ark
+    q = 1.0_ark
     do i = 1, n
-      fac10 = fac10 * q / 10.0_rk
-      q = q + 1.0_rk
+      fac10 = fac10 * q / 10.0_ark
+      q = q + 1.0_ark
     enddo
  !   fac10_save(n) = fac10
   endif

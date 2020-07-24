@@ -220,9 +220,8 @@ class RigidMolecule():
 
         Examples:
             frame = "pas" will rotate to a principal axes system with x,y,z = a,b,c.
-            frame = "tens_name" will rotate to a principal axes system of a 3x3 tensor with the name 
-                "tens_name", this tensor must be initialized before using a command
-                tensor = (tens_name, [[x,x,x],[x,x,x],[x,x,x]]).
+            frame = "tens_name" will rotate to a principal axes system of a tensor with the name 
+                "tens_name", this tensor must be initialized before, see 'tensor' property.
             frame = "zxy" will permute axes x-->z, y-->x, and y-->z.
             frame = "zxy,pas" will rotate to "pas" and permute x-->z, y-->x, and y-->z.
         """
@@ -243,6 +242,7 @@ class RigidMolecule():
                         diag, rotmat = np.linalg.eigh(self.imom())
                     except np.linalg.LinAlgError:
                         raise RuntimeError("Eigenvalues did not converge") from None
+                    # append rotation to a total rotation matrix
                     self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
 
                 elif "".join(sorted(fr.lower()))=="xyz":
@@ -251,7 +251,8 @@ class RigidMolecule():
                     rotmat = np.zeros((3,3), dtype=np.float64)
                     for i in range(3):
                         rotmat[i,ind[i]] = 1.0
-                    self.frame_rotation = np.dot(rotmat, self.frame_rotation)
+                    # append rotation to a total rotation matrix
+                    self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
 
                 else:
                     # axes system defined by to-diagonal rotation of arbitrary rank-2 (3x3) tensor
@@ -261,19 +262,18 @@ class RigidMolecule():
                     except KeyError:
                         raise KeyError(f"Tensor '{fr}' was not initialised") from None
                     if tens.ndim!=2:
-                        raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} " \
-                                +f"is not equal to 2") from None
+                        raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} != 2") from None
                     if np.any(np.abs(tens-tens.T)>small*10.0):
                         raise ValueError(f"Tensor '{fr}' is not symmetric") from None
                     try:
                         diag, rotmat = np.linalg.eigh(tens)
                     except np.linalg.LinAlgError:
                         raise RuntimeError("Eigenvalues did not converge") from None
+                    # append rotation to a total rotation matrix
                     self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
 
         else:
-            raise TypeError(f"Unsupported argument type '{type(arg)}' for frame specification, " \
-                    +f"must be 'str'") from None
+            raise TypeError(f"Unsupported argument type '{type(arg)}' for frame specification, must be 'str'") from None
 
         # update a string that keeps track of all frame rotations
         try:
@@ -288,7 +288,7 @@ class RigidMolecule():
         imom = self.imom()
         if np.any(np.abs(np.diag(np.diag(imom))-imom)>small*np.linalg.norm(imom)):
             raise RuntimeError("Cannot compute rotational constants for the current frame = " \
-                    +f"'{self.frame_type}', the inertia tensor is not diagonal = {imom}") from None
+                    +f"'{self.frame_type}', the inertia tensor is not diagonal = {imom}")
         convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
         ABC = [convert_to_cm/val for val in np.diag(imom)]
         return ABC
@@ -330,10 +330,7 @@ class SymtopBasis():
 
     def __init__(self, J, linear=False):
 
-        try:
-            self.J = int(round(J))
-        except TypeError:
-            raise TypeError(f"J = '{J}' is not a number") from None
+        self.J = J
 
         # generate keys (j,k) for columns representing primitive functions
         if linear:
@@ -363,7 +360,6 @@ class SymtopBasis():
         self.jk_table = np.zeros(nbas, dtype=dt)
         self.jk_table['jk'] = prim
         self.jkt = np.array(bas)
-        self.dim = nbas
 
         # generate Wang-type linear combinations
         for ibas,(J,k,tau) in enumerate(bas):
@@ -464,14 +460,14 @@ def symmetrize(arg, sym="D2"):
         nbas_sum = 0
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
             jk_table = symmetry.proj(bas.jk_table, irrep)
-            ind0 = [ifunc for ifunc in range(nbas) if all(abs(val)<small*max(1,J) for val in jk_table['c'][:,ifunc])]
+            ind0 = [ifunc for ifunc in range(nbas) if all(abs(val)<small*max(1,J) for val in jk_table['c'][:,ifunc]) ]
             nbas_irrep = nbas - len(ind0)
+            print(irrep, jk_table['c'])
             nbas_sum += nbas_irrep
             res[sym_lab].jk_table = np.zeros(nbas, dtype=[('jk', 'i4', (2)), ('c', np.complex128, [nbas_irrep])])
             res[sym_lab].jk_table['c'] = np.delete(jk_table['c'], ind0, 1)
             res[sym_lab].jk_table['jk'] = jk_table['jk']
             res[sym_lab].jkt = np.delete(bas.jkt, ind0, 0) #[jkt for ind,jkt in enumerate(bas.jkt) if ind not in ind0]
-            res[sym_lab].dim = nbas_irrep
         assert (nbas==nbas_sum), f"nbas = {nbas} is not equal to nbas_sum = {nbas_sum}"
     else:
         raise TypeError(f"Unsupported type of argument: 'type(arg)'")
