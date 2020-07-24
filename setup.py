@@ -30,6 +30,7 @@ setup(
     cmdclass            = {'build': Build},
     package_data        = {"richmol":["symtoplib/symtoplib*"]},
     scripts             = [],
+    install_requires    = ["hypothesis", "mendeleev"],
     long_description    = read("README"),
 )
 
