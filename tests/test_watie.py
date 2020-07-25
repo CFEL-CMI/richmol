@@ -234,7 +234,7 @@ class TestRigidMolecule(unittest.TestCase):
                 hmat = bas.overlap(H)
                 enr, vec = np.linalg.eigh(hmat)
                 enr_all_d2 += [e for e in enr]
-        tol = 1e-12
+        tol = 1e-08
         self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_d2))) )
 
 
@@ -268,7 +268,7 @@ class TestRigidMolecule(unittest.TestCase):
                 hmat = bas.overlap(H)
                 enr, vec = np.linalg.eigh(hmat)
                 enr_all_c2v += [e for e in enr]
-        tol = 1e-12
+        tol = 1e-08
         self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_c2v))) )
 
 
@@ -339,7 +339,7 @@ class TestRigidMolecule(unittest.TestCase):
                 enr, vec = np.linalg.eigh(hmat)
                 enr_all[5] += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-08
             self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
                                   for enr in enr_all ) )
             # now repeat calculations using D2 symmetry
@@ -381,7 +381,7 @@ class TestRigidMolecule(unittest.TestCase):
                     enr, vec = np.linalg.eigh(hmat)
                     enr_all[5] += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-08
             self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
                                   for enr in enr_all ) )
             # now repeat calculations using C2v symmetry
@@ -423,7 +423,7 @@ class TestRigidMolecule(unittest.TestCase):
                     enr, vec = np.linalg.eigh(hmat)
                     enr_all[5] += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-08
             self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
                                   for enr in enr_all ) )
 
@@ -476,7 +476,7 @@ class TestRigidMolecule(unittest.TestCase):
                 enr, vec = np.linalg.eigh(hmat)
                 enr_all += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-8
             self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
             del mol.tens["pol"] # because we can't initialize twice tensor with the same name
 
@@ -526,7 +526,7 @@ class TestRigidMolecule(unittest.TestCase):
                     enr, vec = np.linalg.eigh(hmat)
                     enr_all += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-08
             self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
             # compute energies for different J, use C2v symmetry
             enr_all = []
@@ -546,7 +546,7 @@ class TestRigidMolecule(unittest.TestCase):
                     enr, vec = np.linalg.eigh(hmat)
                     enr_all += [e for e in enr]
             # check energies against reference
-            tol = 1e-12
+            tol = 1e-08
             self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
 
 
