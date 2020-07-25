@@ -4,6 +4,7 @@ from richmol import watie
 from hypothesis import given, example, settings, assume, strategies as st, HealthCheck
 from hypothesis.extra.numpy import arrays
 import numpy as np
+import random
 
 
 class TestRigidMolecule(unittest.TestCase):
@@ -270,6 +271,127 @@ class TestRigidMolecule(unittest.TestCase):
                 enr_all_c2v += [e for e in enr]
         tol = 1e-12
         self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_c2v))) )
+
+
+    # Test Hamiltonian: equal energies obtained for different choices of quantization axes
+    # use PAS frame and Hamiltonian built from rotational constants
+    # don't use symmetry
+    def test_energies_quant_axes(self):
+        mol = watie.RigidMolecule()
+        mol.XYZ = self.XYZ
+        mol.frame = "pas"
+        J_list = [0] + np.random.randint(100, size=10)
+        enr_all = [[],[],[],[],[],[]]
+        for J in J_list:
+            bas = watie.SymtopBasis(J)
+            Jx2 = watie.Jxx(bas)
+            Jy2 = watie.Jyy(bas)
+            Jz2 = watie.Jzz(bas)
+            A, B, C = mol.ABC
+            #
+            H = B * Jx2 + C * Jy2 + A * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[0] += [e for e in enr]
+            #
+            H = A * Jx2 + B * Jy2 + C * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[1] += [e for e in enr]
+            #
+            H = A * Jx2 + C * Jy2 + B * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[2] += [e for e in enr]
+            #
+            H = B * Jx2 + A * Jy2 + C * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[3] += [e for e in enr]
+            #
+            H = C * Jx2 + A * Jy2 + B * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[4] += [e for e in enr]
+            #
+            H = C * Jx2 + B * Jy2 + A * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr_all[5] += [e for e in enr]
+        tol = 1e-12
+        self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr_all[0]),sorted(enr))) \
+                              for enr in enr_all) )
+
+
+    # Test Hamiltonian: equal energies obtained for different choices of quantization axes
+    # use PAS frame and Hamiltonian built from rotational constants
+    # use D2 symmetry
+    def test_energies_quant_axes_D2(self):
+        mol = watie.RigidMolecule()
+        mol.XYZ = self.XYZ
+        mol.frame = "pas"
+        J_list = [0] + np.random.randint(100, size=10)
+        enr_all = [[],[],[],[],[],[]]
+        for J in J_list:
+            bas_d2 = watie.symmetrize(watie.SymtopBasis(J), sym="D2")
+            for sym,bas in bas_d2.items():
+                Jx2 = watie.Jxx(bas)
+                Jy2 = watie.Jyy(bas)
+                Jz2 = watie.Jzz(bas)
+                A, B, C = mol.ABC
+                #
+                H = B * Jx2 + C * Jy2 + A * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[0] += [e for e in enr]
+                #
+                H = A * Jx2 + B * Jy2 + C * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[1] += [e for e in enr]
+                #
+                H = A * Jx2 + C * Jy2 + B * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[2] += [e for e in enr]
+                #
+                H = B * Jx2 + A * Jy2 + C * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[3] += [e for e in enr]
+                #
+                H = C * Jx2 + A * Jy2 + B * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[4] += [e for e in enr]
+                #
+                H = C * Jx2 + B * Jy2 + A * Jz2
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all[5] += [e for e in enr]
+        tol = 1e-12
+        self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr_all[0]),sorted(enr))) \
+                              for enr in enr_all) )
+
+
+    # test 'linear'
+    def test_linear(self):
+        ntrials = 30
+        for i in range(ntrials):
+            # random vector
+            e = np.random.rand(3)
+            e = e/np.linalg.norm(3)
+            # random number of atoms
+            natoms = max([3,np.random.randint(30)])
+            # random distances
+            dist = np.random.rand(natoms)*20
+            # random atomic labels
+            labels = [random.choice("HOCNBPFSKI") for i in range(natoms)]
+            # generate XYZ coordinates of atoms along the vector 'e'
+            xyz = [val for r,lab in zip(dist,labels) for val in [lab]+list(r*e)]
+            mol = watie.RigidMolecule()
+            mol.XYZ = xyz
+            self.assertTrue(mol.linear())
 
 
 

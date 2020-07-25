@@ -18,8 +18,8 @@ planck = 6.62606896e-27           # Plank constant in erg a second
 avogno = 6.0221415e+23            # Avogadro constant
 vellgt = 2.99792458e+10           # Speed of light constant in centimetres per second
 boltz = 1.380658e-16              # Boltzmann constant in erg per Kelvin
-small = np.finfo(float).eps
-large = np.finfo(float).max
+small = abs(np.finfo(float).eps)
+large = abs(np.finfo(float).max)
 
 
 # load Fortran library symtoplib
@@ -317,6 +317,79 @@ class RigidMolecule():
         imat[1,1] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
         imat[2,2] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,1]**2)*mass[iatom] for iatom in range(natoms) ])
         return imat
+
+
+    def gmat(self):
+        """ Rotational kinetic energy matrix """
+        convert_to_cm = planck*avogno*1e+16/(4.0*np.pi*np.pi*vellgt)
+        xyz = self.XYZ['xyz']
+        mass = self.XYZ['mass']
+        natoms = xyz.shape[0]
+
+        # Levi-Civita tensor
+        levi_civita = np.zeros((3,3,3),dtype=np.float64)
+        levi_civita[0,1,2] = 1
+        levi_civita[0,2,1] =-1
+        levi_civita[1,0,2] =-1
+        levi_civita[1,2,0] = 1
+        levi_civita[2,0,1] = 1
+        levi_civita[2,1,0] =-1
+
+        # rotational t-vector
+        tvec = np.zeros((3,natoms*3), dtype=np.float64)
+        tvec_m = np.zeros((natoms*3,3), dtype=np.float64)
+        for irot in range(3):
+            ialpha = 0
+            for iatom in range(natoms):
+                for alpha in range(3):
+                    tvec[irot,ialpha] = np.dot(levi_civita[alpha,irot,:], xyz[iatom,:])
+                    tvec_m[ialpha,irot] = tvec[irot,ialpha] * mass[iatom]
+                    ialpha+=1
+
+        # rotational g-matrix
+        gsmall = np.dot(tvec, tvec_m)
+
+        # invert g-matrix to obtain rotational G-matrix
+        umat, sv, vmat = np.linalg.svd(gsmall, full_matrices=True)
+
+        dmat = np.zeros((3,3), dtype=np.float64)
+        no_sing = 0
+        ifstop = False
+        for i in range(len(sv)):
+            if sv[i]>small*np.linalg.norm(gsmall):
+                dmat[i,i] = 1.0/sv[i]
+            else:
+                no_sing += 1
+                print(f"Warning: rotational kinetic energy matrix is singular, " \
+                        +f"singular element index = {i}, singular value = {sv[i]}")
+                if no_sing==1 and self.linear() is True:
+                    print(f"this is fine for linear molecule: set 1/{sv[i]}=0")
+                    dmat[i,i] = 0
+                else:
+                    ifstop = True
+        if ifstop is True:
+            raise RuntimeError(f"Rotational kinetic energy matrix g-small:\n{gsmall}\ncontains " \
+                    +f"singular elements:\n{sv}\nplease check your input geometry " \
+                    +f"in {retrieve_name(self)}.XYZ")
+
+        gbig = np.dot(umat, np.dot(dmat, vmat))
+        gbig *= convert_to_cm
+        return gbig
+
+
+    def linear(self):
+        """ Returns True/False if molecule is linear/non-linear """
+        xyz = self.XYZ['xyz']
+        imom = self.imom()
+        d, rotmat = np.linalg.eigh(imom)
+        xyz2 = np.dot(xyz, rotmat)
+        tol = 1e-14
+        if (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,1])<tol)) or \
+            (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,2])<tol)) or \
+            (np.all(abs(xyz2[:,1])<tol) and np.all(abs(xyz2[:,2])<tol)):
+            return True
+        else:
+            return False
 
 
 
