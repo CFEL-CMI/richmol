@@ -1,4 +1,4 @@
-from richmol.watie import RigidMolecule, symmetrize, SymtopBasis, Jxx, Jyy, Jzz
+from richmol.watie import RigidMolecule, symmetrize, SymtopBasis, Jxx, Jyy, Jzz, Jxz, Jzx, Jyz, Jzy, Jxy, Jyx
 import numpy as np
 import sys
 
@@ -45,13 +45,10 @@ camphor.tensor = ("polarizability", [[115.80434, -0.58739, 0.03276], \
 camphor.frame = "pas"
 
 # we can print polarizability and dipole moment in new frame
-print("polarizability")
-print(camphor.tensor["polarizability"])
-print("dipole moment")
-print(camphor.tensor["dipole moment"])
+print("polarizability:\n", camphor.tensor["polarizability"])
+print("dipole moment:\n", camphor.tensor["dipole moment"])
 # print inertia tensor (to see it is diagonal in the PAS frame)
-print("inertia tensor")
-print(camphor.imom())
+print("inertia tensor:\n", camphor.imom())
 
 # compute rotational energies for J=0..20
 # use rigid-rotor Hamiltonian constructed from rotational constants
@@ -61,6 +58,7 @@ Jmax = 20
 # don't employ symmetry
 print("rotational energies (no symmetry)")
 print(" energy [cm^-1]   J    k  tau  |c|^2")
+enr_all = []
 for J in range(Jmax+1):
     bas = SymtopBasis(J)              # initialize basis of symmetric-top functions
     Jx2 = Jxx(bas)                    # Jx^2|psi>
@@ -70,6 +68,7 @@ for J in range(Jmax+1):
     H = B * Jx2 + C * Jy2 + A * Jz2   # H|psi> = A*Jx^2|psi> + B*Jy^2|psi> + C*Jz^2|psi>
     hmat = bas.overlap(H)             # <psi|H|psi>
     enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
+    enr_all += [e for e in enr]
     # print energies and assignments in the order:
     #   energy (cm^-1) J k tau |c|^2 | J' k' tau' |c'|^2 an so on for 'n' largest contributions
     for e,v in zip(enr,vec.T):
@@ -82,6 +81,7 @@ for J in range(Jmax+1):
 # repeat previous calculation using D2 symmetry
 print("rotational energies (D2 symmetry)")
 print(" energy [cm^-1] sym   J    k  tau  |c|^2")
+enr_all_d2 = []
 for J in range(Jmax+1):
     bas_d2 = symmetrize(SymtopBasis(J), sym="D2")
     for sym,bas in bas_d2.items():   # loops over basis sets for different irreps
@@ -92,6 +92,7 @@ for J in range(Jmax+1):
         H = B * Jx2 + C * Jy2 + A * Jz2
         hmat = bas.overlap(H)
         enr, vec = np.linalg.eigh(hmat)
+        enr_all_d2 += [e for e in enr]
         for e,v in zip(enr,vec.T):
             n = min(bas.dim, 3)
             ind = (-abs(v)).argsort()[:n]
@@ -100,3 +101,75 @@ for J in range(Jmax+1):
                                                        + " %6.3f"%c2[i] for i in range(n) ) )
 
 
+# compute rotational energies for J=0..20
+# use rigid-rotor Hamiltonian constructed from G-matrix
+
+camphor.frame = "pas"
+
+# don't employ symmetry
+enr_all_g = []
+for J in range(Jmax+1):
+    bas = SymtopBasis(J)              # initialize basis of symmetric-top functions
+    gmat = camphor.gmat()
+    H = 0.5 * ( gmat[0,0] * Jxx(bas) + \
+                gmat[0,1] * Jxy(bas) + \
+                gmat[0,2] * Jxz(bas) + \
+                gmat[1,0] * Jyx(bas) + \
+                gmat[1,1] * Jyy(bas) + \
+                gmat[1,2] * Jyz(bas) + \
+                gmat[2,0] * Jzx(bas) + \
+                gmat[2,1] * Jzy(bas) + \
+                gmat[2,2] * Jzz(bas) )
+    hmat = bas.overlap(H)             # <psi|H|psi>
+    enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
+    enr_all_g += [e for e in enr]
+
+
+# repeat previous calculation using D2 symmetry
+enr_all_g_d2 = []
+for J in range(Jmax+1):
+    bas_d2 = symmetrize(SymtopBasis(J), sym="D2")
+    for sym,bas in bas_d2.items():   # loops over basis sets for different irreps
+        gmat = camphor.gmat()
+        H = 0.5 * ( gmat[0,0] * Jxx(bas) + \
+                    gmat[0,1] * Jxy(bas) + \
+                    gmat[0,2] * Jxz(bas) + \
+                    gmat[1,0] * Jyx(bas) + \
+                    gmat[1,1] * Jyy(bas) + \
+                    gmat[1,2] * Jyz(bas) + \
+                    gmat[2,0] * Jzx(bas) + \
+                    gmat[2,1] * Jzy(bas) + \
+                    gmat[2,2] * Jzz(bas) )
+        hmat = bas.overlap(H)
+        enr, vec = np.linalg.eigh(hmat)
+        enr_all_g_d2 += [e for e in enr]
+
+
+# repeat previous calculations using frame defined by the principal axes of polarizability tensor
+camphor.frame = "polarizability"
+
+# don't employ symmetry using G-matrix if outside of PAS frame
+enr_all_g_pol = []
+for J in range(Jmax+1):
+    bas = SymtopBasis(J)              # initialize basis of symmetric-top functions
+    gmat = camphor.gmat()
+    H = 0.5 * ( gmat[0,0] * Jxx(bas) + \
+                gmat[0,1] * Jxy(bas) + \
+                gmat[0,2] * Jxz(bas) + \
+                gmat[1,0] * Jyx(bas) + \
+                gmat[1,1] * Jyy(bas) + \
+                gmat[1,2] * Jyz(bas) + \
+                gmat[2,0] * Jzx(bas) + \
+                gmat[2,1] * Jzy(bas) + \
+                gmat[2,2] * Jzz(bas) )
+    hmat = bas.overlap(H)             # <psi|H|psi>
+    enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
+    enr_all_g_pol += [e for e in enr]
+
+
+# check energies computed using different parameters agree
+tol = 1e-12
+print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_d2)))  )
+print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_g)))  )
+print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all_g),sorted(enr_all_g_d2)))  )
+print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all_g),sorted(enr_all_g_pol)))  )

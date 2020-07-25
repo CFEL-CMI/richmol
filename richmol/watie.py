@@ -286,7 +286,8 @@ class RigidMolecule():
     def ABC(self):
         """ Returns A, B, C rotational constants (where A>=B>=C), in units cm^-1 """
         imom = self.imom()
-        if np.any(np.abs(np.diag(np.diag(imom))-imom)>small*np.linalg.norm(imom)):
+        tol = 1e-12
+        if np.any(np.abs(np.diag(np.diag(imom))-imom)>tol):
             raise RuntimeError("Cannot compute rotational constants for the current frame = " \
                     +f"'{self.frame_type}', the inertia tensor is not diagonal = {imom}") from None
         convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 

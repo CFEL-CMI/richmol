@@ -9,6 +9,9 @@ import random
 
 class TestRigidMolecule(unittest.TestCase):
 
+    J_list = [0] + np.random.randint(100, size=10)
+    ntrials = 30
+
     # basic coordinates (s-enantiomer of camphor)
     XYZ = ("angstrom", \
     "O",     -2.547204,    0.187936,   -0.213755, \
@@ -207,28 +210,26 @@ class TestRigidMolecule(unittest.TestCase):
         mol = watie.RigidMolecule()
         mol.XYZ = self.XYZ
         mol.frame = "pas"
-        J_list = [0] + np.random.randint(100, size=10)
+        A, B, C = mol.ABC
         # without symmetry
         enr_all = []
-        for J in J_list:
+        for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            A, B, C = mol.ABC
             H = B * Jx2 + C * Jy2 + A * Jz2
             hmat = bas.overlap(H)
             enr, vec = np.linalg.eigh(hmat)
             enr_all += [e for e in enr]
         # using D2 symmetry
         enr_all_d2 = []
-        for J in J_list:
+        for J in self.J_list:
             bas_d2 = watie.symmetrize(watie.SymtopBasis(J), sym="D2")
             for sym,bas in bas_d2.items():
                 Jx2 = watie.Jxx(bas)
                 Jy2 = watie.Jyy(bas)
                 Jz2 = watie.Jzz(bas)
-                A, B, C = mol.ABC
                 H = B * Jx2 + C * Jy2 + A * Jz2
                 hmat = bas.overlap(H)
                 enr, vec = np.linalg.eigh(hmat)
@@ -243,28 +244,26 @@ class TestRigidMolecule(unittest.TestCase):
         mol = watie.RigidMolecule()
         mol.XYZ = self.XYZ
         mol.frame = "pas"
-        J_list = [0] + np.random.randint(100, size=10)
+        A, B, C = mol.ABC
         # without symmetry
         enr_all = []
-        for J in J_list:
+        for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            A, B, C = mol.ABC
             H = B * Jx2 + C * Jy2 + A * Jz2
             hmat = bas.overlap(H)
             enr, vec = np.linalg.eigh(hmat)
             enr_all += [e for e in enr]
         # using C2v symmetry
         enr_all_c2v = []
-        for J in J_list:
+        for J in self.J_list:
             bas_d2 = watie.symmetrize(watie.SymtopBasis(J), sym="C2v")
             for sym,bas in bas_d2.items():
                 Jx2 = watie.Jxx(bas)
                 Jy2 = watie.Jyy(bas)
                 Jz2 = watie.Jzz(bas)
-                A, B, C = mol.ABC
                 H = B * Jx2 + C * Jy2 + A * Jz2
                 hmat = bas.overlap(H)
                 enr, vec = np.linalg.eigh(hmat)
@@ -273,72 +272,42 @@ class TestRigidMolecule(unittest.TestCase):
         self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_c2v))) )
 
 
-    # Test Hamiltonian: equal energies obtained for different choices of quantization axes
-    # use PAS frame and Hamiltonian built from rotational constants
-    # don't use symmetry
-    def test_energies_quant_axes(self):
+    # Test Hamiltonian built from rotational constants: equal energies obtained for different choices
+    # of PAS-frame axes, different quantization axes, and different symmetries.
+    def test_energies_pas_abc_sym(self):
         mol = watie.RigidMolecule()
         mol.XYZ = self.XYZ
+        # compute set of reference energies
+        enr0 = []
         mol.frame = "pas"
-        J_list = [0] + np.random.randint(100, size=10)
-        enr_all = [[],[],[],[],[],[]]
-        for J in J_list:
+        A, B, C = mol.ABC
+        for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            A, B, C = mol.ABC
-            #
             H = B * Jx2 + C * Jy2 + A * Jz2
             hmat = bas.overlap(H)
             enr, vec = np.linalg.eigh(hmat)
-            enr_all[0] += [e for e in enr]
-            #
-            H = A * Jx2 + B * Jy2 + C * Jz2
-            hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
-            enr_all[1] += [e for e in enr]
-            #
-            H = A * Jx2 + C * Jy2 + B * Jz2
-            hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
-            enr_all[2] += [e for e in enr]
-            #
-            H = B * Jx2 + A * Jy2 + C * Jz2
-            hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
-            enr_all[3] += [e for e in enr]
-            #
-            H = C * Jx2 + A * Jy2 + B * Jz2
-            hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
-            enr_all[4] += [e for e in enr]
-            #
-            H = C * Jx2 + B * Jy2 + A * Jz2
-            hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
-            enr_all[5] += [e for e in enr]
-        tol = 1e-12
-        self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr_all[0]),sorted(enr))) \
-                              for enr in enr_all) )
-
-
-    # Test Hamiltonian: equal energies obtained for different choices of quantization axes
-    # use PAS frame and Hamiltonian built from rotational constants
-    # use D2 symmetry
-    def test_energies_quant_axes_D2(self):
-        mol = watie.RigidMolecule()
-        mol.XYZ = self.XYZ
-        mol.frame = "pas"
-        J_list = [0] + np.random.randint(100, size=10)
-        enr_all = [[],[],[],[],[],[]]
-        for J in J_list:
-            bas_d2 = watie.symmetrize(watie.SymtopBasis(J), sym="D2")
-            for sym,bas in bas_d2.items():
+            enr0 += [e for e in enr]
+        # test different axes in PAS and different choices of quantization axes
+        for itrial in range(self.ntrials):
+            # append new frame rotation
+            frames = ["pas","xyz","zxy","zyx","xzy","yzx","yxz"]
+            if np.mod(itrial,10)==0: # to keep the number of sequential frame rotations less than 10
+                del mol.frame_rotation
+                del mol.frame_type
+                mol.frame = "pas"
+            mol.frame = random.choice(frames)
+            A, B, C = mol.ABC
+            # compute energies for different J and different choices of quantization axes
+            # without symmetry
+            enr_all = [[],[],[],[],[],[]]
+            for J in self.J_list:
+                bas = watie.SymtopBasis(J)
                 Jx2 = watie.Jxx(bas)
                 Jy2 = watie.Jyy(bas)
                 Jz2 = watie.Jzz(bas)
-                A, B, C = mol.ABC
                 #
                 H = B * Jx2 + C * Jy2 + A * Jz2
                 hmat = bas.overlap(H)
@@ -369,9 +338,216 @@ class TestRigidMolecule(unittest.TestCase):
                 hmat = bas.overlap(H)
                 enr, vec = np.linalg.eigh(hmat)
                 enr_all[5] += [e for e in enr]
-        tol = 1e-12
-        self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr_all[0]),sorted(enr))) \
-                              for enr in enr_all) )
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
+                                  for enr in enr_all ) )
+            # now repeat calculations using D2 symmetry
+            enr_all = [[],[],[],[],[],[]]
+            for J in self.J_list:
+                bas_sym = watie.symmetrize(watie.SymtopBasis(J), sym="D2")
+                for sym,bas in bas_sym.items():
+                    Jx2 = watie.Jxx(bas)
+                    Jy2 = watie.Jyy(bas)
+                    Jz2 = watie.Jzz(bas)
+                    #
+                    H = B * Jx2 + C * Jy2 + A * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[0] += [e for e in enr]
+                    #
+                    H = A * Jx2 + B * Jy2 + C * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[1] += [e for e in enr]
+                    #
+                    H = A * Jx2 + C * Jy2 + B * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[2] += [e for e in enr]
+                    #
+                    H = B * Jx2 + A * Jy2 + C * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[3] += [e for e in enr]
+                    #
+                    H = C * Jx2 + A * Jy2 + B * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[4] += [e for e in enr]
+                    #
+                    H = C * Jx2 + B * Jy2 + A * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[5] += [e for e in enr]
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
+                                  for enr in enr_all ) )
+            # now repeat calculations using C2v symmetry
+            enr_all = [[],[],[],[],[],[]]
+            for J in self.J_list:
+                bas_sym = watie.symmetrize(watie.SymtopBasis(J), sym="C2v")
+                for sym,bas in bas_sym.items():
+                    Jx2 = watie.Jxx(bas)
+                    Jy2 = watie.Jyy(bas)
+                    Jz2 = watie.Jzz(bas)
+                    #
+                    H = B * Jx2 + C * Jy2 + A * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[0] += [e for e in enr]
+                    #
+                    H = A * Jx2 + B * Jy2 + C * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[1] += [e for e in enr]
+                    #
+                    H = A * Jx2 + C * Jy2 + B * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[2] += [e for e in enr]
+                    #
+                    H = B * Jx2 + A * Jy2 + C * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[3] += [e for e in enr]
+                    #
+                    H = C * Jx2 + A * Jy2 + B * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[4] += [e for e in enr]
+                    #
+                    H = C * Jx2 + B * Jy2 + A * Jz2
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all[5] += [e for e in enr]
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr))) \
+                                  for enr in enr_all ) )
+
+
+    # Test Hamiltonian built from G-matrix: equal energies obtained for different choices of frames.
+    # Don't use symmetry outside of PAS frame!
+    def test_energies_frames_gmat(self):
+        mol = watie.RigidMolecule()
+        mol.XYZ = self.XYZ
+        # compute set of reference energies
+        enr0 = []
+        mol.frame = "pas"
+        A, B, C = mol.ABC
+        for J in self.J_list:
+            bas = watie.SymtopBasis(J)
+            Jx2 = watie.Jxx(bas)
+            Jy2 = watie.Jyy(bas)
+            Jz2 = watie.Jzz(bas)
+            H = B * Jx2 + C * Jy2 + A * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr0 += [e for e in enr]
+        # now test different frames
+        for itrial in range(self.ntrials):
+            # initialize new symmetric tensor (in case if frame="pol")
+            tens = np.random.rand(3,3)
+            tens = 0.5*(tens+tens.T)
+            mol.tensor = ("pol", tens)
+            # append new frame rotation
+            frames = ["pas","xyz","zxy","zyx","xzy","yzx","yxz","pol"]
+            if np.mod(itrial,10)==0: # to keep the number of sequential frame rotations less than 10
+                del mol.frame_rotation
+                del mol.frame_type
+            mol.frame = random.choice(frames)
+            gmat = mol.gmat()
+            # compute energies for different J
+            enr_all = []
+            for J in self.J_list:
+                bas = watie.SymtopBasis(J)
+                H = 0.5 * ( gmat[0,0] * watie.Jxx(bas) + \
+                            gmat[0,1] * watie.Jxy(bas) + \
+                            gmat[0,2] * watie.Jxz(bas) + \
+                            gmat[1,0] * watie.Jyx(bas) + \
+                            gmat[1,1] * watie.Jyy(bas) + \
+                            gmat[1,2] * watie.Jyz(bas) + \
+                            gmat[2,0] * watie.Jzx(bas) + \
+                            gmat[2,1] * watie.Jzy(bas) + \
+                            gmat[2,2] * watie.Jzz(bas) )
+                hmat = bas.overlap(H)
+                enr, vec = np.linalg.eigh(hmat)
+                enr_all += [e for e in enr]
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
+            del mol.tens["pol"] # because we can't initialize twice tensor with the same name
+
+
+    # Test Hamiltonian built from G-matrix: equal energies obtained for different symmetries,
+    # note that it is valid only if PAS frame is used.
+    def test_energies_pas_gmat_sym(self):
+        mol = watie.RigidMolecule()
+        mol.XYZ = self.XYZ
+        # compute set of reference energies
+        enr0 = []
+        mol.frame = "pas"
+        A, B, C = mol.ABC
+        for J in self.J_list:
+            bas = watie.SymtopBasis(J)
+            Jx2 = watie.Jxx(bas)
+            Jy2 = watie.Jyy(bas)
+            Jz2 = watie.Jzz(bas)
+            H = B * Jx2 + C * Jy2 + A * Jz2
+            hmat = bas.overlap(H)
+            enr, vec = np.linalg.eigh(hmat)
+            enr0 += [e for e in enr]
+        # now test different axes permutations in PAS frame
+        for itrial in range(self.ntrials):
+            frames = ["pas","xyz","zxy","zyx","xzy","yzx","yxz"]
+            if np.mod(itrial,10)==0: # to keep the number of sequential frame rotations less than 10
+                del mol.frame_rotation
+                del mol.frame_type
+                mol.frame = "pas"
+            mol.frame = random.choice(frames)
+            gmat = mol.gmat()
+            # compute energies for different J, use D2 symmetry
+            enr_all = []
+            for J in self.J_list:
+                bas_sym = watie.symmetrize(watie.SymtopBasis(J), sym="D2")
+                for sym,bas in bas_sym.items():
+                    H = 0.5 * ( gmat[0,0] * watie.Jxx(bas) + \
+                                gmat[0,1] * watie.Jxy(bas) + \
+                                gmat[0,2] * watie.Jxz(bas) + \
+                                gmat[1,0] * watie.Jyx(bas) + \
+                                gmat[1,1] * watie.Jyy(bas) + \
+                                gmat[1,2] * watie.Jyz(bas) + \
+                                gmat[2,0] * watie.Jzx(bas) + \
+                                gmat[2,1] * watie.Jzy(bas) + \
+                                gmat[2,2] * watie.Jzz(bas) )
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all += [e for e in enr]
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
+            # compute energies for different J, use C2v symmetry
+            enr_all = []
+            for J in self.J_list:
+                bas_sym = watie.symmetrize(watie.SymtopBasis(J), sym="C2v")
+                for sym,bas in bas_sym.items():
+                    H = 0.5 * ( gmat[0,0] * watie.Jxx(bas) + \
+                                gmat[0,1] * watie.Jxy(bas) + \
+                                gmat[0,2] * watie.Jxz(bas) + \
+                                gmat[1,0] * watie.Jyx(bas) + \
+                                gmat[1,1] * watie.Jyy(bas) + \
+                                gmat[1,2] * watie.Jyz(bas) + \
+                                gmat[2,0] * watie.Jzx(bas) + \
+                                gmat[2,1] * watie.Jzy(bas) + \
+                                gmat[2,2] * watie.Jzz(bas) )
+                    hmat = bas.overlap(H)
+                    enr, vec = np.linalg.eigh(hmat)
+                    enr_all += [e for e in enr]
+            # check energies against reference
+            tol = 1e-12
+            self.assertTrue( all(abs(x-y)<tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
 
 
     # test 'linear'
