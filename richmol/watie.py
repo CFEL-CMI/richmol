@@ -446,6 +446,16 @@ class SymtopBasis():
                 iprim = np.where((self.jk_table['jk']==(J,kk)).all(axis=1))[0][0]
                 self.jk_table['c'][iprim,ibas] = cc
 
+        # Add m-dependent part of the basis
+        # generate keys (j,m) and create a table of coefficients
+        prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
+        nbas_m = len(prim_m)
+        dt = [('jm', 'i4', (2)), ('c', np.complex128, [nbas_m])]
+        self.jm_table = np.zeros(nbas, dtype=dt)
+        self.jm_table['jm'] = prim_m
+        for i in range(nbas_m):
+            self.jm_table['c'][i,i] = 1
+
 
     def wang_coefs(self, j, k, tau):
         """Wang's symmetrization coefficients c1 and c2 for symmetric-top function in the form
@@ -481,8 +491,8 @@ class SymtopBasis():
         return coefs, kval
 
 
-    def overlap(self, arg):
-        """ Computes overlap matrix elements <self|arg>
+    def overlap_k(self, arg):
+        """ Computes overlap matrix elements <self|arg> in the k-dependent space of quanta
 
         Args:
             arg (SymtopBasis or J): represents set of linear combinations of symmetric-top functions,
@@ -513,14 +523,47 @@ class SymtopBasis():
         return res
 
 
+    overlap = overlap_k
+
+
+    def overlap_m(self, arg):
+        """ Computes overlap matrix elements <self|arg> in the m-dependent space of quanta
+
+        Args:
+            arg (SymtopBasis or J): represents set of linear combinations of symmetric-top functions,
+                can be either a basis set, i.e., SymtopBas(), or a result of an action of angular
+                momentum operator(s) on a basis set, i.e., J() class.
+                It must contain 'jm_table' attribute.
+        Returns:
+            res (np.ndarray): overlap matrix elements <self|arg> between self and arg sets of functions.
+        """
+        try:
+            table_ket = arg.jm_table
+        except AttributeError:
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+        table_bra = self.jm_table
+        jm_ket = [tuple(x) for x in table_ket['jm']]
+        jm_bra = [tuple(x) for x in table_bra['jm']]
+        coefs_ket = table_ket['c']
+        coefs_bra = table_bra['c'].conj().T
+        # find overlapping jm quanta in both bra and ket lists
+        both = set(jm_bra).intersection(jm_ket)
+        ind_bra = [jm_bra.index(x) for x in both]
+        ind_ket = [jm_ket.index(x) for x in both]
+        if len(both)==0:
+            warnings.warn(f"functions {retrieve_name(self)} and {retrieve_name(arg)} have no " \
+                +f"overlapping J,m quanta, the overlap is zero!")
+        # dot product across overlapping jm quanta
+        res = np.dot(coefs_bra[:,ind_bra], coefs_ket[ind_ket,:])
+        return res
+
 
 def symmetrize(arg, sym="D2"):
     """Returns dictionary of symmetry-adapted objects 'arg' for different irreps (as dict keys)
-    of symmetry group defined by 'sym'
+    of the symmetry group defined by 'sym'
 
     Args:
         arg (SymtopBasis): Basis of symmetric-top functions for selected J.
-            ( .... ): ...
         sym (str): Point symmetry group, defaults to "D2".
     """
     try:
@@ -718,19 +761,27 @@ class C2v(SymtopSymmetry):
 
 
 class J():
-    """ Basic class for rotational angular momentum operators """
-    def __init__(self, arg=None):
-        if isinstance(arg, np.ndarray):
-            self.jk_table = arg.copy()
-        elif arg==None:
-            pass
-        else:
+    """ Basic class for rotational angular momentum operators, acting on both k- and m-space quanta """
+    def __init__(self, *args, **kwargs):
+        for arg in args:
             try:
                 x = arg.jk_table
             except AttributeError:
                 raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
             else:
                self.jk_table = arg.jk_table.copy()
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            else:
+               self.jm_table = arg.jm_table.copy()
+        if 'jk_table' in kwargs:
+            self.jk_table = kwargs['jk_table'].copy()
+            try:
+                self.jm_table = kwargs['jm_table'].copy()
+            except KeyError:
+                raise KeyError(f"missing argument 'jm_table' must always be provided together with 'jk_table'") from None
 
 
     def __add__(self, arg):
@@ -738,7 +789,13 @@ class J():
             x = self.jk_table
         except AttributeError:
             raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+        try:
+            x = self.jm_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
+
         if isinstance(arg, J):
+            # k-part
             try:
                 x = arg.jk_table
             except AttributeError:
@@ -750,7 +807,20 @@ class J():
             for ielem,(j,k) in enumerate(jk_table['jk']):
                 jelem = np.where((arg.jk_table['jk']==(j,k)).all(axis=1))[0][0]
                 jk_table['c'][ielem,:] += arg.jk_table['c'][jelem,:]
-            res = J(jk_table)
+            # m-part
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            if not (self.jm_table['jm']==arg.jm_table['jm']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jm_table' attributes do not match)") from None
+            jm_table = self.jm_table.copy()
+            for ielem,(j,m) in enumerate(jm_table['jm']):
+                jelem = np.where((arg.jm_table['jm']==(j,m)).all(axis=1))[0][0]
+                jm_table['c'][ielem,:] += arg.jm_table['c'][jelem,:]
+            res = J(jk_table=jk_table, jm_table=jm_table)
+
         else:
             raise TypeError(f"unsupported operand type(s) for '+': {self.__class__.__name__} and " \
                     +f"{arg.__class__.__name__}") from None
@@ -762,7 +832,13 @@ class J():
             x = self.jk_table
         except AttributeError:
             raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+        try:
+            x = self.jm_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
+
         if isinstance(arg, J):
+            # k-part
             try:
                 x = arg.jk_table
             except AttributeError:
@@ -774,7 +850,20 @@ class J():
             for ielem,(j,k) in enumerate(jk_table['jk']):
                 jelem = np.where((arg.jk_table['jk']==(j,k)).all(axis=1))[0][0]
                 jk_table['c'][ielem,:] -= arg.jk_table['c'][jelem,:]
-            res = J(jk_table)
+            # m-part
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            if not (self.jm_table['jm']==arg.jm_table['jm']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jm_table' attributes do not match)") from None
+            jm_table = self.jm_table.copy()
+            for ielem,(j,m) in enumerate(jm_table['jm']):
+                jelem = np.where((arg.jm_table['jm']==(j,m)).all(axis=1))[0][0]
+                jm_table['c'][ielem,:] -= arg.jm_table['c'][jelem,:]
+            res = J(jk_table=jk_table, jm_table=jm_table)
+
         else:
             raise TypeError(f"unsupported operand type(s) for '-': {self.__class__.__name__} and " \
                     +f"{arg.__class__.__name__}") from None
@@ -790,15 +879,24 @@ class J():
                 x = arg.jk_table
             except AttributeError:
                 raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
             res = self.__class__(arg)
         elif isinstance(arg, scalar):
             try:
                 x = self.jk_table
             except AttributeError:
                 raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+            try:
+                x = self.jm_table
+            except AttributeError:
+                raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
             jk_table = self.jk_table.copy()
             jk_table['c'] *= arg
-            res = J(jk_table)
+            jm_table = self.jm_table.copy()
+            res = J(jk_table=jk_table, jm_table=jm_table)
         else:
             raise TypeError(f"unsupported operand type(s) for '*': {self.__class__.__name__} and " \
                     +f"{arg.__class__.__name__}") from None
@@ -811,8 +909,8 @@ class J():
 
 
 
-class Jp(J):
-    """ J+ = Jx + iJy """
+class mol_Jp(J):
+    """ Molecular-frame J+ = Jx + iJy """
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
@@ -828,10 +926,11 @@ class Jp(J):
         except AttributeError:
             pass
 
+Jp = mol_Jp
 
 
-class Jm(J):
-    """ J- = Jx - iJy """
+class mol_Jm(J):
+    """ Molecular-frame J- = Jx - iJy """
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
@@ -847,10 +946,11 @@ class Jm(J):
         except AttributeError:
             pass
 
+Jm = mol_Jm
 
 
-class Jz(J):
-    """ Jz """
+class mol_Jz(J):
+    """ Molecular-frame Jz """
     def __init__(self, arg=None):
         J.__init__(self, arg)
         if self.__dict__.get("jk_table") is None:
@@ -859,10 +959,11 @@ class Jz(J):
             for ielem,(j,k) in enumerate(self.jk_table['jk']):
                 self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * k
 
+Jz = mol_Jz
 
 
-class JJ(J):
-    """ J^2 """
+class mol_JJ(J):
+    """ Molecular-frame J^2 """
     def __init__(self, arg=None):
         J.__init__(self, arg)
         if self.__dict__.get("jk_table") is None:
@@ -871,100 +972,110 @@ class JJ(J):
             for ielem,(j,k) in enumerate(self.jk_table['jk']):
                 self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * j*(j+1)
 
+JJ = mol_JJ
 
 
-class Jxx(J):
+class mol_Jxx(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = 0.25 * ( Jm(arg) * Jm(arg) +  Jm(arg) * Jp(arg) \
-                +  Jp(arg) * Jm(arg) +  Jp(arg) * Jp(arg) )
+            res = 0.25 * ( mol_Jm(arg) * mol_Jm(arg) +  mol_Jm(arg) * mol_Jp(arg) \
+                +  mol_Jp(arg) * mol_Jm(arg) +  mol_Jp(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jxx = mol_Jxx
 
 
-class Jxy(J):
+class mol_Jxy(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = complex(0.0,0.25) * ( Jm(arg) * Jm(arg) -  Jm(arg) * Jp(arg) \
-                +  Jp(arg) * Jm(arg) -  Jp(arg) * Jp(arg) )
+            res = complex(0.0,0.25) * ( mol_Jm(arg) * mol_Jm(arg) -  mol_Jm(arg) * mol_Jp(arg) \
+                +  mol_Jp(arg) * mol_Jm(arg) -  mol_Jp(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jxy = mol_Jxy
 
 
-class Jyx(J):
+class mol_Jyx(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = complex(0.0,0.25) * ( Jm(arg) * Jm(arg) +  Jm(arg) * Jp(arg) \
-                -  Jp(arg) * Jm(arg) -  Jp(arg) * Jp(arg) )
+            res = complex(0.0,0.25) * ( mol_Jm(arg) * mol_Jm(arg) +  mol_Jm(arg) * mol_Jp(arg) \
+                -  mol_Jp(arg) * mol_Jm(arg) -  mol_Jp(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jyx = mol_Jyx
 
 
-class Jxz(J):
+class mol_Jxz(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = 0.5 * ( Jm(arg) * Jz(arg) +  Jp(arg) * Jz(arg) )
+            res = 0.5 * ( mol_Jm(arg) * mol_Jz(arg) +  mol_Jp(arg) * mol_Jz(arg) )
             J.__init__(self, res)
 
+Jxz = mol_Jxz
 
 
-class Jzx(J):
+class mol_Jzx(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = 0.5 * ( Jz(arg) * Jm(arg) +  Jz(arg) * Jp(arg) )
+            res = 0.5 * ( mol_Jz(arg) * mol_Jm(arg) +  mol_Jz(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jzx = mol_Jzx
 
 
-class Jyy(J):
+class mol_Jyy(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = -0.25 * ( Jm(arg) * Jm(arg) -  Jm(arg) * Jp(arg) \
-                -  Jp(arg) * Jm(arg) +  Jp(arg) * Jp(arg) )
+            res = -0.25 * ( mol_Jm(arg) * mol_Jm(arg) -  mol_Jm(arg) * mol_Jp(arg) \
+                -  mol_Jp(arg) * mol_Jm(arg) +  mol_Jp(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jyy = mol_Jyy
 
 
-class Jyz(J):
+class mol_Jyz(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = complex(0.0,0.5) * ( Jm(arg) * Jz(arg) -  Jp(arg) * Jz(arg) )
+            res = complex(0.0,0.5) * ( mol_Jm(arg) * mol_Jz(arg) -  mol_Jp(arg) * mol_Jz(arg) )
             J.__init__(self, res)
 
+Jyz = mol_Jyz
 
 
-class Jzy(J):
+class mol_Jzy(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = complex(0.0,0.5) * ( Jz(arg) * Jm(arg) -  Jz(arg) * Jp(arg) )
+            res = complex(0.0,0.5) * ( mol_Jz(arg) * mol_Jm(arg) -  mol_Jz(arg) * mol_Jp(arg) )
             J.__init__(self, res)
 
+Jzy = mol_Jzy
 
 
-class Jzz(J):
+class mol_Jzz(J):
     def __init__(self, arg=None):
         if arg is None:
             pass
         else:
-            res = Jz(arg) * Jz(arg)
+            res = mol_Jz(arg) * mol_Jz(arg)
             J.__init__(self, res)
 
+Jzz = mol_Jzz
 
 
 class CartTensor():
