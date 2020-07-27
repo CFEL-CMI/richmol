@@ -967,6 +967,108 @@ class Jzz(J):
 
 
 
+class CartTensor():
+    """ Basic class for laboratory-frame Cartesian tensor operators """
+
+    # transformation matrix for tensors of rank in tmat_s.keys()
+    # from Cartesian to spherical-tensor representation
+    tmat_s = {1 : np.array([ [np.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0], \
+                             [0, 0, 1.0], \
+                             [-math.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0] ], dtype=np.complex128),
+              2 : np.array([ [-1.0/math.sqrt(3.0), 0, 0, 0, -1.0/math.sqrt(3.0), 0, 0, 0, -1.0/math.sqrt(3.0)], \
+                             [0, 0, -0.5, 0, 0, 0.5*1j, 0.5, -0.5*1j, 0], \
+                             [0, 1.0/math.sqrt(2.0)*1j, 0, -1.0/math.sqrt(2.0)*1j, 0, 0, 0, 0, 0], \
+                             [0, 0, -0.5, 0, 0, -0.5*1j, 0.5, 0.5*1j, 0], \
+                             [0.5, -0.5*1j, 0, -0.5*1j, -0.5, 0, 0, 0, 0], \
+                             [0, 0, 0.5, 0, 0, -0.5*1j, 0.5, -0.5*1j, 0], \
+                             [-1.0/math.sqrt(6.0), 0, 0, 0, -1.0/math.sqrt(6.0), 0, 0, 0, (1.0/3.0)*math.sqrt(6.0)], \
+                             [0, 0, -0.5, 0, 0, -0.5*1j, -0.5, -0.5*1j, 0], \
+                             [0.5, 0.5*1j, 0, 0.5*1j, -0.5, 0, 0, 0, 0] ], dtype=np.complex128) }
+
+    # inverse spherical-tensor to Cartesian transformation matrix
+    tmat_x = {key : np.linalg.pinv(val) for key,val in tmat_s.items()}
+
+    cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
+    irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
+
+    def __init__(self, arg):
+        # check input tensor
+        if isinstance(arg, (tuple, list)):
+            tens = np.array(arg)
+        elif isinstance(arg, (np.ndarray,np.generic)):
+            tens = arg
+        else:
+            raise TypeError(f"Unsupported argument type '{type(arg)}' for tensor values, " \
+                    +f"must be one of: 'list', 'numpy.ndarray'") from None
+        if not all(dim==3 for dim in tens.shape):
+            raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+        if np.all(np.abs(tens)<small):
+            raise ValueError(f"Tensor has all its elements equal to zero") from None
+        if np.any(np.abs(tens)>large*0.1):
+            raise ValueError(f"Tensor has too large values of its elements") from None
+        if np.any(np.isnan(tens)):
+            raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
+
+        rank = tens.ndim
+        self.rank = rank
+        try:
+            self.Us = self.tmat_s[rank]
+            self.Ux = self.tmat_x[rank]
+            self.os = self.irrep_ind[rank]
+            self.cart = self.cart_ind[rank]
+        except KeyError:
+            raise NotImplementedError(f"Tensor of rank = {rank} is not implemented") from None
+
+        self.tens_flat = np.zeros(len(self.cart_ind[rank]), dtype=type(tens))
+        for ix,sx in enumerate(self.cart_ind[rank]):
+            s = [ss for ss in sx] # e.g. split "xy" into ["x","y"]
+            ind = ["xyz".index(ss) for ss in s] # e.g. convert ["x","y"] into [0,1]
+            self.tens_flat[ix] = tens.item(tuple(ind))
+
+        if self.rank==2:
+            symmetric = lambda tens, tol=1e-12: np.all(np.abs(tens-tens.T) < tol)
+            traceless = lambda tens, tol=1e-12: abs(np.sum(np.diag(tens)))<tol
+            if symmetric(tens) is True and traceless(tens) is True:
+                # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
+                # will be zero: (0,0), (1,-1), (1,0), and (1,1)
+                self.Us = np.delete(self.Us, [0,1,2,3], 0)
+                self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
+                self.os = [(omega,sigma) for (omega,sigma) in self.irrep_ind if omega==2]
+            elif symmetric(tens) is True and traceless(tens) is False:
+                # for symmetric tensor the following rows in tmat_s and columns in tmat_x
+                # will be zero: (1,-1), (1,0), and (1,1)
+                self.Us = np.delete(self.Us, [1,2,3], 0)
+                self.Ux = np.delete(self.Ux, [1,2,3], 1)
+                self.os = [(omega,sigma) for (omega,sigma) in self.irrep_ind if omega in (0,2)]
+
+
+    def __call__(self, arg):
+        """ Apply Cartesian tensor operator to a set of symmetric-top functions """
+        try:
+            jk_table = arg.jk_table
+        except AttributeError:
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+
+        dj_max = max([omega for (omega,sigma) in self.os]) # selection rules |j1-j2|<=omega
+        os_ind = [[ind for ind,(o,s) in enumerate(self.os) if o==om] for om in set(o for (o,s) in self.os)]
+        irreps = set(o for (o,s) in self.os)
+
+        self.jk_table = {irrep : np.copy.deepcopy(jk_table) for irrep in irreps}
+        for irrep in irreps:
+            self.jk_table[irrep]['c'][:,:] = 0
+
+        for ind1,(j1,k1) in enumerate(jk_table['jk']):
+            jk2 = [(ind,j,k) for ind,(j,k) in enumerate(jk_table['jk']) if abs(j-j1)<=dj_max]
+            for (ind2,j2,k2) in jk2:
+                # compute <j2,k2|K-tensor|j1,k1>
+                threeJ = np.array([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os])
+                for irrep in irreps:
+                    ind = os_ind[irrep]
+                    me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * (-1)**k2
+                    self.jk_table[irrep]['c'][ind2,:] += me * jk_table['c'][ind1,:]
+
+
+
 def retrieve_name(var):
     """Gets the name of var. Does it from the out most frame inner-wards.
     """
@@ -975,75 +1077,3 @@ def retrieve_name(var):
         if len(names) > 0:
             return names[0]
 
-
-
-if __name__=="__main__":
-
-
-    camphor = RigidMolecule()
-
-    camphor.XYZ = ("angstrom", \
-    "O",     -2.547204,    0.187936,   -0.213755, \
-    "C",     -1.382858,   -0.147379,   -0.229486, \
-    "C",     -0.230760,    0.488337,    0.565230, \
-    "C",     -0.768352,   -1.287324,   -1.044279, \
-    "C",     -0.563049,    1.864528,    1.124041, \
-    "C",      0.716269,   -1.203805,   -0.624360, \
-    "C",      0.929548,    0.325749,   -0.438982, \
-    "C",      0.080929,   -0.594841,    1.638832, \
-    "C",      0.791379,   -1.728570,    0.829268, \
-    "C",      2.305990,    0.692768,    0.129924, \
-    "C",      0.730586,    1.139634,   -1.733020, \
-    "H",     -1.449798,    1.804649,    1.756791, \
-    "H",     -0.781306,    2.571791,    0.321167, \
-    "H",      0.263569,    2.255213,    1.719313, \
-    "H",      1.413749,   -1.684160,   -1.316904, \
-    "H",     -0.928638,   -1.106018,   -2.110152, \
-    "H",     -1.245108,   -2.239900,   -0.799431, \
-    "H",      1.816886,   -1.883799,    1.170885, \
-    "H",      0.276292,   -2.687598,    0.915376, \
-    "H",     -0.817893,   -0.939327,    2.156614, \
-    "H",      0.738119,   -0.159990,    2.396232, \
-    "H",      3.085409,    0.421803,   -0.586828, \
-    "H",      2.371705,    1.769892,    0.297106, \
-    "H",      2.531884,    0.195217,    1.071909, \
-    "H",      0.890539,    2.201894,   -1.536852, \
-    "H",      1.455250,    0.830868,   -2.487875, \
-    "H",     -0.267696,    1.035608,   -2.160680)
-
-    print(camphor.XYZ)
-    t = np.random.rand(3,3)
-    t = (t+t.T) * 0.5
-    camphor.tensor = ("aa", t)
-    print(camphor.tensor)
-    print(camphor.imom())
-    camphor.frame = "aa"
-    print(camphor.tensor)
-    sys.exit()
-    #a,b = camphor.frame
-    #print(a,b)
-    #print(camphor.XYZ)
-    print("\n")
-    print(camphor.imom())
-    print(camphor.ABC)
-    bas = symmetrize(SymtopBasis(10), sym="D2")
-    print(bas.keys())
-    A,B,C = camphor.ABC
-    for sym,sym_bas in bas.items():
-        Jx2 = Jxx(sym_bas)
-        Jy2 = Jyy(sym_bas)
-        Jz2 = Jzz(sym_bas)
-        h = B * Jx2 + A * Jy2 + C * Jz2 
-        mat = sym_bas.overlap(h)
-        enr, vec = np.linalg.eigh(mat)
-        print(sym, enr)
-
-    # A,B,C = camphor.ABC
-    # bas = SymtopBasis(10)
-    # Jx2 = Jxx(bas)
-    # Jy2 = Jyy(bas)
-    # Jz2 = Jzz(bas)
-    # h = B * Jx2 + C * Jy2 + A * Jz2 
-    # mat = bas.overlap(h)
-    # enr, vec = np.linalg.eigh(mat)
-    # print(enr)

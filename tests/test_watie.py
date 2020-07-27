@@ -571,6 +571,25 @@ class TestRigidMolecule(unittest.TestCase):
 
 
 
+class TestCartTensor(unittest.TestCase):
+
+    @settings(deadline=5000, max_examples=30, suppress_health_check=[HealthCheck.filter_too_much])
+    @given(arrays(np.float64,3))
+    def fail_init1(self, x):
+        try:
+            tens = watie.CartTensor(x)
+        except ValueError:
+            assume(False)
+
+    @settings(deadline=5000, max_examples=30, suppress_health_check=[HealthCheck.filter_too_much])
+    @given(arrays(np.float64,(3,3)))
+    def fail_init2(self, x):
+        try:
+            tens = watie.CartTensor(x)
+        except ValueError:
+            assume(False)
+
+
 if __name__=="__main__":
     #unittest.main()
     TestRunner.main()
