@@ -28,7 +28,7 @@ setup(
     license             = "GPL",
     packages            = ["richmol"],
     cmdclass            = {'build': Build},
-    package_data        = {"richmol":["symtoplib/symtoplib*"]},
+    package_data        = {"richmol":["symtoplib/symtoplib*","symtoplib/wigxjpf-1.5/lib/libwigxjpf_shared*"]},
     scripts             = [],
     install_requires    = ["hypothesis", "mendeleev"],
     long_description    = read("README"),

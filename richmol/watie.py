@@ -11,6 +11,7 @@ import inspect
 import copy
 from ctypes import CDLL, c_double, c_int, POINTER, RTLD_GLOBAL
 import warnings
+from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 
 
 bohr_to_angstrom = 0.529177249    # converts distances from atomic units to Angstrom
@@ -26,6 +27,8 @@ large = abs(np.finfo(float).max)
 symtoplib_path = os.path.join(os.path.dirname(__file__), 'symtoplib')
 fsymtop = np.ctypeslib.load_library('symtoplib', symtoplib_path)
 
+# allow for repetitions of warning for the same source location
+warnings.simplefilter('always', UserWarning)
 
 def atom_data_from_label(atom_label):
     """Given atom label, returns its properties, e.g. mass. Combine atom labels with integer mass
@@ -766,6 +769,7 @@ class C2v(SymtopSymmetry):
 
 class J():
     """ Basic class for rotational angular momentum operators, acting on both k- and m-space quanta """
+
     def __init__(self, *args, **kwargs):
         for arg in args:
             try:
@@ -781,9 +785,9 @@ class J():
             else:
                self.jm_table = arg.jm_table.copy()
         if 'jk_table' in kwargs:
-            self.jk_table = kwargs['jk_table'].copy()
+            self.jk_table = copy.deepcopy(kwargs['jk_table'])
             try:
-                self.jm_table = kwargs['jm_table'].copy()
+                self.jm_table = copy.deepcopy(kwargs['jm_table'])
             except KeyError:
                 raise KeyError(f"missing argument 'jm_table' must always be provided together with 'jk_table'") from None
 
@@ -957,11 +961,11 @@ class mol_Jz(J):
     """ Molecular-frame Jz """
     def __init__(self, arg=None):
         J.__init__(self, arg)
-        if self.__dict__.get("jk_table") is None:
-            pass
-        else:
+        try:
             for ielem,(j,k) in enumerate(self.jk_table['jk']):
                 self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * k
+        except AttributeError:
+            pass
 
 Jz = mol_Jz
 
@@ -970,11 +974,11 @@ class mol_JJ(J):
     """ Molecular-frame J^2 """
     def __init__(self, arg=None):
         J.__init__(self, arg)
-        if self.__dict__.get("jk_table") is None:
-            pass
-        else:
+        try:
             for ielem,(j,k) in enumerate(self.jk_table['jk']):
                 self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * j*(j+1)
+        except AttributeError:
+            pass
 
 JJ = mol_JJ
 
@@ -1107,6 +1111,8 @@ class CartTensor():
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
     def __init__(self, arg):
+        """ Initialises laboratory-fixed Cartesian tensor given molecule-fixed tensor """
+
         # check input tensor
         if isinstance(arg, (tuple, list)):
             tens = np.array(arg)
@@ -1134,90 +1140,137 @@ class CartTensor():
         except KeyError:
             raise NotImplementedError(f"Tensor of rank = {rank} is not implemented") from None
 
-        self.tens_flat = np.zeros(len(self.cart_ind[rank]), dtype=type(tens))
-        for ix,sx in enumerate(self.cart_ind[rank]):
-            s = [ss for ss in sx] # e.g. split "xy" into ["x","y"]
-            ind = ["xyz".index(ss) for ss in s] # e.g. convert ["x","y"] into [0,1]
+        # save mol-fixed tensor in flatted form with the elements following the order in self.cart
+        self.tens_flat = np.zeros(len(self.cart), dtype=type(tens))
+        for ix,sx in enumerate(self.cart):
+            s = [ss for ss in sx]    # e.g. split "xy" into ["x","y"]
+            ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
             self.tens_flat[ix] = tens.item(tuple(ind))
 
+        # special cases if tensor is symmetric and traceless
         if self.rank==2:
             symmetric = lambda tens, tol=1e-12: np.all(np.abs(tens-tens.T) < tol)
             traceless = lambda tens, tol=1e-12: abs(np.sum(np.diag(tens)))<tol
-            if symmetric(tens) is True and traceless(tens) is True:
+            if symmetric(tens)==True and traceless(tens)==True:
                 # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
                 # will be zero: (0,0), (1,-1), (1,0), and (1,1)
                 self.Us = np.delete(self.Us, [0,1,2,3], 0)
                 self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
-                self.os = [(omega,sigma) for (omega,sigma) in self.irrep_ind if omega==2]
-            elif symmetric(tens) is True and traceless(tens) is False:
+                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega==2]
+            elif symmetric(tens)==True and traceless(tens)==False:
                 # for symmetric tensor the following rows in tmat_s and columns in tmat_x
                 # will be zero: (1,-1), (1,0), and (1,1)
                 self.Us = np.delete(self.Us, [1,2,3], 0)
                 self.Ux = np.delete(self.Ux, [1,2,3], 1)
-                self.os = [(omega,sigma) for (omega,sigma) in self.irrep_ind if omega in (0,2)]
+                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
 
-    def __call__(self, arg):
-        """ Applies Cartesian tensor operator to a set of symmetric-top functions (arg),
-        returns result in a split-form of K-tensor and M-tensor acting on k- and m-space of quantum
-        numbers, respectively
+    def __call__(self, arg, tol=1e-14):
+        """ Computes |psi'> = CartTensor|psi>
+
+        Returns result in a split-form of K-tensor and M-tensor acting separately
+        on J,k and J,m sets of quantum numbers, respectively.
+
+        The output objects are K[omega] and M[(alpha,omega)], where 'omega' denotes the irreducible
+        tensor rank and 'alpha' denotes the lab-fixed Cartesian component of tensor.
+        The result CartTensor|psi> can be computed as sum_omega( K[omega] * M[(alpha,omega)] )
+        for selected lab-fixed Cartesian component 'alpha'.
 
         Args:
-            arg (SymtopBasis, J, or similar): represents set of linear combinations of symmetric-top
-                functions, can be either a basis set, i.e., SymtopBasis(), or a result of an action
-                of angular momentum or Cartesian-tensor operator(s) on a basis set, i.e., J() class.
-                It must contain 'jk_table' and 'jm_table' attributes.
+            arg (SymtopBasis, J, or similar): set of linear combinations of symmetric-top functions,
+                it must contain 'jk_table' and 'jm_table' attributes.
+            tol (float): tolerance for neglecting projection coefficients, defaults to 1e-12.
         Returns:
-            res_k (dict): Dictionary of J()-class objects with updated 'jk_table' attribute for
-                          different irreducible tensor ranks (as dict keys).
-                          Example of K|psi> is res_k[irrep].jk_table.
-            res_m (dict): Dictionary of J()-class objects with updated 'jm_table' attribute
-                          for different lab-fixed Cartesian components and different irreducible
-                          tensor ranks (as dict keys).
-                          Example of M|psi> is res_m[(cart,irrep)].jm_table.
+            res_k (dict): K[omega]
+            res_m (dict): M[(alpha,omega)]
         """
         irreps = set(omega for (omega,sigma) in self.os)
-        dj_max = max(irreps) # selection rules |j1-j2|<=omega
-        os_ind = [[ind for ind,(o,s) in enumerate(self.os) if o==omega] for omega in irreps]
+        dj_max = max(irreps)    # selection rules |j1-j2|<=omega
+        os_ind = {omega : [ind for ind,(o,s) in enumerate(self.os) if o==omega] for omega in irreps}
 
-        res_k = {irrep : J(arg) for irrep in irreps}
-        for key in res_k.keys():
-            res_k[key].jk_table['c'][:,:] = 0
-            del res_k[key].jm_table
+        # input set of basis functions
+        jk_table = arg.jk_table
+        jm_table = arg.jm_table
 
-        res_m = {(cart,irrep) : J(arg) for irrep in irreps for cart in self.cart_ind}
-        for key in res_m.keys():
-            res_m[key].jm_table['c'][:,:] = 0
-            del res_m[key].jk_table
+        # generate quanta for new tensor-projected set of basis functions (jk_table2, jm_table2)
 
+        jmin = min([min(j for (j,k) in jk_table['jk']), min(j for (j,m) in jm_table['jm'])])
+        jmax = max([max(j for (j,k) in jk_table['jk']), max(j for (j,m) in jm_table['jm'])])
+        nbas_k = jk_table['c'].shape[1]
+        nbas_m = jm_table['c'].shape[1]
+
+        jk = [(int(J),int(k)) for J in range(max([0,jmin-dj_max]),jmax+1+dj_max) for k in range(-J,J+1)]
+        jm = [(int(J),int(m)) for J in range(max([0,jmin-dj_max]),jmax+1+dj_max) for m in range(-J,J+1)]
+        nprim_k = len(jk)
+        nprim_m = len(jm)
+
+        jk_table2 = np.zeros(nprim_k, dtype=[('jk', 'i4', (2)), ('c', np.complex128, [nbas_k])])
+        jk_table2['jk'] = jk
+        jm_table2 = np.zeros(nprim_m, dtype=[('jm', 'i4', (2)), ('c', np.complex128, [nbas_m])])
+        jm_table2['jm'] = jm
+
+        # output objects
+        res_k = {irrep : J(jk_table=jk_table2, jm_table=None) for irrep in irreps}
+        res_m = {(cart,irrep) : J(jk_table=None, jm_table=jm_table2) for irrep in irreps for cart in self.cart}
+
+        # some initializations in pywigxjpf module for computing 3j symbols
+        wig_table_init((jmax+dj_max)*2, 3)
+        wig_temp_init((jmax+dj_max)*2)
+
+        # compute K|psi>
         for ind1,(j1,k1) in enumerate(jk_table['jk']):
-            jk2 = [(ind,j,k) for ind,(j,k) in enumerate(jk_table['jk']) if abs(j-j1)<=dj_max]
-            for (ind2,j2,k2) in jk2:
+            for ind2,(j2,k2) in enumerate(jk_table2['jk']):
+                fac = (-1)**abs(k2)
                 # compute <j2,k2|K-tensor|j1,k1>
                 threeJ = np.array([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os])
                 for irrep in irreps:
                     ind = os_ind[irrep]
-                    me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * (-1)**k2
+                    me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
                     res_k[irrep].jk_table['c'][ind2,:] += me * jk_table['c'][ind1,:]
 
+        # compute M|psi>
         for ind1,(j1,m1) in enumerate(jm_table['jm']):
-            jm2 = [(ind,j,m) for ind,(j,m) in enumerate(jm_table['jm']) if abs(j-j1)<=dj_max]
-            for (ind2,j2,m2) in jm2:
-                fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**m2
+            for ind2,(j2,m2) in enumerate(jm_table2['jm']):
+                fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
                 # compute <j2,m2|M-tensor|j1,m1>
                 threeJ = np.array([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os])
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
-                    for icart,cart in enumerate(self.cart_ind):
+                    for icart,cart in enumerate(self.cart):
                         res_m[(cart,irrep)].jm_table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
+
+        # free memory in pywigxjpf module
+        wig_temp_free()
+        wig_table_free()
+
+        # experimental: delete zeros in K-tensor
+        for key in res_k.keys():
+            tab = res_k[key].jk_table.copy()
+            nbas = tab['c'].shape[1]
+            nprim = tab['c'].shape[0]
+            ind0 = [ifunc for ifunc in range(nprim) if all(abs(val)<tol for val in tab['c'][ifunc,:])]
+            nprim_new = nprim - len(ind0)
+            res_k[key].jk_table = np.zeros(nprim_new, dtype=[('jk', 'i4', (2)), ('c', np.complex128, [nbas])])
+            res_k[key].jk_table['c'] = np.delete(tab['c'], ind0, 0)
+            res_k[key].jk_table['jk'] = np.delete(tab['jk'], ind0, 0)
+
+        # experimental: delete zeros in M-tensor
+        for key in res_m.keys():
+            tab = res_m[key].jm_table.copy()
+            nbas = tab['c'].shape[1]
+            nprim = tab['c'].shape[0]
+            ind0 = [ifunc for ifunc in range(nprim) if all(abs(val)<tol for val in tab['c'][ifunc,:])]
+            nprim_new = nprim - len(ind0)
+            res_m[key].jm_table = np.zeros(nprim_new, dtype=[('jm', 'i4', (2)), ('c', np.complex128, [nbas])])
+            res_m[key].jm_table['c'] = np.delete(tab['c'], ind0, 0)
+            res_m[key].jm_table['jm'] = np.delete(tab['jm'], ind0, 0)
 
         return res_k, res_m
 
 
     def me(self, psi_bra, psi_ket):
-        """ Matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket> """
-
+        """ Computes matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket> """
         try:
             x = psi_bra.jk_table
             y = psi_bra.jm_table
@@ -1231,16 +1284,17 @@ class CartTensor():
             raise AttributeError(f"{psi_ket.__class__.__name__} has no attribute 'jk_table' " \
                     +f"or/and 'jm_table'") from None
 
+        # K[omega]|psi> and M[(cart,omega)]|psi>
         ktens, mtens = self(psi_ket)
 
         nirrep = len(ktens)
         nirrep_ = len(set(irrep for (cart,irrep) in mtens.keys()))
-        assert (nirrep=nirrep_),f"number of irreps in K-tensor and M-tensor do not agree: " \
+        assert (nirrep==nirrep_),f"number of irreps in K-tensor and M-tensor do not agree: " \
                 +f"{nirrep} != {nirrep_}"
 
         ncart = len(set(cart for (cart,irrep) in mtens.keys()))
-        ncart_ = len(self.cart_ind))
-        assert (ncart=ncart_), f"number of Cartesian components in M-tensor and CartTensor " \
+        ncart_ = len(self.cart)
+        assert (ncart==ncart_), f"number of Cartesian components in M-tensor and CartTensor " \
                 +f"do not agree: {ncart} != {ncart_}"
 
         dim_bra_k = psi_bra.jk_table['c'].shape[1]
@@ -1248,23 +1302,28 @@ class CartTensor():
         dim_bra_m = psi_bra.jm_table['c'].shape[1]
         dim_ket_m = psi_ket.jm_table['c'].shape[1]
 
-        res_k = np.zeros((nirrep, dim_bra_k, dim_bra_ket), dtype=np.complex128)
+        res_k = np.zeros((nirrep, dim_bra_k, dim_ket_k), dtype=np.complex128)
         res_m = np.zeros((nirrep, ncart, dim_bra_m, dim_ket_m), dtype=np.complex128)
+        irreps = list(set(omega for (omega,sigma) in self.os))
 
+        # <psi'|K[omega]|psi>
         for irrep,kt in ktens.items():
-            res_k[irrep,:,:] = psi_bra.overlap_k(kt)
+            irrep_ = irreps.index(irrep)
+            res_k[irrep_,:,:] = psi_bra.overlap_k(kt)
 
+        # <psi'|M[(cart,omega)]|psi>
         for (cart,irrep),mt in mtens.items():
-            icart = self.cart_ind.index(cart)
-            res_m[irrep,icart,:,:] = psi_bra.overlap_m(mt)
+            irrep_ = irreps.index(irrep)
+            icart = self.cart.index(cart)
+            res_m[irrep_,icart,:,:] = psi_bra.overlap_m(mt)
 
+        # <psi'|CartTensor|psi> = sum_omega( <psi'|M[(cart,omega)]|psi> * <psi'|K[omega]|psi> )
         return np.einsum('ijkl,abc->jkblc', res_m, res_k) # [icart,m2,k2,m1,k1]
 
 
 
 def retrieve_name(var):
-    """Gets the name of var. Does it from the out most frame inner-wards.
-    """
+    """ Gets the name of var. Does it from the out most frame inner-wards """
     for fi in reversed(inspect.stack()):
         names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
         if len(names) > 0:
