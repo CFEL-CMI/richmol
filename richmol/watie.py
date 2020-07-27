@@ -438,6 +438,7 @@ class SymtopBasis():
         self.jk_table['jk'] = prim
         self.jkt = np.array(bas)
         self.dim = nbas
+        self.dim_k = nbas
 
         # generate Wang-type linear combinations
         for ibas,(J,k,tau) in enumerate(bas):
@@ -455,6 +456,7 @@ class SymtopBasis():
         self.jm_table['jm'] = prim_m
         for i in range(nbas_m):
             self.jm_table['c'][i,i] = 1
+        self.dim_m = nbas_m
 
 
     def wang_coefs(self, j, k, tau):
@@ -493,11 +495,12 @@ class SymtopBasis():
 
     def overlap_k(self, arg):
         """ Computes overlap matrix elements <self|arg> in the k-dependent space of quanta
+        ('m' quanta are ignored)
 
         Args:
-            arg (SymtopBasis or J): represents set of linear combinations of symmetric-top functions,
-                can be either a basis set, i.e., SymtopBas(), or a result of an action of angular
-                momentum operator(s) on a basis set, i.e., J() class.
+            arg (SymtopBasis, J, or similar): represents set of linear combinations of symmetric-top
+                functions, can be either a basis set, i.e., SymtopBasis(), or a result of an action
+                of angular momentum or Cartesian-tensor operator(s) on a basis set, i.e., J() class.
                 It must contain 'jk_table' attribute.
         Returns:
             res (np.ndarray): overlap matrix elements <self|arg> between self and arg sets of functions.
@@ -528,11 +531,12 @@ class SymtopBasis():
 
     def overlap_m(self, arg):
         """ Computes overlap matrix elements <self|arg> in the m-dependent space of quanta
+        ('k' quanta are ignored)
 
         Args:
-            arg (SymtopBasis or J): represents set of linear combinations of symmetric-top functions,
-                can be either a basis set, i.e., SymtopBas(), or a result of an action of angular
-                momentum operator(s) on a basis set, i.e., J() class.
+            arg (SymtopBasis, J, or similar): represents set of linear combinations of symmetric-top
+                functions, can be either a basis set, i.e., SymtopBasis(), or a result of an action
+                of angular momentum or Cartesian-tensor operator(s) on a basis set, i.e., J() class.
                 It must contain 'jm_table' attribute.
         Returns:
             res (np.ndarray): overlap matrix elements <self|arg> between self and arg sets of functions.
@@ -1154,19 +1158,37 @@ class CartTensor():
 
 
     def __call__(self, arg):
-        """ Apply Cartesian tensor operator to a set of symmetric-top functions """
-        try:
-            jk_table = arg.jk_table
-        except AttributeError:
-            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+        """ Applies Cartesian tensor operator to a set of symmetric-top functions (arg),
+        returns result in a split-form of K-tensor and M-tensor acting on k- and m-space of quantum
+        numbers, respectively
 
-        dj_max = max([omega for (omega,sigma) in self.os]) # selection rules |j1-j2|<=omega
-        os_ind = [[ind for ind,(o,s) in enumerate(self.os) if o==om] for om in set(o for (o,s) in self.os)]
-        irreps = set(o for (o,s) in self.os)
+        Args:
+            arg (SymtopBasis, J, or similar): represents set of linear combinations of symmetric-top
+                functions, can be either a basis set, i.e., SymtopBasis(), or a result of an action
+                of angular momentum or Cartesian-tensor operator(s) on a basis set, i.e., J() class.
+                It must contain 'jk_table' and 'jm_table' attributes.
+        Returns:
+            res_k (dict): Dictionary of J()-class objects with updated 'jk_table' attribute for
+                          different irreducible tensor ranks (as dict keys).
+                          Example of K|psi> is res_k[irrep].jk_table.
+            res_m (dict): Dictionary of J()-class objects with updated 'jm_table' attribute
+                          for different lab-fixed Cartesian components and different irreducible
+                          tensor ranks (as dict keys).
+                          Example of M|psi> is res_m[(cart,irrep)].jm_table.
+        """
+        irreps = set(omega for (omega,sigma) in self.os)
+        dj_max = max(irreps) # selection rules |j1-j2|<=omega
+        os_ind = [[ind for ind,(o,s) in enumerate(self.os) if o==omega] for omega in irreps]
 
-        self.jk_table = {irrep : np.copy.deepcopy(jk_table) for irrep in irreps}
-        for irrep in irreps:
-            self.jk_table[irrep]['c'][:,:] = 0
+        res_k = {irrep : J(arg) for irrep in irreps}
+        for key in res_k.keys():
+            res_k[key].jk_table['c'][:,:] = 0
+            del res_k[key].jm_table
+
+        res_m = {(cart,irrep) : J(arg) for irrep in irreps for cart in self.cart_ind}
+        for key in res_m.keys():
+            res_m[key].jm_table['c'][:,:] = 0
+            del res_m[key].jk_table
 
         for ind1,(j1,k1) in enumerate(jk_table['jk']):
             jk2 = [(ind,j,k) for ind,(j,k) in enumerate(jk_table['jk']) if abs(j-j1)<=dj_max]
@@ -1176,7 +1198,67 @@ class CartTensor():
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * (-1)**k2
-                    self.jk_table[irrep]['c'][ind2,:] += me * jk_table['c'][ind1,:]
+                    res_k[irrep].jk_table['c'][ind2,:] += me * jk_table['c'][ind1,:]
+
+        for ind1,(j1,m1) in enumerate(jm_table['jm']):
+            jm2 = [(ind,j,m) for ind,(j,m) in enumerate(jm_table['jm']) if abs(j-j1)<=dj_max]
+            for (ind2,j2,m2) in jm2:
+                fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**m2
+                # compute <j2,m2|M-tensor|j1,m1>
+                threeJ = np.array([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os])
+                for irrep in irreps:
+                    ind = os_ind[irrep]
+                    me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
+                    for icart,cart in enumerate(self.cart_ind):
+                        res_m[(cart,irrep)].jm_table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
+
+        return res_k, res_m
+
+
+    def me(self, psi_bra, psi_ket):
+        """ Matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket> """
+
+        try:
+            x = psi_bra.jk_table
+            y = psi_bra.jm_table
+        except AttributeError:
+            raise AttributeError(f"{psi_bra.__class__.__name__} has no attribute 'jk_table' " \
+                    +f"or/and 'jm_table'") from None
+        try:
+            x = psi_ket.jk_table
+            y = psi_ket.jm_table
+        except AttributeError:
+            raise AttributeError(f"{psi_ket.__class__.__name__} has no attribute 'jk_table' " \
+                    +f"or/and 'jm_table'") from None
+
+        ktens, mtens = self(psi_ket)
+
+        nirrep = len(ktens)
+        nirrep_ = len(set(irrep for (cart,irrep) in mtens.keys()))
+        assert (nirrep=nirrep_),f"number of irreps in K-tensor and M-tensor do not agree: " \
+                +f"{nirrep} != {nirrep_}"
+
+        ncart = len(set(cart for (cart,irrep) in mtens.keys()))
+        ncart_ = len(self.cart_ind))
+        assert (ncart=ncart_), f"number of Cartesian components in M-tensor and CartTensor " \
+                +f"do not agree: {ncart} != {ncart_}"
+
+        dim_bra_k = psi_bra.jk_table['c'].shape[1]
+        dim_ket_k = psi_ket.jk_table['c'].shape[1]
+        dim_bra_m = psi_bra.jm_table['c'].shape[1]
+        dim_ket_m = psi_ket.jm_table['c'].shape[1]
+
+        res_k = np.zeros((nirrep, dim_bra_k, dim_bra_ket), dtype=np.complex128)
+        res_m = np.zeros((nirrep, ncart, dim_bra_m, dim_ket_m), dtype=np.complex128)
+
+        for irrep,kt in ktens.items():
+            res_k[irrep,:,:] = psi_bra.overlap_k(kt)
+
+        for (cart,irrep),mt in mtens.items():
+            icart = self.cart_ind.index(cart)
+            res_m[irrep,icart,:,:] = psi_bra.overlap_m(mt)
+
+        return np.einsum('ijkl,abc->jkblc', res_m, res_k) # [icart,m2,k2,m1,k1]
 
 
 
