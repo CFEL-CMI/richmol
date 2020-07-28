@@ -278,7 +278,7 @@ class RigidMolecule():
             raise TypeError(f"Unsupported argument type '{type(arg)}' for frame specification, " \
                     +f"must be 'str'") from None
 
-        # update string that keeps track of all frame rotations
+        # update a string that keeps track of all frame rotations
         try:
             self.frame_type += "," + arg
         except AttributeError:
@@ -398,12 +398,11 @@ class RigidMolecule():
 
 
 class PsiTable():
-    """ Basic class for operations on wavefunction coefficients """
 
     def __init__(self, prim, stat, coefs=None):
-        if not isinstance(prim, (list, tuple, np.ndarray)):
+        if not isinstance(prim, (list,tuple,np.ndarray)):
             raise TypeError(f"unsupported argument type '{type(prim)}'") from None
-        if not isinstance(stat, (list, tuple, np.ndarray)):
+        if not isinstance(stat, (list,tuple,np.ndarray)):
             raise TypeError(f"unsupported argument type '{type(stat)}'") from None
         nprim = len(prim)
         nstat = len(stat)
@@ -429,15 +428,15 @@ class PsiTable():
         try:
             x = arg.table
         except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under sum work on different basis sets " \
-                    +f"('table['prim']' attributes do not match)") from None
+            raise ValueError(f"'{retrieve_name(self)}' and '{retrieve_name(arg)}' " \
+                +f"work on different basis sets ('table['prim']' attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under sum work on different basis sets " \
-                    +f"('table['stat']' attributes do not match)") from None
+            raise ValueError(f"'{retrieve_name(self)}' and '{retrieve_name(arg)}' " \
+                +f"work on different basis sets ('table['stat']' attributes do not match)") from None
 
         prim = self.table['prim']
         stat = self.table['stat']
@@ -450,15 +449,15 @@ class PsiTable():
         try:
             x = arg.table
         except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under subtr work on different basis sets " \
-                    +f"('table['prim']' attributes do not match)") from None
+            raise ValueError(f"'{retrieve_name(self)}' and '{retrieve_name(arg)}' " \
+                +f"work on different basis sets ('table['prim']' attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under subtr work on different basis sets " \
-                    +f"('table['stat']' attributes do not match)") from None
+            raise ValueError(f"'{retrieve_name(self)}' and '{retrieve_name(arg)}' " \
+                +f"work on different basis sets ('table['stat']' attributes do not match)") from None
 
         prim = self.table['prim']
         stat = self.table['stat']
@@ -467,23 +466,11 @@ class PsiTable():
         return PsiTable(prim, stat, coefs)
 
 
-    def __mul__(self, arg):
-        if np.isscalar(arg):
-            prim = self.table['prim']
-            stat = self.table['stat']
-            coefs = self.table['c'].copy()
-            coefs *= arg
-        else:
-            raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " \
-                    +f"'{arg.__class__.__name__}'") from None
-        return PsiTable(prim, stat, coefs)
-
-
-    def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, tol=1e-12):
+    def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False):
         try:
             x = arg.table
         except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'table'") from None
 
         prim1 = [tuple(x) for x in self.table['prim']]
         stat1 = [tuple(x) for x in self.table['stat']]
@@ -507,11 +494,11 @@ class PsiTable():
             except ValueError:
                 pass
         if del_zero_stat==True:
-            prim, stat, coefs = self.del_zero_stat(prim, stat, coefs, tol)
+            prim, stat, coefs = self.del_zero_stat(prim, stat, coefs)
         if del_zero_prim==True:
-            prim, stat, coefs = self.del_zero_prim(prim, stat, coefs, tol)
+            prim, stat, coefs = self.del_zero_prim(prim, stat, coefs)
         if del_duplicate_stat==True:
-            prim, stat, coefs = self.del_duplicate_stat(prim, stat, coefs, tol)
+            prim, stat, coefs = self.del_duplicate_stat(prim, stat, coefs)
         return PsiTable(prim, stat, coefs)
 
 
@@ -520,7 +507,7 @@ class PsiTable():
         try:
             x = arg.table
         except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'table'") from None
         prim1 = [tuple(x) for x in self.table['prim']]
         coefs1 = self.table['c'].conj().T
         prim2 = [tuple(x) for x in arg.table['prim']]
@@ -528,7 +515,8 @@ class PsiTable():
         # find overlapping primitive states in both sets
         both = set(prim1).intersection(prim2)
         if len(both)==0:
-            warnings.warn(f"functions have no overlapping primitive quanta, the overlap is zero!")
+            warnings.warn(f"functions '{retrieve_name(self)}' and '{retrieve_name(arg)}' have no " \
+                +f"overlapping primitive quanta, the overlap is zero!")
         ind1 = [prim1.index(x) for x in both]
         ind2 = [prim2.index(x) for x in both]
         # dot product across overlapping primitive quanta
@@ -562,9 +550,8 @@ class PsiTable():
         elif len(stat) != rotmat.shape[0]:
             raise ValueError(f"number of elements in state assignment = {len(stat)} is not aligned " \
                     +f"with the number of rows in rotation matrix = {rotmat.shape[0]}") from None
-        prim = [elem for elem in self.prim]
 
-        return PsiTable(prim, stat, coefs)
+        return PsiTable(self.prim, stat, coefs)
 
 
     def del_zero_stat(self, prim=None, stat=None, coefs=None, tol=1e-12):
@@ -582,12 +569,9 @@ class PsiTable():
                     +f"to be defined or none of them")
         nstat = coefs.shape[1]
         ind = [istat for istat in range(nstat) if all(abs(val)<tol for val in coefs[:,istat])]
-        coefs2 = np.delete(coefs, ind, 1)
-        stat2 = np.delete(stat, ind, 0)
-        prim2 = [elem for elem in prim]
-        if len(stat)==0:
-            raise RuntimeError(f"somehow deleted all states (using tol = {tol})")
-        return freturn(prim2, stat2, coefs2)
+        coefs = np.delete(coefs, ind, 1)
+        stat = np.delete(stat, ind, 0)
+        return freturn(prim, stat, coefs)
 
 
     def del_zero_prim(self, prim=None, stat=None, coefs=None, tol=1e-12):
@@ -606,12 +590,9 @@ class PsiTable():
                     +f"to be defined or none of them")
         nprim = coefs.shape[0]
         ind = [iprim for iprim in range(nprim) if all(abs(val)<tol for val in coefs[iprim,:])]
-        coefs2 = np.delete(coefs, ind, 0)
-        prim2 = np.delete(prim, ind, 0)
-        stat2 = [elem for elem in stat]
-        if len(prim)==0:
-            raise RuntimeError(f"somehow deleted all primitives (using tol = {tol})")
-        return freturn(prim2, stat2, coefs2)
+        coefs = np.delete(coefs, ind, 0)
+        prim = np.delete(prim, ind, 0)
+        return freturn(prim, stat, coefs)
 
 
     def del_duplicate_stat(self, prim=None, stat=None, coefs=None, tol=1e-12):
@@ -632,121 +613,25 @@ class PsiTable():
         for istat in range(nstat):
             ind += [jstat for jstat in range(istat+1,nstat) \
                    if all(abs(val1-val2)<tol for val1,val2 in zip(coefs[:,istat],coefs[:,jstat]))]
-        coefs2 = np.delete(coefs, ind, 1)
-        stat2 = np.delete(stat, ind, 0)
-        prim2 = [elem for elem in prim]
-        if len(stat)==0:
-            raise RuntimeError(f"somehow deleted all states (using tol = {tol})")
-        return freturn(prim2, stat2, coefs2)
+        coefs = np.delete(coefs, ind, 1)
+        stat = np.delete(stat, ind, 0)
+        return freturn(prim, stat, coefs)
 
 
 
-class PsiTableMK():
-    """ Basic class for operations on rotational wavefunction, based on PsiTable,
-    keeps separately J,k and J,m spaces of quantum numbers
-    """
-
-    def __init__(self, psik, psim):
-        if not isinstance(psik, PsiTable):
-            raise TypeError(f"unexpected type for argument '{type(psik)}', expected 'PsiTable'")
-        if not isinstance(psim, PsiTable):
-            raise TypeError(f"unexpected type for argument '{type(psim)}', expected 'PsiTable'")
-        self.m = PsiTable(psim.table['prim'], psim.table['stat'], psim.table['c'])
-        self.k = PsiTable(psik.table['prim'], psik.table['stat'], psik.table['c'])
-
-
-    def __add__(self, arg):
-        try:
-            x = arg.m
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
-            x = arg.k
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        res_m = self.m + arg.m
-        res_k = self.k + arg.k
-        return PsiTableMK(res_k, res_m)
-
-
-    def __sub__(self, arg):
-        try:
-            x = arg.m
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
-            x = arg.k
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        res_m = self.m - arg.m
-        res_k = self.k - arg.k
-        return PsiTableMK(res_k, res_m)
-
-
-    def __mul__(self, arg):
-        if np.isscalar(arg):
-            res_m = self.m
-            res_k = self.k * arg
-        else:
-            raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " \
-                    +f"'{arg.__class__.__name__}'") from None
-        return PsiTableMK(res_k, res_m)
-
-    __rmul__ = __mul__
-
-
-    def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, tol=1e-12):
-        try:
-            x = arg.m
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
-            x = arg.k
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        res_m = self.m.append(arg.m, del_duplicate_stat, del_zero_stat, del_zero_prim, tol)
-        res_k = self.k.append(arg.k, del_duplicate_stat, del_zero_stat, del_zero_prim, tol)
-        return PsiTableMK(res_k, res_m)
-
-
-    def overlap(self, arg):
-        try:
-            x = arg.m
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
-            x = arg.k
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        ovlp_m = self.m.overlap(arg.m)
-        ovlp_k = self.k.overlap(arg.k)
-        return ovlp_k, ovlp_m
-
-
-    def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
-        if mrot is not None:
-            res_m = self.m.rotate(mrot, mstat)
-        if krot is not None:
-            res_k = self.k.rotate(krot, kstat)
-        return PsiTableMK(res_k, res_m)
-
-
-
-class SymtopBasis(PsiTableMK):
+class SymtopBasis_(PsiTable):
     """Basis of symmetric top functions for selected J
 
     Args:
         J (int): Quantum number of the rotational angular momentum.
         linear (bool): set True if molecule is linear, in this case quantum number k is kept at zero.
     """
-
     def __init__(self, J, linear=False):
 
         try:
             self.J = int(round(J))
         except TypeError:
             raise TypeError(f"J = '{J}' is not a number") from None
-        assert (self.J>=0), f"J = {J} is smaller than zero"
 
         # generate keys (j,k) for columns representing primitive functions
         if linear:
@@ -769,20 +654,18 @@ class SymtopBasis(PsiTableMK):
 
         assert (len(prim)==len(bas)), "len(prim)!=len(bas)"
 
+        nbas = len(bas)
+        nprim = len(prim)
+        coefs = np.zeros((nprim,nbas), dtype=np.complex128)
+
         # generate Wang-type linear combinations
-        coefs = np.zeros((len(prim),len(bas)), dtype=np.complex128)
         for ibas,(J,k,tau) in enumerate(bas):
             c, kval = self.wang_coefs(J, k, tau)
             for kk,cc in zip(kval,c):
                 iprim = prim.index((J,kk))
                 coefs[iprim,ibas] = cc
+        PsiTable.__init__(self, prim, bas, coefs)
 
-        # generate m-quanta
-        prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
-        coefs_m = np.eye(len(prim_m), dtype=np.complex128)
-
-        # initialize
-        PsiTableMK.__init__(self, PsiTable(prim, bas, coefs), PsiTable(prim_m, prim_m, coefs_m))
 
 
     def wang_coefs(self, j, k, tau):
@@ -818,6 +701,168 @@ class SymtopBasis(PsiTableMK):
                 coefs = [complex(0.0,fac1), complex(0.0,-fac2)]
         return coefs, kval
 
+
+
+class SymtopBasis():
+    """Basis of symmetric top functions for selected J
+
+    Args:
+        J (int): Quantum number of the rotational angular momentum.
+        linear (bool): set True if molecule is linear, in this case quantum number k is set to zero.
+    """
+
+    def __init__(self, J, linear=False):
+
+        try:
+            self.J = int(round(J))
+        except TypeError:
+            raise TypeError(f"J = '{J}' is not a number") from None
+
+        # generate keys (j,k) for columns representing primitive functions
+        if linear:
+            prim = [(int(J),0)]
+        else:
+            prim = [(int(J),int(k)) for k in range(-J,J+1)]
+
+        # generate keys (j,k,tau) for rows representing symmetrized functions
+        if linear:
+            bas = [(J,0,np.fmod(J, 2))]
+        else:
+            bas = []
+            for k in range(0,J+1):
+                if k==0:
+                    tau = [int(math.fmod(J, 2))]
+                else:
+                    tau = [0,1]
+                for t in tau:
+                    bas.append( (int(J),int(k),int(t)) )
+
+        assert (len(prim)==len(bas)), "len(prim)!=len(bas)"
+
+        # create empty table of linear coefficients
+        nbas = len(bas)
+        assert (nbas>0), f"number of basis functions for J = {J} is {nbas}"
+        dt = [('jk', 'i4', (2)), ('c', np.complex128, [nbas])]
+        self.jk_table = np.zeros(nbas, dtype=dt)
+        self.jk_table['jk'] = prim
+        self.jkt = np.array(bas)
+        self.dim = nbas
+        self.dim_k = nbas
+
+        # generate Wang-type linear combinations
+        for ibas,(J,k,tau) in enumerate(bas):
+            coefs, kval = self.wang_coefs(J, k, tau)
+            for kk,cc in zip(kval,coefs):
+                iprim = np.where((self.jk_table['jk']==(J,kk)).all(axis=1))[0][0]
+                self.jk_table['c'][iprim,ibas] = cc
+
+        # Add m-dependent part of the basis
+        # generate keys (j,m) and create a table of coefficients
+        prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
+        nbas_m = len(prim_m)
+        dt = [('jm', 'i4', (2)), ('c', np.complex128, [nbas_m])]
+        self.jm_table = np.zeros(nbas, dtype=dt)
+        self.jm_table['jm'] = prim_m
+        for i in range(nbas_m):
+            self.jm_table['c'][i,i] = 1
+        self.dim_m = nbas_m
+
+
+    def wang_coefs(self, j, k, tau):
+        """Wang's symmetrization coefficients c1 and c2 for symmetric-top function in the form
+        |J,k,tau> = c1|J,k> + c2|J,-k>
+
+        Args:
+            j, k, tau (int): J, k, and tau quantum numbers, where k can take values between 0 and J
+                and tau=0 or 1 is parity defined as (-1)^tau.
+
+        Returns:
+            coefs (list): Wang's symmetrization coefficients, coefs=[c1,c2] for k>0 and coefs=[c1] for k=0.
+            kval (list): List of k-values, kval=[k,-k] for k0 and kval=[k] for k=0.
+        """
+        assert (k>=0), f"k = {k} < 0"
+        assert (j>=0), f"J = {j} < 0"
+        assert (k<=j), f"k = {k} > J = {J}"
+        assert (tau<=1 and tau>=0), f"tau = {tau} is not equal to 0 or 1"
+
+        sigma = math.fmod(k, 3) * tau
+        fac1 = pow(-1.0,sigma)/math.sqrt(2.0)
+        fac2 = fac1 * pow(-1.0,(j+k))
+        kval = [k, -k]
+        if tau==0:
+            if k==0:
+                coefs = [1.0]
+            elif k>0:
+                coefs = [fac1, fac2]
+        elif tau==1:
+            if k==0:
+                coefs = [complex(0.0,1.0)]
+            elif k>0:
+                coefs = [complex(0.0,fac1), complex(0.0,-fac2)]
+        return coefs, kval
+
+
+    def overlap_k(self, arg):
+        """ Computes overlap matrix elements <self|arg> in J,k space of quanta
+
+        Args:
+            arg (SymtopBasis, J, or similar): set of linear combinations of symmetric-top functions,
+                it must contain 'jk_table' attribute.
+        Returns:
+            res (np.ndarray): overlap matrix elements <self|arg>
+        """
+        try:
+            table_ket = arg.jk_table
+        except AttributeError:
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+        table_bra = self.jk_table
+        jk_ket = [tuple(x) for x in table_ket['jk']]
+        jk_bra = [tuple(x) for x in table_bra['jk']]
+        coefs_ket = table_ket['c']
+        coefs_bra = table_bra['c'].conj().T
+        # find overlapping jk quanta in both bra and ket lists
+        both = set(jk_bra).intersection(jk_ket)
+        ind_bra = [jk_bra.index(x) for x in both]
+        ind_ket = [jk_ket.index(x) for x in both]
+        if len(both)==0:
+            warnings.warn(f"functions {retrieve_name(self)} and {retrieve_name(arg)} have no " \
+                +f"overlapping J,k quanta, the overlap is zero!")
+        # dot product across overlapping jk quanta
+        res = np.dot(coefs_bra[:,ind_bra], coefs_ket[ind_ket,:])
+        return res
+
+
+    overlap = overlap_k
+
+
+    def overlap_m(self, arg):
+        """ Computes overlap matrix elements <self|arg> in J,m space of quanta
+
+        Args:
+            arg (SymtopBasis, J, or similar): set of linear combinations of symmetric-top functions,
+                it must contain 'jm_table' attribute.
+        Returns:
+            res (np.ndarray): overlap matrix elements <self|arg>
+        """
+        try:
+            table_ket = arg.jm_table
+        except AttributeError:
+            raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+        table_bra = self.jm_table
+        jm_ket = [tuple(x) for x in table_ket['jm']]
+        jm_bra = [tuple(x) for x in table_bra['jm']]
+        coefs_ket = table_ket['c']
+        coefs_bra = table_bra['c'].conj().T
+        # find overlapping jm quanta in both bra and ket lists
+        both = set(jm_bra).intersection(jm_ket)
+        ind_bra = [jm_bra.index(x) for x in both]
+        ind_ket = [jm_ket.index(x) for x in both]
+        if len(both)==0:
+            warnings.warn(f"functions {retrieve_name(self)} and {retrieve_name(arg)} have no " \
+                +f"overlapping J,m quanta, the overlap is zero!")
+        # dot product across overlapping jm quanta
+        res = np.dot(coefs_bra[:,ind_bra], coefs_ket[ind_ket,:])
+        return res
 
 
 def symmetrize(arg, sym="D2"):
@@ -863,11 +908,7 @@ class SymtopSymmetry():
 
     def __init__(self, J):
 
-        try:
-            self.J = int(round(J))
-        except TypeError:
-            raise TypeError(f"J = '{J}' is not a number") from None
-        assert (self.J>=0), f"J = {J} is smaller than zero"
+        self.J = J
 
         # compute symmetrisation coefficients for symmetric-top functions
 
@@ -925,6 +966,7 @@ class SymtopSymmetry():
         return res
 
 
+
 class D2(SymtopSymmetry):
     def __init__(self, J):
 
@@ -955,6 +997,7 @@ class D2(SymtopSymmetry):
         self.euler_rotation[:,3] = [0.5*pi,pi,1.5*pi]  # C2(x)
 
         SymtopSymmetry.__init__(self, J)
+
 
 
 class D2h(SymtopSymmetry):
@@ -994,6 +1037,7 @@ class D2h(SymtopSymmetry):
         SymtopSymmetry.__init__(self, J)
 
 
+
 class C2v(SymtopSymmetry):
     def __init__(self, J):
 
@@ -1023,39 +1067,152 @@ class C2v(SymtopSymmetry):
 
 
 
-class J(PsiTableMK):
-    """ Basic class for rotational angular momentum operators """
+class J():
+    """ Basic class for rotational angular momentum operators, acting on both k- and m-space quanta """
 
-    def __init__(self, arg=None):
-        if arg is None:
-            pass
-        else:
+    def __init__(self, *args, **kwargs):
+        for arg in args:
             try:
-                x = arg.m
+                x = arg.jk_table
             except AttributeError:
-                raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-            try:
-                x = arg.k
-            except AttributeError:
-                raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-            PsiTableMK.__init__(self, arg.k, arg.m)
-
-
-    def __mul__(self, arg):
-        try:
-            x = arg.m
-            y = arg.k
-            res = self.__class__(arg)
-        except AttributeError:
-            if np.isscalar(arg):
-                res = J(self)
-                res.k = res.k * arg
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
             else:
-                raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' " \
-                        +f"and '{arg.__class__.__name__}'") from None
+               self.jk_table = arg.jk_table.copy()
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            else:
+               self.jm_table = arg.jm_table.copy()
+        if 'jk_table' in kwargs:
+            self.jk_table = copy.deepcopy(kwargs['jk_table'])
+            try:
+                self.jm_table = copy.deepcopy(kwargs['jm_table'])
+            except KeyError:
+                raise KeyError(f"missing argument 'jm_table' must always be provided together with 'jk_table'") from None
+
+
+    def __add__(self, arg):
+        try:
+            x = self.jk_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+        try:
+            x = self.jm_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
+
+        if isinstance(arg, J):
+            # k-part
+            try:
+                x = arg.jk_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+            if not (self.jk_table['jk']==arg.jk_table['jk']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jk_table' attributes do not match)") from None
+            jk_table = self.jk_table.copy()
+            for ielem,(j,k) in enumerate(jk_table['jk']):
+                jelem = np.where((arg.jk_table['jk']==(j,k)).all(axis=1))[0][0]
+                jk_table['c'][ielem,:] += arg.jk_table['c'][jelem,:]
+            # m-part
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            if not (self.jm_table['jm']==arg.jm_table['jm']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jm_table' attributes do not match)") from None
+            jm_table = self.jm_table.copy()
+            for ielem,(j,m) in enumerate(jm_table['jm']):
+                jelem = np.where((arg.jm_table['jm']==(j,m)).all(axis=1))[0][0]
+                jm_table['c'][ielem,:] += arg.jm_table['c'][jelem,:]
+            res = J(jk_table=jk_table, jm_table=jm_table)
+
+        else:
+            raise TypeError(f"unsupported operand type(s) for '+': {self.__class__.__name__} and " \
+                    +f"{arg.__class__.__name__}") from None
         return res
 
 
+    def __sub__(self, arg):
+        try:
+            x = self.jk_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+        try:
+            x = self.jm_table
+        except AttributeError:
+            raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
+
+        if isinstance(arg, J):
+            # k-part
+            try:
+                x = arg.jk_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+            if not (self.jk_table['jk']==arg.jk_table['jk']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jk_table' attributes do not match)") from None
+            jk_table = self.jk_table.copy()
+            for ielem,(j,k) in enumerate(jk_table['jk']):
+                jelem = np.where((arg.jk_table['jk']==(j,k)).all(axis=1))[0][0]
+                jk_table['c'][ielem,:] -= arg.jk_table['c'][jelem,:]
+            # m-part
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            if not (self.jm_table['jm']==arg.jm_table['jm']).all():
+                raise ValueError(f"{self.__class__.__name__} and {arg.__class__.__name__} " \
+                    +f"work on different basis sets ('jm_table' attributes do not match)") from None
+            jm_table = self.jm_table.copy()
+            for ielem,(j,m) in enumerate(jm_table['jm']):
+                jelem = np.where((arg.jm_table['jm']==(j,m)).all(axis=1))[0][0]
+                jm_table['c'][ielem,:] -= arg.jm_table['c'][jelem,:]
+            res = J(jk_table=jk_table, jm_table=jm_table)
+
+        else:
+            raise TypeError(f"unsupported operand type(s) for '-': {self.__class__.__name__} and " \
+                    +f"{arg.__class__.__name__}") from None
+        return res
+
+
+    def __mul__(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, 
+                  np.int64, np.float, np.float16, np.float32, np.float64,
+                  np.complex64, np.complex128)
+        if isinstance(arg, J):
+            try:
+                x = arg.jk_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jk_table'") from None
+            try:
+                x = arg.jm_table
+            except AttributeError:
+                raise AttributeError(f"{arg.__class__.__name__} has no attribute 'jm_table'") from None
+            res = self.__class__(arg)
+        elif isinstance(arg, scalar):
+            try:
+                x = self.jk_table
+            except AttributeError:
+                raise AttributeError(f"{self.__class__.__name__} has no attribute 'jk_table'") from None
+            try:
+                x = self.jm_table
+            except AttributeError:
+                raise AttributeError(f"{self.__class__.__name__} has no attribute 'jm_table'") from None
+            jk_table = self.jk_table.copy()
+            jk_table['c'] *= arg
+            jm_table = self.jm_table.copy()
+            res = J(jk_table=jk_table, jm_table=jm_table)
+        else:
+            raise TypeError(f"unsupported operand type(s) for '*': {self.__class__.__name__} and " \
+                    +f"{arg.__class__.__name__}") from None
+        return res
+
+
+    __radd__ = __add__
+    __rsub__ = __sub__
     __rmul__ = __mul__
 
 
@@ -1065,14 +1222,15 @@ class mol_Jp(J):
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
-            table = self.k.table.copy()
-            self.k.table['c'] = 0
-            for ielem,(j,k) in enumerate(table['prim']):
-                if abs(k-1) <= j:
-                    fac = np.sqrt( j*(j+1) - k*(k-1) )
-                    k2 = k - 1
-                    jelem = np.where((table['prim']==(j,k2)).all(axis=1))[0][0]
-                    self.k.table['c'][jelem,:] = table['c'][ielem,:] * fac
+            jk_table = self.jk_table.copy()
+            jk_table['c'] = 0
+            for ielem,(j,k) in enumerate(jk_table['jk']):
+                if abs(k-1)<=j:
+                    fac = math.sqrt( j*(j+1)-k*(k-1) )
+                    k2 = k-1
+                    jelem = np.where((jk_table['jk']==(j,k2)).all(axis=1))[0][0]
+                    jk_table['c'][jelem,:] = self.jk_table['c'][ielem,:] * fac
+            self.jk_table = jk_table
         except AttributeError:
             pass
 
@@ -1084,14 +1242,15 @@ class mol_Jm(J):
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
-            table = self.k.table.copy()
-            self.k.table['c'] = 0
-            for ielem,(j,k) in enumerate(table['prim']):
-                if abs(k+1) <= j:
-                    fac = np.sqrt( j*(j+1) - k*(k+1) )
-                    k2 = k + 1
-                    jelem = np.where((table['prim']==(j,k2)).all(axis=1))[0][0]
-                    self.k.table['c'][jelem,:] = table['c'][ielem,:] * fac
+            jk_table = self.jk_table.copy()
+            jk_table['c'] = 0
+            for ielem,(j,k) in enumerate(jk_table['jk']):
+                if abs(k+1)<=j:
+                    fac = math.sqrt( j*(j+1)-k*(k+1) )
+                    k2 = k+1
+                    jelem = np.where((jk_table['jk']==(j,k2)).all(axis=1))[0][0]
+                    jk_table['c'][jelem,:] = self.jk_table['c'][ielem,:] * fac
+            self.jk_table = jk_table
         except AttributeError:
             pass
 
@@ -1103,8 +1262,8 @@ class mol_Jz(J):
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
-            for ielem,(j,k) in enumerate(self.k.table['prim']):
-                self.k.table['c'][ielem,:] *= k
+            for ielem,(j,k) in enumerate(self.jk_table['jk']):
+                self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * k
         except AttributeError:
             pass
 
@@ -1116,8 +1275,8 @@ class mol_JJ(J):
     def __init__(self, arg=None):
         J.__init__(self, arg)
         try:
-            for ielem,(j,k) in enumerate(self.k.table['prim']):
-                self.k.table['c'][ielem,:] *= j*(j+1)
+            for ielem,(j,k) in enumerate(self.jk_table['jk']):
+                self.jk_table['c'][ielem,:] = self.jk_table['c'][ielem,:] * j*(j+1)
         except AttributeError:
             pass
 

@@ -48,7 +48,7 @@ camphor.frame = "pas"
 # compute rotational energies for J=0..20
 # use rigid-rotor Hamiltonian constructed from rotational constants
 
-Jmax = 10
+Jmax = 20
 
 # don't employ symmetry
 print("rotational energies (no symmetry)")
@@ -61,33 +61,18 @@ for J in range(Jmax+1):
     Jz2 = Jzz(bas)                    # Jz^2|psi>
     A, B, C = camphor.ABC
     H = B * Jx2 + C * Jy2 + A * Jz2   # H|psi> = A*Jx^2|psi> + B*Jy^2|psi> + C*Jz^2|psi>
-    hmat = bas.overlap(H)             # <psi|H|psi>
+    hmat, _ = bas.overlap(H)             # <psi|H|psi>
     enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
     enr_all += [e for e in enr]
     # print energies and assignments in the order:
     #   energy (cm^-1) J k tau |c|^2 | J' k' tau' |c'|^2 an so on for 'n' largest contributions
-    for e,v in zip(enr,vec.T):
-        n = min(bas.dim, 3)           # number of largest contributions (typically n=1)
-        ind = (-abs(v)).argsort()[:n]
-        c2 = np.abs(v[ind])**2
-        print(" %14.4f"%e + " | ".join( " ".join(" %3i"%jkt for jkt in bas.jkt[ind,:][i]) \
-                                       + " %6.3f"%c2[i] for i in range(n) ) )
+    # for e,v in zip(enr,vec.T):
+    #     n = 1           # number of largest contributions (typically n=1)
+    #     ind = (-abs(v)).argsort()[:n]
+    #     c2 = np.abs(v[ind])**2
+    #     print(" %14.4f"%e + " | ".join( " ".join(" %3i"%jkt for jkt in bas.jkt[ind,:][i]) \
+    #                                    + " %6.3f"%c2[i] for i in range(n) ) )
+print(sorted(enr_all))
 
-mu = CartTensor(camphor.tensor["polarizability"])
-print(mu.os)
-Jmax=50
 
-bas1 = SymtopBasis(2)
-bas2 = SymtopBasis(4)
-ktens, mtens = mu(bas1)
-print("k-tensor")
-kmat = {}
-for key,kt in ktens.items():
-    print(key)
-    kmat[key] = bas2.overlap(kt)
-print("m-tensor")
-mmat = {}
-for key,mt in mtens.items():
-    print(key)
-    mmat[key] = bas2.overlap_m(mt)
-# print(me)
+
