@@ -4,6 +4,7 @@ of various rotation-dependent operators, such as laboratory-frame Cartesian tens
 import numpy as np
 import math
 import sys
+import dis
 import os
 from mendeleev import element
 import re
@@ -29,6 +30,7 @@ fsymtop = np.ctypeslib.load_library('symtoplib', symtoplib_path)
 
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
+
 
 def atom_data_from_label(atom_label):
     """Given atom label, returns its properties, e.g. mass. Combine atom labels with integer mass
@@ -439,9 +441,10 @@ class PsiTable():
             raise ValueError(f"'{type(self)}' objects under sum work on different basis sets " \
                     +f"('table['stat']' attributes do not match)") from None
 
+        nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
-        stat = self.table['stat']
-        coefs = np.zeros((len(prim),len(stat)), dtype=np.complex128)
+        stat = self.table['stat'][:nstat]
+        coefs = np.zeros((nprim, nstat), dtype=np.complex128)
         coefs = self.table['c'] + arg.table['c']
         return PsiTable(prim, stat, coefs)
 
@@ -460,17 +463,19 @@ class PsiTable():
             raise ValueError(f"'{type(self)}' objects under subtr work on different basis sets " \
                     +f"('table['stat']' attributes do not match)") from None
 
+        nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
-        stat = self.table['stat']
-        coefs = np.zeros((len(prim),len(stat)), dtype=np.complex128)
+        stat = self.table['stat'][:nstat]
+        coefs = np.zeros((nprim, nstat), dtype=np.complex128)
         coefs = self.table['c'] - arg.table['c']
         return PsiTable(prim, stat, coefs)
 
 
     def __mul__(self, arg):
         if np.isscalar(arg):
+            nprim, nstat = self.table['c'].shape
             prim = self.table['prim']
-            stat = self.table['stat']
+            stat = self.table['stat'][:nstat]
             coefs = self.table['c'].copy()
             coefs *= arg
         else:
@@ -485,16 +490,18 @@ class PsiTable():
         except AttributeError:
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
 
+        nstat1 = self.table['c'].shape[1]
+        nstat2 = arg.table['c'].shape[1]
         prim1 = [tuple(x) for x in self.table['prim']]
-        stat1 = [tuple(x) for x in self.table['stat']]
+        stat1 = [tuple(x) for x in self.table['stat'][:nstat1]]
         prim2 = [tuple(x) for x in arg.table['prim']]
-        stat2 = [tuple(x) for x in arg.table['stat']]
+        stat2 = [tuple(x) for x in arg.table['stat'][:nstat2]]
+
         prim = list(set(prim1 + prim2))
         stat = stat1 + stat2
         coefs = np.zeros((len(prim),len(stat)), dtype=np.complex128)
-        nstat1 = self.table['c'].shape[1]
-        nstat2 = arg.table['c'].shape[1]
         nstat = len(stat)
+
         for i,p in enumerate(prim):
             try:
                 i1 = prim1.index(tuple(p))
@@ -583,10 +590,10 @@ class PsiTable():
         nstat = coefs.shape[1]
         ind = [istat for istat in range(nstat) if all(abs(val)<tol for val in coefs[:,istat])]
         coefs2 = np.delete(coefs, ind, 1)
-        stat2 = np.delete(stat, ind, 0)
+        stat2 = np.delete(stat[:nstat], ind, 0)
         prim2 = [elem for elem in prim]
-        if len(stat)==0:
-            raise RuntimeError(f"somehow deleted all states (using tol = {tol})")
+        if len(stat2)==0:
+            return None # somehow deleted all states
         return freturn(prim2, stat2, coefs2)
 
 
@@ -605,12 +612,13 @@ class PsiTable():
             raise ValueError(f"expecting either all 'prim', 'stat', and 'coefs' arguments " \
                     +f"to be defined or none of them")
         nprim = coefs.shape[0]
+        nstat = coefs.shape[1]
         ind = [iprim for iprim in range(nprim) if all(abs(val)<tol for val in coefs[iprim,:])]
         coefs2 = np.delete(coefs, ind, 0)
         prim2 = np.delete(prim, ind, 0)
-        stat2 = [elem for elem in stat]
-        if len(prim)==0:
-            raise RuntimeError(f"somehow deleted all primitives (using tol = {tol})")
+        stat2 = [elem for elem in stat[:nstat]]
+        if len(prim2)==0:
+            return None # somehow deleted all primitives
         return freturn(prim2, stat2, coefs2)
 
 
@@ -633,10 +641,10 @@ class PsiTable():
             ind += [jstat for jstat in range(istat+1,nstat) \
                    if all(abs(val1-val2)<tol for val1,val2 in zip(coefs[:,istat],coefs[:,jstat]))]
         coefs2 = np.delete(coefs, ind, 1)
-        stat2 = np.delete(stat, ind, 0)
+        stat2 = np.delete(stat[:nstat], ind, 0)
         prim2 = [elem for elem in prim]
-        if len(stat)==0:
-            raise RuntimeError(f"somehow deleted all states (using tol = {tol})")
+        if len(stat2)==0:
+            return None # somehow deleted all states
         return freturn(prim2, stat2, coefs2)
 
 
@@ -651,8 +659,10 @@ class PsiTableMK():
             raise TypeError(f"unexpected type for argument '{type(psik)}', expected 'PsiTable'")
         if not isinstance(psim, PsiTable):
             raise TypeError(f"unexpected type for argument '{type(psim)}', expected 'PsiTable'")
-        self.m = PsiTable(psim.table['prim'], psim.table['stat'], psim.table['c'])
-        self.k = PsiTable(psik.table['prim'], psik.table['stat'], psik.table['c'])
+        nstat = psim.table['c'].shape[1]
+        self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
+        nstat = psik.table['c'].shape[1]
+        self.k = PsiTable(psik.table['prim'], psik.table['stat'][:nstat], psik.table['c'])
 
 
     def __add__(self, arg):
@@ -710,6 +720,7 @@ class PsiTableMK():
 
 
     def overlap(self, arg):
+        howmany = expecting(offset=2)
         try:
             x = arg.m
         except AttributeError:
@@ -720,7 +731,10 @@ class PsiTableMK():
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
         ovlp_m = self.m.overlap(arg.m)
         ovlp_k = self.k.overlap(arg.k)
-        return ovlp_k, ovlp_m
+        if howmany == 1:
+            return ovlp_k
+        elif howmany > 1:
+            return ovlp_k, ovlp_m
 
 
     def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
@@ -820,40 +834,75 @@ class SymtopBasis(PsiTableMK):
 
 
 
-def symmetrize(arg, sym="D2"):
+def symmetrize(arg, sym="D2", tol=1e-12):
     """Returns dictionary of symmetry-adapted objects 'arg' for different irreps (as dict keys)
     of the symmetry group defined by 'sym'
 
     Args:
-        arg (SymtopBasis): Basis of symmetric-top functions for selected J.
+        arg (PsiTableMK): Basis of symmetric-top functions.
         sym (str): Point symmetry group, defaults to "D2".
+        tol (float): Tolerance for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
     """
+    try:
+        x = arg.k
+    except AttributeError:
+        raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
+    try:
+        x = arg.m
+    except AttributeError:
+        raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
+
     try:
         sym_ = getattr(sys.modules[__name__], sym)
     except:
         raise NotImplementedError(f"symmetry '{sym}' is not implemented") from None
 
-    if isinstance(arg, SymtopBasis):
-        bas = arg
-        J = bas.J
-        nbas = len(bas.jk_table['jk'])
-        symmetry = sym_(J)
-        res = {sym_lab : copy.deepcopy(bas) for sym_lab in symmetry.sym_lab}
+    # list of J quanta spanned by arg
+    Jlist = list(set(j for (j,k) in arg.k.table['prim']))
 
-        nbas_sum = 0
+    # create copies of arg for different irreps
+    symmetry = sym_(Jlist[0])
+    res = {sym_lab : copy.deepcopy(arg) for sym_lab in symmetry.sym_lab}
+    for elem in res.values():
+        elem.k.table['c'] = 0
+
+    nstat = arg.k.table['c'].shape[1]
+    prim = [tuple(x) for x in arg.k.table['prim']]
+
+    for J in Jlist:
+        symmetry = sym_(J)
+        proj = symmetry.proj()
+
+        # mapping between (J,k) quanta in arg.k.table and k=-J..J in symmetry.proj array
+        ind_k = []
+        ind_p = []
+        for ik,k in enumerate(range(-J,J+1)):
+            try:
+                ind = prim.index((J,k))
+                ind_k.append(ik)
+                ind_p.append(ind)
+            except ValueError:
+                if np.any(abs(proj[:,:,ik])>tol) or np.any(abs(proj[:,ik,:])>tol):
+                    raise ValueError(f"input set {retrieve_name(arg)} is missing primitive functions " \
+                            +f"that are required for symmetrization, e.g., (J,k) = {(J,k)}") from None
+
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
-            jk_table = symmetry.proj(bas.jk_table, irrep)
-            ind0 = [ifunc for ifunc in range(nbas) if all(abs(val)<small*max(1,J) for val in jk_table['c'][:,ifunc])]
-            nbas_irrep = nbas - len(ind0)
-            nbas_sum += nbas_irrep
-            res[sym_lab].jk_table = np.zeros(nbas, dtype=[('jk', 'i4', (2)), ('c', np.complex128, [nbas_irrep])])
-            res[sym_lab].jk_table['c'] = np.delete(jk_table['c'], ind0, 1)
-            res[sym_lab].jk_table['jk'] = jk_table['jk']
-            res[sym_lab].jkt = np.delete(bas.jkt, ind0, 0) #[jkt for ind,jkt in enumerate(bas.jkt) if ind not in ind0]
-            res[sym_lab].dim = nbas_irrep
-        assert (nbas==nbas_sum), f"nbas = {nbas} is not equal to nbas_sum = {nbas_sum}"
-    else:
-        raise TypeError(f"Unsupported type of argument: 'type(arg)'")
+            pmat = np.dot(proj[irrep,:,ind_k], arg.k.table['c'][ind_p,:])
+            res[sym_lab].k.table['c'][ind_p,:] = pmat[ind_k,:]
+
+    # remove states with zero coefficients
+    remove = []
+    for sym_lab,elem in res.items():
+        elem.k = elem.k.del_zero_stat(tol=1e-12)
+        if elem.k is None:
+            remove.append(sym_lab)
+    for sym_lab in remove: del res[sym_lab]
+
+    # check if the total number of states remains the same
+    nstat_sym = sum(elem.k.table['c'].shape[1] for elem in res.values()) 
+    if nstat_sym != nstat:
+        raise RuntimeError(f"total number of states before symmetrization = {nstat} is different " \
+                +f"from the total number of states summed over all irreps = {nstat_sym}")
 
     return res
 
@@ -901,28 +950,17 @@ class SymtopSymmetry():
             self.coefs[:,:,:,j-jmin] = self.coefs[:,:,:,j-jmin] / np.sqrt((2*j+1)/(8.0*np.pi**2))
 
 
-    def proj(self, jk_table, irrep):
-
-        assert (irrep in range(self.nirrep)), f"irrep = {irrep} is not in range({self.nirrep})"
-        assert(all(self.J==jj[0] for jj in jk_table['jk'])), f"J quanta in 'jk_table' are different " \
-                +f"from self.J = {self.J}"
-
-        nbas = len(jk_table['jk'])
+    def proj(self):
         J = self.J
-        Proj = np.zeros((nbas,nbas), dtype=np.complex128)
-
-        for ioper in range(self.noper):
-            Chi = float(self.characters[ioper,irrep]) # needs to be complex conjugate, fix if characters can be imaginary
-            fac = Chi/self.noper
-            for i,jk1 in enumerate(jk_table['jk']):
-                for j,jk2 in enumerate(jk_table['jk']):
-                    k1 = jk1[1]
-                    k2 = jk2[1]
-                    Proj[i,j] += fac * self.coefs[ioper,k1+J,k2+J,0]
-
-        res = copy.deepcopy(jk_table)
-        res['c'] = np.dot(Proj, jk_table['c'])
-        return res
+        proj = np.zeros((self.nirrep,2*J+1,2*J+1), dtype=np.complex128)
+        for irrep in range(self.nirrep):
+            for ioper in range(self.noper):
+                Chi = float(self.characters[ioper,irrep]) # needs to be complex conjugate, fix if characters can be imaginary
+                fac = Chi/self.noper
+                for k1 in range(-J,J+1):
+                    for k2 in range(-J,J+1):
+                        proj[irrep,k1+J,k2+J] += fac * self.coefs[ioper,k1+J,k2+J,0]
+        return proj
 
 
 class D2(SymtopSymmetry):
@@ -1469,4 +1507,18 @@ def retrieve_name(var):
         names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
         if len(names) > 0:
             return names[0]
+
+
+def expecting(offset=0):
+    """Return how many values the caller is expecting"""
+    f = inspect.currentframe().f_back.f_back
+    i = f.f_lasti + offset
+    bytecode = f.f_code.co_code
+    instruction = bytecode[i]
+    if instruction == dis.opmap['UNPACK_SEQUENCE']:
+        return bytecode[i + 1]
+    elif instruction == dis.opmap['POP_TOP']:
+        return 0
+    else:
+        return 1
 
