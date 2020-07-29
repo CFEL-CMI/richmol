@@ -407,8 +407,20 @@ class PsiTable():
             raise TypeError(f"unsupported argument type '{type(prim)}'") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
             raise TypeError(f"unsupported argument type '{type(stat)}'") from None
+        try:
+            x = [int(val) for elem in prim for val in elem]
+        except ValueError:
+            raise ValueError(f"failed to convert element into integer")
+        try:
+            x = [int(val) for elem in stat for val in elem]
+        except ValueError:
+            raise ValueError(f"failed to convert element into integer")
+
         nprim = len(prim)
         nstat = len(stat)
+        assert (nprim>0), f"number of primitives nprim = 0"
+        assert (nstat>0), f"number of states nstat = 0"
+
         nelem_prim = max(len(x) for x in prim)
         nelem_stat = max(len(x) for x in stat)
         assert (nprim>=nstat), f"nprim < nstat: {nprim} < {nstat}"
@@ -416,6 +428,7 @@ class PsiTable():
         self.table = np.zeros(nprim, dtype=dt)
         self.table['prim'] = prim
         self.table['stat'][:nstat] = stat
+
         if coefs is not None:
             try:
                 shape = coefs.shape
@@ -482,6 +495,11 @@ class PsiTable():
             raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " \
                     +f"'{arg.__class__.__name__}'") from None
         return PsiTable(prim, stat, coefs)
+
+
+    __radd__ = __add__
+    __rsub__ = __sub__
+    __rmul__ = __mul__
 
 
     def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, tol=1e-12):
@@ -559,18 +577,17 @@ class PsiTable():
         if np.any(np.isnan(rotmat)):
             raise ValueError(f"rotation matrix has some values of its elements equal to NaN") from None
 
-        coefs = np.dot(rotmat, self.table['c'].T)
+        coefs = np.dot(self.table['c'], rotmat.T)
         if stat is None:
             stat = []
             for v in rotmat:
                 n = 1
-                ind = (-abs(v)**2).argsort()[:n]
-                stat.append( self.table['stat'][ind] )
+                ind = (-abs(v)**2).argsort()[:n][0]
+                stat.append( [elem for elem in self.table['stat'][ind]] + [int(abs(v[ind])**2*100)] )
         elif len(stat) != rotmat.shape[0]:
             raise ValueError(f"number of elements in state assignment = {len(stat)} is not aligned " \
                     +f"with the number of rows in rotation matrix = {rotmat.shape[0]}") from None
-        prim = [elem for elem in self.prim]
-
+        prim = [elem for elem in self.table['prim']]
         return PsiTable(prim, stat, coefs)
 
 
@@ -583,7 +600,6 @@ class PsiTable():
             freturn = lambda prim, stat, coefs: PsiTable(prim, stat, coefs)
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
-            pass
         else:
             raise ValueError(f"expecting either all 'prim', 'stat', and 'coefs' arguments " \
                     +f"to be defined or none of them")
@@ -607,7 +623,6 @@ class PsiTable():
             freturn = lambda prim, stat, coefs: PsiTable(prim, stat, coefs)
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
-            pass
         else:
             raise ValueError(f"expecting either all 'prim', 'stat', and 'coefs' arguments " \
                     +f"to be defined or none of them")
@@ -631,7 +646,6 @@ class PsiTable():
             freturn = lambda prim, stat, coefs: PsiTable(prim, stat, coefs)
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
-            pass
         else:
             raise ValueError(f"expecting either all 'prim', 'stat', and 'coefs' arguments " \
                     +f"to be defined or none of them")
@@ -740,8 +754,12 @@ class PsiTableMK():
     def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
         if mrot is not None:
             res_m = self.m.rotate(mrot, mstat)
+        else:
+            res_m = self.m
         if krot is not None:
             res_k = self.k.rotate(krot, kstat)
+        else:
+            res_k = self.k
         return PsiTableMK(res_k, res_m)
 
 
@@ -1510,7 +1528,7 @@ def retrieve_name(var):
 
 
 def expecting(offset=0):
-    """Return how many values the caller is expecting"""
+    """ Return how many values the caller is expecting """
     f = inspect.currentframe().f_back.f_back
     i = f.f_lasti + offset
     bytecode = f.f_code.co_code

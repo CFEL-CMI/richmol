@@ -48,13 +48,14 @@ camphor.frame = "pas"
 # compute rotational energies for J=0..20
 # use rigid-rotor Hamiltonian constructed from rotational constants
 
-Jmax = 20
+Jmax = 5
 
 # don't employ symmetry
 print("rotational energies (no symmetry)")
 print(" energy [cm^-1]   J    k  tau  |c|^2")
 enr_all = []
-for J in range(Jmax+1):
+enr_all_ = []
+for J in range(1,Jmax+1):
     bas = SymtopBasis(J)              # initialize basis of symmetric-top functions
     Jx2 = Jxx(bas)                    # Jx^2|psi>
     Jy2 = Jyy(bas)                    # Jy^2|psi>
@@ -64,6 +65,19 @@ for J in range(Jmax+1):
     hmat, _ = bas.overlap(H)             # <psi|H|psi>
     enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
     enr_all += [e for e in enr]
+
+    bas2 = bas.rotate(krot=vec.T)
+    #print(J, bas2.k.table['stat'])
+    bas3 = bas2.rotate(krot=vec.T)
+    print(J, bas3.k.table['stat'])
+    continue
+    Jx2 = Jxx(bas2)                    # Jx^2|psi>
+    Jy2 = Jyy(bas2)                    # Jy^2|psi>
+    Jz2 = Jzz(bas2)                    # Jz^2|psi>
+    A, B, C = camphor.ABC
+    H = B * Jx2 + C * Jy2 + A * Jz2   # H|psi> = A*Jx^2|psi> + B*Jy^2|psi> + C*Jz^2|psi>
+    hmat = bas2.overlap(H)             # <psi|H|psi>
+    enr_all_ += [d.real for d in np.diag(hmat)]
     # print energies and assignments in the order:
     #   energy (cm^-1) J k tau |c|^2 | J' k' tau' |c'|^2 an so on for 'n' largest contributions
     # for e,v in zip(enr,vec.T):
@@ -74,5 +88,6 @@ for J in range(Jmax+1):
     #                                    + " %6.3f"%c2[i] for i in range(n) ) )
 print(sorted(enr_all))
 
+print(sorted(enr_all_))
 
 
