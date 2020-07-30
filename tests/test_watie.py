@@ -5,6 +5,7 @@ from hypothesis import given, example, settings, assume, strategies as st, Healt
 from hypothesis.extra.numpy import arrays
 import numpy as np
 import random
+import warnings
 
 
 # basic coordinates used in tests (s-enantiomer of camphor)
@@ -224,7 +225,6 @@ class TestRigidMolecule(unittest.TestCase):
 
 class TestPsiTable(unittest.TestCase):
 
-    # fail 'init'
     def fail_init(self):
         ntrials = 30
         for itrial in range(ntrials):
@@ -248,19 +248,19 @@ class TestPsiTable(unittest.TestCase):
             obj = watie.PsiTable(prim, stat, coefs)
 
 
-    # test __add__ , __sub__, and __mul__
-    def test_add_sub(self):
+    def test_add_sub_mul(self):
         ntrials = 30
         tol = 1e-14
         for itrial in range(ntrials):
             # generate random prim, stat, and coefs
-            nJ = np.random.randint(1,100)
-            J_list = [0] + np.random.randint(1,100, size=nJ)
+            nJ = np.random.randint(3,10)
+            J_list = list(set([0] + np.random.randint(1,100, size=nJ)))
             prim = [(J,k) for J in J_list for k in range(-J,J+1)]
             nprim = len(prim)
             nstat = np.random.randint(1,nprim)
             stat_nelem = np.random.randint(2,10)
-            stat = [np.random.randint(100, size=stat_nelem) for i in range(nstat) ]
+            stat = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat)))
+            nstat = len(stat)
             coefs1 = np.random.rand(nprim, nstat)
             coefs2 = np.random.rand(nprim, nstat)
             # generate same tables with different values of coefs
@@ -283,7 +283,10 @@ class TestPsiTable(unittest.TestCase):
             self.assertTrue( (abs(obj.table['c'] - (obj1.table['c']*const)) < tol).all() )
             # fail addition and subtraction
             stat2 = [np.random.randint(100, size=stat_nelem) for i in range(nstat) ]
-            obj3 = watie.PsiTable(prim, stat2, coefs1)
+            stat2 = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat)))
+            nstat2 = len(stat2)
+            coefs2 = np.random.rand(nprim, nstat2)
+            obj3 = watie.PsiTable(prim, stat2, coefs2)
             with self.assertRaises(ValueError):
                 obj = obj1 + obj3
             with self.assertRaises(ValueError):
@@ -305,15 +308,101 @@ class TestPsiTable(unittest.TestCase):
 
 
     def test_append(self):
-        pass
+        ntrials = 30
+        tol = 1e-12
+        for itrial in range(ntrials):
+            # generate random prim, stat, coef, and init PsiTable
+            nJ = np.random.randint(3,10)
+            J_list = list(set([0] + np.random.randint(1,100, size=nJ)))
+            prim = [(J,k) for J in J_list for k in range(-J,J+1)]
+            nprim = len(prim)
+            nstat = np.random.randint(1,nprim)
+            stat_nelem = np.random.randint(2,10)
+            stat = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat)))
+            nstat = len(stat)
+            coefs = np.random.rand(nprim, nstat)
+            psi = watie.PsiTable(prim, stat, coefs)
+            # append object to itself and delete all duplicates
+            psi2 = psi.append(psi, del_duplicate_stat=True)
+            # check dimensions
+            self.assertTrue( all( i == j for i,j in zip(psi2.table['c'].shape,[nprim,nstat]) ) )
+            # check coefficient values
+            prim2 = [tuple(p) for p in psi2.table['prim']]
+            ind = [prim2.index(tuple(p)) for p in psi.table['prim']]
+            self.assertTrue( (abs(psi2.table['c'][ind,:] - psi.table['c'][:,:]) < tol).all() )
+            # append another object with different prim and stat
+            #    but the same length of elements in prim and stat
+            nJ = np.random.randint(3,10)
+            J_list2 = [0] + np.random.randint(1,100, size=nJ)
+            J_list2 = list(set([j for j in J_list2 if j not in J_list]))
+            prim2 = [(J,k) for J in J_list2 for k in range(-J,J+1)]
+            nprim2 = len(prim2)
+            nstat2 = np.random.randint(1,nprim2)
+            stat2 = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat2)))
+            stat2 = [elem for elem in stat2 if elem not in stat]
+            nstat2 = len(stat2)
+            coefs2 = np.random.rand(nprim2, nstat2)
+            psi2 = watie.PsiTable(prim2, stat2, coefs2)
+            psi3 = psi.append(psi2, del_duplicate_stat=True)
 
 
     def test_overlap(self):
-        pass
+        ntrials = 30
+        tol = 1e-12
+        for itrial in range(ntrials):
+            # generate random prim, stat, coef, and init PsiTable
+            nJ = np.random.randint(3,10)
+            J_list = list(set([0] + np.random.randint(1,100, size=nJ)))
+            prim = [(J,k) for J in J_list for k in range(-J,J+1)]
+            nprim = len(prim)
+            nstat = np.random.randint(1,nprim)
+            stat_nelem = np.random.randint(2,10)
+            stat = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat)))
+            nstat = len(stat)
+            coefs = np.random.rand(nprim, nstat)
+            psi = watie.PsiTable(prim, stat, coefs)
+            # test overlap with itself
+            ovlp = psi.overlap(psi)
+            self.assertTrue( (abs(ovlp - np.dot(coefs.conj().T, coefs)) < tol).all() )
+            # generate another psi2 not overlapping with psi
+            nJ = np.random.randint(3,10)
+            J_list2 = [0] + np.random.randint(1,100, size=nJ)
+            J_list2 = list(set([j for j in J_list2 if j not in J_list]))
+            prim2 = [(J,k) for J in J_list2 for k in range(-J,J+1)]
+            nprim2 = len(prim2)
+            nstat2 = np.random.randint(1,nprim2)
+            stat2 = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat2)))
+            stat2 = [elem for elem in stat2 if elem not in stat]
+            nstat2 = len(stat2)
+            coefs2 = np.random.rand(nprim2, nstat2)
+            psi2 = watie.PsiTable(prim2, stat2, coefs2)
+            # test zero overlap
+            with self.assertWarns(UserWarning):
+                ovlp = psi.overlap(psi2)
+            self.assertTrue( (abs(ovlp)<tol).all() )
 
 
     def test_rotate(self):
-        pass
+        ntrials = 30
+        tol = 1e-12
+        for itrial in range(ntrials):
+            # generate random prim, stat, coef, and init PsiTable
+            nJ = np.random.randint(3,10)
+            J_list = list(set([0] + np.random.randint(1,100, size=nJ)))
+            prim = [(J,k) for J in J_list for k in range(-J,J+1)]
+            nprim = len(prim)
+            nstat = np.random.randint(1,nprim)
+            stat_nelem = np.random.randint(2,10)
+            stat = list(set(tuple(np.random.randint(100, size=stat_nelem)) for i in range(nstat)))
+            nstat = len(stat)
+            n = min([nstat,nprim])
+            coefs = np.random.rand(n,n)
+            coefs = 0.5 * (coefs + coefs.conj().T)   # Hermitian matrix of coefficients
+            psi = watie.PsiTable(prim[:n], stat[:n], coefs)
+            e,v = np.linalg.eigh(coefs)   # diagonalize coefs
+            psi2 = psi.rotate(v.T)    # transform psi2 with eigenvectors of coefs
+            coefs = np.dot(v.T, psi2.table['c'])
+            self.assertTrue( ( abs(coefs - np.diag(np.diag(coefs))) < tol ).all() )
 
 
 

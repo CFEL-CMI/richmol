@@ -69,8 +69,6 @@ for J in range(1,Jmax+1):
     bas2 = bas.rotate(krot=vec.T)
     #print(J, bas2.k.table['stat'])
     bas3 = bas2.rotate(krot=vec.T)
-    print(J, bas3.k.table['stat'])
-    continue
     Jx2 = Jxx(bas2)                    # Jx^2|psi>
     Jy2 = Jyy(bas2)                    # Jy^2|psi>
     Jz2 = Jzz(bas2)                    # Jz^2|psi>

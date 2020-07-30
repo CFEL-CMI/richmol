@@ -420,10 +420,21 @@ class PsiTable():
         nstat = len(stat)
         assert (nprim>0), f"number of primitives nprim = 0"
         assert (nstat>0), f"number of states nstat = 0"
-
-        nelem_prim = max(len(x) for x in prim)
-        nelem_stat = max(len(x) for x in stat)
         assert (nprim>=nstat), f"nprim < nstat: {nprim} < {nstat}"
+
+        nelem_stat = list(set(len(elem) for elem in stat))
+        if len(nelem_stat)>1:
+            raise ValueError(f"different lengths for different elements in 'stat'")
+        nelem_prim = list(set(len(elem) for elem in prim))
+        if len(nelem_prim)>1:
+            raise ValueError(f"different lengths for different elements in 'prim'")
+
+        # check for duplicates in prim and stat
+        if len(list(set(tuple(p) for p in prim))) != len(prim):
+            raise ValueError(f"found duplicate elements in 'prim'")
+        # if len(list(set(tuple(s) for s in stat))) != len(stat):
+        #     raise ValueError(f"found duplicate elements in 'stat'")
+
         dt = [('prim', 'i4', (nelem_prim)), ('stat', 'i4', (nelem_stat)), ('c', np.complex128, [nstat])]
         self.table = np.zeros(nprim, dtype=dt)
         self.table['prim'] = prim
@@ -515,6 +526,11 @@ class PsiTable():
         prim2 = [tuple(x) for x in arg.table['prim']]
         stat2 = [tuple(x) for x in arg.table['stat'][:nstat2]]
 
+        if len(stat1[0]) != len(stat2[0]):
+            raise ValueError(f"two tables in append have different length of the elements in 'stat'")
+        if len(prim1[0]) != len(prim2[0]):
+            raise ValueError(f"two tables in append have different length of the elements in 'prim'")
+
         prim = list(set(prim1 + prim2))
         stat = stat1 + stat2
         coefs = np.zeros((len(prim),len(stat)), dtype=np.complex128)
@@ -537,6 +553,12 @@ class PsiTable():
             prim, stat, coefs = self.del_zero_prim(prim, stat, coefs, tol)
         if del_duplicate_stat==True:
             prim, stat, coefs = self.del_duplicate_stat(prim, stat, coefs, tol)
+
+        # check for duplicates in 'stat'
+        if len(list(set(tuple(s) for s in stat))) != len(stat):
+            raise ValueError(f"two tables in append have overlapping 'stat' elements that correspond " \
+                    +f"to different coefficient vectors")
+
         return PsiTable(prim, stat, coefs)
 
 
@@ -583,7 +605,7 @@ class PsiTable():
             for v in rotmat:
                 n = 1
                 ind = (-abs(v)**2).argsort()[:n][0]
-                stat.append( [elem for elem in self.table['stat'][ind]] + [int(abs(v[ind])**2*100)] )
+                stat.append( tuple( [elem for elem in self.table['stat'][ind]] + [int(abs(v[ind])**2*100)] ) )
         elif len(stat) != rotmat.shape[0]:
             raise ValueError(f"number of elements in state assignment = {len(stat)} is not aligned " \
                     +f"with the number of rows in rotation matrix = {rotmat.shape[0]}") from None
