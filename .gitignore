@@ -135,3 +135,6 @@ dmypy.json
 *.so
 *.dylib
 
+# vim files
+*.swp
+
