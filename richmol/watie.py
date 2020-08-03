@@ -573,7 +573,8 @@ class PsiTable():
         prim2 = [tuple(x) for x in arg.table['prim']]
         coefs2 = arg.table['c']
         # find overlapping primitive states in both sets
-        both = set(prim1).intersection(prim2)
+        both = list(set(prim1) & set(prim2))
+        #both = set(prim1).intersection(prim2)
         if len(both)==0:
             warnings.warn(f"functions have no overlapping primitive quanta, the overlap is zero!")
         ind1 = [prim1.index(x) for x in both]
@@ -1331,11 +1332,12 @@ class mol_Jzz(J):
 Jzz = mol_Jzz
 
 
+
 class CartTensor():
     """ Basic class for laboratory-frame Cartesian tensor operators
 
     Args:
-        arg (3x3 array): Array with tensor elements in the molecule-fixed frame.
+        arg (np.ndarray, list or tuple): Array with tensor elements in the molecule-fixed frame.
     """
 
     # transformation matrix for tensors of rank in tmat_s.keys()
@@ -1359,8 +1361,8 @@ class CartTensor():
     cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
+
     def __init__(self, arg):
-        """ Initialises laboratory-fixed Cartesian tensor given molecule-fixed tensor """
 
         # check input tensor
         if isinstance(arg, (tuple, list)):
@@ -1498,7 +1500,7 @@ class CartTensor():
         """ Computes matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket>
 
         Args:
-            psi_bra, psi_ket (PsiTableMK): set of linear combinations of symmetric-top functions.
+            psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
 
         Returns:
             res (dict of 4D arrays): Matrix elements between states in psi_bra and psi_ket sets
@@ -1546,8 +1548,185 @@ class CartTensor():
                 ovlp_k[irrep,:,:] = psi_bra.overlap_k(val)
 
         res = {key : np.einsum('ijk,ilm->jlkm', ovlp_k, val) for key,val in ovlp_m.items()}
-
         return res
+
+
+    def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, tol=small*10):
+        """ Stores tensor matrix elements in a Richmol file
+
+        Args:
+            psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
+            name (str): Name of the tensor operator (single word), defaults to "tens"+str(self.rank).
+            fname (str): Name of the file for storing tensor matrix elements, defaults to 'name'.
+                The total name will also include the quantum numbers J of bra and ket states
+                (J_bra and J_ket), i.e., it will be constructed as: fname+"_j"+str(J_ket)+"_j"+str(J_bra)+".rchm".
+            tol (float): Tolerance for treating matrix elements as zero.
+        """
+        try:
+            x = psi_bra.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_bra.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'k'") from None
+        try:
+            x = psi_ket.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_ket.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'k'") from None
+
+        # determine J quanta for bra and ket states
+
+        Jk_bra = list(set(J for J in psi_bra.k.table['prim'][:,0]))
+        Jm_bra = list(set(J for J in psi_bra.m.table['prim'][:,0]))
+        if len(Jk_bra)>1 or len(Jm_bra)>1:
+            raise ValueError(f"function {retrieve_name(psi_bra)} couples states with different " \
+                    +f"J quanta = {Jk_bra} and {Jm_bra} for k- and m-parts, richmol matrix element " \
+                    +f"file cannot be created")
+        else:
+            if Jk_bra[0] != Jm_bra[0]:
+                raise ValueError(f"inconsistent J quanta = {Jk_bra[0]} and {Jm_bra[0]} in the k- and " \
+                        +f"m-dependent parts of function {retrieve_name(psi_bra)}")
+            J2 = Jk_bra[0]
+
+        Jk_ket = list(set(J for J in psi_ket.k.table['prim'][:,0]))
+        Jm_ket = list(set(J for J in psi_ket.m.table['prim'][:,0]))
+        if len(Jk_ket)>1 or len(Jm_ket)>1:
+            raise ValueError(f"function {retrieve_name(psi_ket)} couples states with different " \
+                    +f"J quanta = {Jk_ket} and {Jm_ket} for k- and m-parts, richmol matrix element " \
+                    +f"file cannot be created")
+        else:
+            if Jk_ket[0] != Jm_ket[0]:
+                raise ValueError(f"inconsistent J quanta = {Jk_ket[0]} and {Jm_ket[0]} in the k- and " \
+                        +f"m-dependent parts of function {retrieve_name(psi_ket)}")
+            J1 = Jk_ket[0]
+
+        # compute matrix elements for M and K tensors
+
+        tens_psi = self(psi_ket)
+
+        dim_bra_k = psi_bra.k.table['c'].shape[1]
+        dim_ket_k = psi_ket.k.table['c'].shape[1]
+        dim_bra_m = psi_bra.m.table['c'].shape[1]
+        dim_ket_m = psi_ket.m.table['c'].shape[1]
+
+        irreps = list(set(omega for (omega,sigma) in self.os))
+        nirrep = len(irreps)
+        ncart = len(self.cart)
+
+        kmat = np.zeros((nirrep, dim_bra_k, dim_ket_k), dtype=np.complex128)
+        mmat = { cart : np.zeros((nirrep, dim_bra_m, dim_ket_m), dtype=np.complex128) \
+                   for cart in self.cart }
+
+        cart0 = self.cart[0]
+        for (cart,irrep_),val in tens_psi.items():
+            irrep = irreps.index(irrep_)
+            mmat[cart][irrep,:,:] = psi_bra.overlap_m(val)
+            if cart == cart0:
+                kmat[irrep,:,:] = psi_bra.overlap_k(val)
+
+        # check if elements of K-tensor are all purely real or purely imaginary
+
+        if np.all(abs(kmat[:,:,:].real) < tol) and np.any(abs(kmat[:,:,:].imag) >= tol):
+            kmat_cmplx = -1
+        elif np.any(abs(kmat[:,:,:].real) >= tol) and np.all(abs(kmat[:,:,:].imag) < tol):
+            kmat_cmplx = 0
+        elif np.all(abs(kmat[:,:,:].real) < tol) and np.all(abs(kmat[:,:,:].imag) < tol):
+            kmat_cmplx = None
+            return
+        else:
+            raise RuntimeError(f"elements of K-tensor are complex-valued, expected purely real " \
+                    +f"or purely imaginary numbers\nK = {kmat}")
+
+        # check if elements of M-tensor are all purely real or imaginary
+
+        mmat_cmplx = {cart : None for cart in self.cart}
+
+        for key,elem in mmat.items():
+            if np.all(abs(elem[:,:,:].real) < tol) and np.any(abs(elem[:,:,:].imag) >= tol):
+                mmat_cmplx[key] = -1
+            elif np.any(abs(elem[:,:,:].real) >= tol) and np.all(abs(elem[:,:,:].imag) < tol):
+                mmat_cmplx[key] = 0
+            elif np.all(abs(elem[:,:,:].real) < tol) and np.all(abs(elem[:,:,:].imag) < tol):
+                mmat_cmplx[key] = None
+            else:
+                raise RuntimeError(f"elements of {key} M-tensor are complex-valued, expected purely " \
+                        +f"real or purely imaginary numbers\nM = {elem}")
+
+        if all(cmplx is None for cmplx in mmat_cmplx.values()):
+            return
+
+        # decide if total M*K matrix element is purely real or imaginary
+
+        assert (kmat_cmplx in [0,-1]), f"kmat_cmplx = {kmat_cmplx} is not in [0,-1]"
+        assert (all(elem in [0,-1,None] for elem in mmat_cmplx.values())), \
+                f"mmat_cmplx = {mmat_cmplx} is not in [0,-1,None]"
+
+        icmplx = {cart : 0 for cart in self.cart}
+        icmplx_coef = {cart : 1 for cart in self.cart}
+
+        for cart in self.cart:
+            if mmat_cmplx[cart] is None:
+                icmplx[cart] = 0
+            elif mmat_cmplx[cart]==0:
+                if kmat_cmplx==0:
+                    icmplx[cart] = 0
+                elif kmat_cmplx==-1:
+                    icmplx[cart] = -1
+            elif mmat_cmplx[cart]==-1:
+                if kmat_cmplx==0:
+                    icmplx[cart] = -1
+                elif kmat_cmplx==-1:
+                    icmplx[cart] = 0
+                    icmplx_coef[cart] = -1
+
+        assert (all(ind in [0,-1,None] for ind in icmplx.values())), f"icmplx = {icmplx} not in [0,-1,None]"
+
+        # ready to write matrix elements into file
+
+        if name is not None:
+            name_ = name
+        else:
+            name_ = "tens"+str(self.rank)
+
+        if fname is not None:
+            fname_ = fname
+        else:
+            fname_ = name_
+
+        with open(fname_+"_j"+str(J1)+"_j"+str(J2)+".rchm", "w") as fl:
+            fl.write("Start richmol format\n")
+            fl.write("%s"%name_ + "  %4i"%nirrep + "  %4i"%ncart + "\n")
+            fl.write("M-tensor\n")
+            icart = 1
+            for key,val in mmat.items():
+                fl.write("alpha" + "  %4i"%icart + "  %4i"%icmplx[key] + "  %s"%key + "\n")
+                for i1,(j,m1) in enumerate(psi_ket.m.table['stat']):
+                    for i2,(j,m2) in enumerate(psi_bra.m.table['stat']):
+                        if mmat_cmplx[key] == 0:
+                            me = val[:,i2,i1].real * icmplx_coef[key]
+                        elif mmat_cmplx[key] == -1:
+                            me = val[:,i2,i1].imag * icmplx_coef[key]
+                        else:
+                            continue
+                        if np.any(abs(me)>tol):
+                            fl.write(" %4i"%m1 + " %4i"%m2 + " ".join("  %20.12e"%elem for elem in me) + "\n")
+                icart+=1
+            fl.write("K-tensor\n")
+            for i1 in range(psi_ket.k.table['c'].shape[1]):
+                for i2 in range(psi_bra.k.table['c'].shape[1]):
+                    if kmat_cmplx == 0:
+                        me = kmat[:,i2,i1].real
+                    elif kmat_cmplx==-1:
+                        me = kmat[:,i2,i1].imag
+                    id1 = i1 + 1
+                    id2 = i2 + 1
+                    fl.write(" %6i"%id1 + " %6i"%id2 + "    1 1 " + " ".join("  %20.12e"%elem for elem in me) + "\n")
+            fl.write("End richmol format")
 
 
 

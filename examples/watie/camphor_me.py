@@ -48,7 +48,7 @@ camphor.frame = "pas"
 # compute rotational energies for J=0..20
 # use rigid-rotor Hamiltonian constructed from rotational constants
 
-Jmax = 20
+Jmax = 4
 
 # don't employ symmetry
 print("rotational energies (no symmetry)")
@@ -62,12 +62,12 @@ for J in range(Jmax+1):
     Jy2 = Jyy(bas)                    # Jy^2|psi>
     Jz2 = Jzz(bas)                    # Jz^2|psi>
     A, B, C = camphor.ABC
-    H = B * Jx2 + C * Jy2 + A * Jz2   # H|psi> = A*Jx^2|psi> + B*Jy^2|psi> + C*Jz^2|psi>
+    H = C * Jx2 + B * Jy2 + A * Jz2   # H|psi> = A*Jx^2|psi> + B*Jy^2|psi> + C*Jz^2|psi>
     hmat = bas.overlap(H)             # <psi|H|psi>
-    enr, vec = np.linalg.eigh(hmat)   # eigenvalues and eigenvectors of <psi|H|psi>
+    enr, vec = np.linalg.eigh(hmat.real)   # eigenvalues and eigenvectors of <psi|H|psi>
     enr_all += [e for e in enr]
 
-    wavefunc[J] = bas.rotate(vec.T)
+    wavefunc[J] = bas.rotate(krot=vec.T)
 
     # check if Hamiltonian is diagonal
     Jx2 = Jxx(wavefunc[J])
@@ -82,10 +82,6 @@ print(sorted(enr_all))
 mu = CartTensor(camphor.tensor["polarizability"])
 
 for J1 in range(Jmax+1):
-    res = mu(wavefunc[J1])
     for J2 in range(Jmax+1):
         print(J1, J2)
-        #for key,val in res.items():
-        #    ovlp_k, ovlp_m = wavefunc[J1].overlap(val)
-        #    #print(J1, J2, key, ovlp_m)
-        me = mu.me(wavefunc[J1], wavefunc[J2])
+        mu.store_richmol(wavefunc[J2], wavefunc[J1], tol=1e-10)
