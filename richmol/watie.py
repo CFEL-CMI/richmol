@@ -13,6 +13,7 @@ import copy
 from ctypes import CDLL, c_double, c_int, POINTER, RTLD_GLOBAL
 import warnings
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
+from functools import wraps
 
 
 bohr_to_angstrom = 0.529177249    # converts distances from atomic units to Angstrom
@@ -30,6 +31,13 @@ fsymtop = np.ctypeslib.load_library('symtoplib', symtoplib_path)
 
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
+
+
+class settings():
+    """ Sets some control parameters """
+    assign_nprim = 1 # number of primitive basis contributions printed in the state assignment (e.g. in Richmol states file)
+    assign_ndig_c2 = 4 # number of digits printed for the assignment coefficient |c|^2
+
 
 
 def atom_data_from_label(atom_label):
@@ -415,39 +423,38 @@ class PsiTable():
     """ Basic class for operations on wavefunction coefficients """
 
     def __init__(self, prim, stat, coefs=None):
+        """Initialize PsiTable from sets of primitive and state quanta and, if provided,
+        matrix of state coefficients
+        """
         if not isinstance(prim, (list, tuple, np.ndarray)):
-            raise TypeError(f"unsupported argument type '{type(prim)}'") from None
+            raise TypeError(f"Unsupported argument type '{type(prim)}'") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
-            raise TypeError(f"unsupported argument type '{type(stat)}'") from None
+            raise TypeError(f"Unsupported argument type '{type(stat)}'") from None
         try:
             x = [int(val) for elem in prim for val in elem]
         except ValueError:
-            raise ValueError(f"failed to convert element into integer")
-        try:
-            x = [int(val) for elem in stat for val in elem]
-        except ValueError:
-            raise ValueError(f"failed to convert element into integer")
+            raise ValueError(f"Failed to convert element into integer")
 
         nprim = len(prim)
         nstat = len(stat)
-        assert (nprim>0), f"number of primitives nprim = 0"
-        assert (nstat>0), f"number of states nstat = 0"
+        assert (nprim>0), f"Number of primitives nprim = 0"
+        assert (nstat>0), f"Number of states nstat = 0"
         assert (nprim>=nstat), f"nprim < nstat: {nprim} < {nstat}"
 
         nelem_stat = list(set(len(elem) for elem in stat))
         if len(nelem_stat)>1:
-            raise ValueError(f"different lengths for different elements in 'stat'")
+            raise ValueError(f"Different lengths for different elements in 'stat'")
         nelem_prim = list(set(len(elem) for elem in prim))
         if len(nelem_prim)>1:
-            raise ValueError(f"different lengths for different elements in 'prim'")
+            raise ValueError(f"Different lengths for different elements in 'prim'")
 
         # check for duplicates in prim and stat
         if len(list(set(tuple(p) for p in prim))) != len(prim):
-            raise ValueError(f"found duplicate elements in 'prim'")
+            raise ValueError(f"Found duplicate elements in 'prim'")
         # if len(list(set(tuple(s) for s in stat))) != len(stat):
         #     raise ValueError(f"found duplicate elements in 'stat'")
 
-        dt = [('prim', 'i4', (nelem_prim)), ('stat', 'i4', (nelem_stat)), ('c', np.complex128, [nstat])]
+        dt = [('prim', 'i4', (nelem_prim)), ('stat', 'U10', (nelem_stat)), ('c', np.complex128, [nstat])]
         self.table = np.zeros(nprim, dtype=dt)
         self.table['prim'] = prim
         self.table['stat'][:nstat] = stat
@@ -456,11 +463,20 @@ class PsiTable():
             try:
                 shape = coefs.shape
             except AttributeError:
-                raise AttributeError(f"unsupported argument type for coefficients matrix '{type(coefs)}'") from None
+                raise AttributeError(f"Unsupported argument type for coefficients matrix '{type(coefs)}'") from None
             if any(x!=y for x,y in zip(shape,[nprim,nstat])):
-                raise ValueError(f"shape of coefficients matrix = {shape} is not aligned with the " \
+                raise ValueError(f"Shape of coefficients matrix = {shape} is not aligned with the " \
                         +f"number of primitives = {nprim} and number of states = {nstat}") from None
             self.table['c'][:,:] = coefs
+
+
+    @classmethod
+    def fromPsiTable(cls, arg):
+        """ Initialize PsiTable from an argument of PsiTable type """
+        if not isinstance(arg, PsiTable):
+            raise TypeError(f"Unexpected type for argument '{type(arg)}', expected 'PsiTable'")
+        cls = copy.deepcopy(arg)
+        return cls
 
 
     def __add__(self, arg):
@@ -595,35 +611,76 @@ class PsiTable():
         return np.dot(coefs1[:,ind1], coefs2[ind2,:])
 
 
-    def rotate(self, rotmat, stat=None):
-        """ Applies unitary transformation """
+    def rotate(self, arg, stat=None):
+        """Applies a unitary transformation
+
+        arg = rotmat, here 'rotmat' is a unitary transformation matrix, the number of columns
+            in 'rotmat' must be equal to the number of basis states, i.e., self.table['c'].shape[1].
+
+        arg = (rotmat, enr), here 'rotmat' is a unitary transformation matrix (as above) and 'enr'
+            is a set of associated energies. For example, if a unitary transformed basis diagonalizes
+            some Hamiltonian, its eigenvalues could be stored in 'enr'.
+            If 'enr' is provided, it is stored in a new attribute PsiTable.enr.
+
+        stat (list): A user-defined assignment of unitary-transformed states.
+        """
+        try:
+            rotmat, enr = arg
+        except ValueError:
+            rotmat = arg
+            enr = None
+
         try:
             shape = rotmat.shape
         except AttributeError:
-            raise AttributeError(f"unsupported argument type for rotation matrix '{type(rotmat)}'") from None
+            raise AttributeError(f"Bad type for a rotation matrix '{type(rotmat)}' (use numpy array)") from None
+
+        if enr is None:
+            pass
+        elif isinstance(enr, (list, tuple, np.ndarray)):
+            if shape[0] != len(enr):
+                raise ValueError(f"Number of elements in energy array = {len(enr)} is not aligned " \
+                        +f"with the number of rows in rotation matrix = {shape[0]}") from None
+        else:
+            raise ValueError(f"Bad type for a set of associated energies '{type(enr)}' (use list, tuple, " \
+                    +f"or numpy array)") from None
+
         nstat = self.table['c'].shape[1]
         if shape[1] != nstat:
-            raise ValueError(f"number of columns in rotation matrix = {shape[1]} is not aligned with " \
+            raise ValueError(f"Number of columns in rotation matrix = {shape[1]} is not aligned with " \
                     +f"the number of basis states = {nstat}") from None
+
         if np.all(np.abs(rotmat)<small):
-            raise ValueError(f"rotation matrix has all its elements equal to zero") from None
+            raise ValueError(f"Rotation matrix has all its elements equal to zero") from None
         if np.any(np.abs(rotmat)>large*0.1):
-            raise ValueError(f"rotation matrix has too large values of its elements") from None
+            raise ValueError(f"Rotation matrix has too large values of its elements") from None
         if np.any(np.isnan(rotmat)):
-            raise ValueError(f"rotation matrix has some values of its elements equal to NaN") from None
+            raise ValueError(f"Rotation matrix has some values of its elements equal to NaN") from None
 
         coefs = np.dot(self.table['c'][:,:], rotmat.T)
+
+        # state assignments
         if stat is None:
             stat = []
+            ndig = settings.assign_ndig_c2 # number of digits in |c|^2 to be kept for assignment
+            c2_form = "%"+str(ndig+3)+"."+str(ndig)+"f"
             for v in rotmat:
-                n = 1
-                ind = (-abs(v)**2).argsort()[:n][0]
-                stat.append( tuple( [elem for elem in self.table['stat'][ind]] + [int(abs(v[ind])**2*100)] ) )
+                n = settings.assign_nprim # number of primitive states to be used for assignment
+                ind = (-abs(v)**2).argsort()[:n]
+                elem_stat = self.table['stat'][ind]
+                c2 = [c2_form%abs(v[i])**2 for i in ind]
+                ll = [ elem for i in range(len(ind)) for elem in list(elem_stat[i])+[c2[i]] ]
+                stat.append(ll)
         elif len(stat) != rotmat.shape[0]:
-            raise ValueError(f"number of elements in state assignment = {len(stat)} is not aligned " \
+            raise ValueError(f"Number of elements in state assignment = {len(stat)} is not aligned " \
                     +f"with the number of rows in rotation matrix = {rotmat.shape[0]}") from None
         prim = [elem for elem in self.table['prim']]
-        return PsiTable(prim, stat, coefs)
+        res = PsiTable(prim, stat, coefs)
+
+        if enr is not None:
+            res.enr = np.array(enr, dtype=np.float64)
+
+        return res
 
 
     def del_zero_stat(self, prim=None, stat=None, coefs=None, tol=1e-12):
@@ -708,10 +765,12 @@ class PsiTableMK():
             raise TypeError(f"unexpected type for argument '{type(psik)}', expected 'PsiTable'")
         if not isinstance(psim, PsiTable):
             raise TypeError(f"unexpected type for argument '{type(psim)}', expected 'PsiTable'")
-        nstat = psim.table['c'].shape[1]
-        self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
-        nstat = psik.table['c'].shape[1]
-        self.k = PsiTable(psik.table['prim'], psik.table['stat'][:nstat], psik.table['c'])
+        # nstat = psim.table['c'].shape[1]
+        # self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
+        # nstat = psik.table['c'].shape[1]
+        # self.k = PsiTable(psik.table['prim'], psik.table['stat'][:nstat], psik.table['c'])
+        self.m = PsiTable.fromPsiTable(psim)
+        self.k = PsiTable.fromPsiTable(psik)
 
 
     def __add__(self, arg):
@@ -822,6 +881,47 @@ class PsiTableMK():
         else:
             res_k = self.k
         return PsiTableMK(res_k, res_m)
+
+
+    def store_richmol(self, name, append=False):
+        """Stores state energies and assignments in Richmol energies file
+
+        Args:
+            name (str): Name of file to store energies.
+            append (str): If True, the energies of states will be appended to existing file.
+        """
+        Jk = list(set(J for J in self.k.table['prim'][:,0]))
+        Jm = list(set(J for J in self.m.table['prim'][:,0]))
+        if len(Jk)>1 or len(Jm)>1:
+            raise ValueError(f"Multiple values of J quanta = {Jk} and {Jm} in k- and m-parts") from None
+        else:
+            if Jk[0] != Jm[0]:
+                raise ValueError(f"Non-equal values of J quanta = {Jk[0]} and {Jm[0]} in k- and m-parts") from None
+            J = Jk[0]
+
+        nstat = self.k.table['c'].shape[1]
+        assign = self.k.table['stat'][:nstat]
+
+        try:
+            enr = self.k.enr[:nstat]
+        except AttributeError:
+            raise AttributeError(f"States set has no associated energies") from None
+
+        try:
+            sym = self.k.sym[:nstat]
+        except AttributeError:
+            sym = ["A" for i in range(nstat)]
+
+        if append==True:
+            mode = "a+"
+        else:
+            mode = "w"
+
+        with open(name, mode) as fl:
+            for istat in range(nstat):
+                id = istat + 1
+                fl.write(" %3i"%J + " %6i"%id + " %4s"%sym[istat] + "  1" + " %20.12f"%enr[istat] \
+                        + " ".join(" %s"%elem for elem in assign[istat]) + "\n")
 
 
 
@@ -1432,10 +1532,10 @@ class CartTensor():
         """ Computes |psi'> = CartTensor|psi>
 
         Args:
-            arg (PsiTableMK): |psi> set of linear combinations of symmetric-top functions.
+            arg (PsiTableMK): |psi>, set of linear combinations of symmetric-top functions.
 
         Returns:
-            res (dict of PsiTableMK): |psi'> resulting tensor-projected set of linear combinations
+            res (dict of PsiTableMK): |psi'>, resulting tensor-projected set of linear combinations
                 of symmetric-top functions.
         """
         try:
@@ -1516,8 +1616,8 @@ class CartTensor():
 
         Returns:
             res (dict of 4D arrays): Matrix elements between states in psi_bra and psi_ket sets
-                for different lab-fixed Cartesian components of tensor (as dict keys).
-                For each Cartesian component, matrix elements are stored in a 4D matrix form
+                of functions, for different lab-fixed Cartesian components of the tensor (as dict keys).
+                For each Cartesian component, matrix elements are stored in a 4D matrix
                 [k2,m2,k1,m1], where k2 and k1 are the k-state indices in psi_bra and psi_ket
                 respectively, and m2 and m1 are the corresponding m-state indices.
         """
@@ -1563,17 +1663,19 @@ class CartTensor():
         return res
 
 
-    def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, tol=small*10):
-        """ Stores tensor matrix elements in a Richmol file
+    def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
+        """ Stores tensor matrix elements in Richmol file
 
         Args:
             psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
             name (str): Name of the tensor operator (single word), defaults to "tens"+str(self.rank).
             fname (str): Name of the file for storing tensor matrix elements, defaults to 'name'.
-                The total name will also include the quantum numbers J of bra and ket states
-                (J_bra and J_ket), i.e., it will be constructed as: fname+"_j"+str(J_ket)+"_j"+str(J_bra)+".rchm".
-            tol (float): Tolerance for treating matrix elements as zero.
+                The actual file name will be fname+"_j"+str(J_ket)+"_j"+str(J_bra)+".rchm", where
+                J_bra and J_ket are respective J quanta of bra and ket states.
+            thresh (float): Threshold for storing matrix elements in file.
         """
+        zero_tol = small*10
+
         try:
             x = psi_bra.m.table
         except AttributeError:
@@ -1596,24 +1698,24 @@ class CartTensor():
         Jk_bra = list(set(J for J in psi_bra.k.table['prim'][:,0]))
         Jm_bra = list(set(J for J in psi_bra.m.table['prim'][:,0]))
         if len(Jk_bra)>1 or len(Jm_bra)>1:
-            raise ValueError(f"function {retrieve_name(psi_bra)} couples states with different " \
+            raise ValueError(f"Function {retrieve_name(psi_bra)} couples states with different " \
                     +f"J quanta = {Jk_bra} and {Jm_bra} for k- and m-parts, richmol matrix element " \
                     +f"file cannot be created")
         else:
             if Jk_bra[0] != Jm_bra[0]:
-                raise ValueError(f"inconsistent J quanta = {Jk_bra[0]} and {Jm_bra[0]} in the k- and " \
+                raise ValueError(f"Inconsistent J quanta = {Jk_bra[0]} and {Jm_bra[0]} in the k- and " \
                         +f"m-dependent parts of function {retrieve_name(psi_bra)}")
             J2 = Jk_bra[0]
 
         Jk_ket = list(set(J for J in psi_ket.k.table['prim'][:,0]))
         Jm_ket = list(set(J for J in psi_ket.m.table['prim'][:,0]))
         if len(Jk_ket)>1 or len(Jm_ket)>1:
-            raise ValueError(f"function {retrieve_name(psi_ket)} couples states with different " \
+            raise ValueError(f"Function {retrieve_name(psi_ket)} couples states with different " \
                     +f"J quanta = {Jk_ket} and {Jm_ket} for k- and m-parts, richmol matrix element " \
                     +f"file cannot be created")
         else:
             if Jk_ket[0] != Jm_ket[0]:
-                raise ValueError(f"inconsistent J quanta = {Jk_ket[0]} and {Jm_ket[0]} in the k- and " \
+                raise ValueError(f"Inconsistent J quanta = {Jk_ket[0]} and {Jm_ket[0]} in the k- and " \
                         +f"m-dependent parts of function {retrieve_name(psi_ket)}")
             J1 = Jk_ket[0]
 
@@ -1643,15 +1745,15 @@ class CartTensor():
 
         # check if elements of K-tensor are all purely real or purely imaginary
 
-        if np.all(abs(kmat[:,:,:].real) < tol) and np.any(abs(kmat[:,:,:].imag) >= tol):
+        if np.all(abs(kmat[:,:,:].real) < zero_tol) and np.any(abs(kmat[:,:,:].imag) >= zero_tol):
             kmat_cmplx = -1
-        elif np.any(abs(kmat[:,:,:].real) >= tol) and np.all(abs(kmat[:,:,:].imag) < tol):
+        elif np.any(abs(kmat[:,:,:].real) >= zero_tol) and np.all(abs(kmat[:,:,:].imag) < zero_tol):
             kmat_cmplx = 0
-        elif np.all(abs(kmat[:,:,:].real) < tol) and np.all(abs(kmat[:,:,:].imag) < tol):
+        elif np.all(abs(kmat[:,:,:].real) < zero_tol) and np.all(abs(kmat[:,:,:].imag) < zero_tol):
             kmat_cmplx = None
             return
         else:
-            raise RuntimeError(f"elements of K-tensor are complex-valued, expected purely real " \
+            raise RuntimeError(f"Elements of K-tensor are complex-valued, expected purely real " \
                     +f"or purely imaginary numbers\nK = {kmat}")
 
         # check if elements of M-tensor are all purely real or imaginary
@@ -1659,14 +1761,14 @@ class CartTensor():
         mmat_cmplx = {cart : None for cart in self.cart}
 
         for key,elem in mmat.items():
-            if np.all(abs(elem[:,:,:].real) < tol) and np.any(abs(elem[:,:,:].imag) >= tol):
+            if np.all(abs(elem[:,:,:].real) < zero_tol) and np.any(abs(elem[:,:,:].imag) >= zero_tol):
                 mmat_cmplx[key] = -1
-            elif np.any(abs(elem[:,:,:].real) >= tol) and np.all(abs(elem[:,:,:].imag) < tol):
+            elif np.any(abs(elem[:,:,:].real) >= zero_tol) and np.all(abs(elem[:,:,:].imag) < zero_tol):
                 mmat_cmplx[key] = 0
-            elif np.all(abs(elem[:,:,:].real) < tol) and np.all(abs(elem[:,:,:].imag) < tol):
+            elif np.all(abs(elem[:,:,:].real) < zero_tol) and np.all(abs(elem[:,:,:].imag) < zero_tol):
                 mmat_cmplx[key] = None
             else:
-                raise RuntimeError(f"elements of {key} M-tensor are complex-valued, expected purely " \
+                raise RuntimeError(f"Elements of {key} M-tensor are complex-valued, expected purely " \
                         +f"real or purely imaginary numbers\nM = {elem}")
 
         if all(cmplx is None for cmplx in mmat_cmplx.values()):
@@ -1696,7 +1798,7 @@ class CartTensor():
                     icmplx[cart] = 0
                     icmplx_coef[cart] = -1
 
-        assert (all(ind in [0,-1,None] for ind in icmplx.values())), f"icmplx = {icmplx} not in [0,-1,None]"
+        assert (all(ind in [0,-1,None] for ind in icmplx.values())), f"icmplx = {icmplx} is not in [0,-1,None]"
 
         # ready to write matrix elements into file
 
@@ -1725,7 +1827,7 @@ class CartTensor():
                             me = val[:,i2,i1].imag * icmplx_coef[key]
                         else:
                             continue
-                        if np.any(abs(me)>tol):
+                        if np.any(abs(me)>thresh):
                             fl.write(" %4i"%m1 + " %4i"%m2 + " ".join("  %20.12e"%elem for elem in me) + "\n")
                 icart+=1
             fl.write("K-tensor\n")
@@ -1737,7 +1839,8 @@ class CartTensor():
                         me = kmat[:,i2,i1].imag
                     id1 = i1 + 1
                     id2 = i2 + 1
-                    fl.write(" %6i"%id1 + " %6i"%id2 + "    1 1 " + " ".join("  %20.12e"%elem for elem in me) + "\n")
+                    if np.any(abs(me)>thresh):
+                        fl.write(" %6i"%id1 + " %6i"%id2 + "    1 1 " + " ".join("  %20.12e"%elem for elem in me) + "\n")
             fl.write("End richmol format")
 
 
