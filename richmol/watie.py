@@ -29,12 +29,18 @@ large = abs(np.finfo(float).max)
 symtoplib_path = os.path.join(os.path.dirname(__file__), 'symtoplib')
 fsymtop = np.ctypeslib.load_library('symtoplib', symtoplib_path)
 
+
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
 
 
 class settings():
     """ Sets some control parameters """
+    imom_offdiag_tol = 1e-12
+    tens_symm_tol = 1e-14
+    tens_small_elem = small
+    tens_large_elem = large/10.0
+    gmat_svd_small = 1e-12
     assign_nprim = 1 # number of primitive basis contributions printed in the state assignment (e.g. in Richmol states file)
     assign_ndig_c2 = 4 # number of digits printed for the assignment coefficient |c|^2
 
@@ -69,6 +75,30 @@ class RigidMolecule():
 
     @property
     def XYZ(self):
+        """To set and return Cartesian coordinates of atoms in molecule, the effect of frame
+        rotations will be automatically accounted for
+
+        >>> d2s = RigidMolecule()
+        >>> d2s.XYZ = ( "angstrom", \
+                        "S",   0.00000000,        0.00000000,        0.10358697, \
+                        "H2", -0.96311715,        0.00000000,       -0.82217544, \
+                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
+        >>> print(d2s.XYZ['mass']) # print masses of atoms
+        [31.97207117  2.01410178  2.01410178]
+        >>> print(d2s.XYZ['label']) # print names of atoms
+        ['S' 'H2' 'H2']
+        >>> print(d2s.XYZ['xyz']) # print Cartesian coordinates of atoms (in Angstrom)
+        [[ 0.          0.          0.10358697]
+         [-0.96311715  0.         -0.82217544]
+         [ 0.96311715  0.         -0.82217544]]
+
+        >>> d2s.frame = "zxy" # change molecular frame where the axes are swapped places, e.g., xyz --> zxy
+        >>> print(d2s.XYZ['xyz'].round(8)) # print Cartesian coordinates of atoms, these will be in the new coordinate frame
+        [[ 0.10358697  0.          0.        ]
+         [-0.82217544 -0.96311715  0.        ]
+         [-0.82217544  0.96311715  0.        ]]
+
+        """
         try:
             x = self.atoms
         except AttributeError:
@@ -83,7 +113,6 @@ class RigidMolecule():
 
     @XYZ.setter
     def XYZ(self, arg):
-
         to_angstrom = 1 # default distance units are Angstrom
         xyz = []
         mass = []
@@ -135,7 +164,7 @@ class RigidMolecule():
                         mass.append(atom_mass)
                         label.append(atom_label)
         else:
-            raise TypeError(f"Unsupported argument type '{type(arg)}' for atoms' specification") from None
+            raise TypeError(f"Bad argument type '{type(arg)}' for atoms' specification") from None
 
         self.atoms = np.array( [(lab, mass, cart) for lab,mass,cart in zip(label,mass,xyz)], \
                                dtype=[('label','U10'),('mass','f8'),('xyz','f8',(3))] )
@@ -143,7 +172,34 @@ class RigidMolecule():
 
     @property
     def tensor(self):
-        """ Returns a dict of all initialised tensors """
+        """To set and return molecule-fixed Cartesian tensors, the effect of frame rotations
+        will be automatically accounted for
+
+        >>> mol = RigidMolecule()
+        >>> mol.XYZ = ("angstrom", "O", 0,0,0, "H", 0.8, 0.6, 0, "H", -1,2, 0.6, 0) # Cartesian coordinates of atoms
+        >>> mol.tensor = ("mu", [0.5, -0.1, 0]) # add new rank-1 tensor with name "mu"
+        >>> mol.tensor = ("ccsd(t) alpha", [[10,0,0],[0,20,0],[0,0,30]]) # add rank-2 tensor with name "ccsd(t) alpha"
+        >>> print( mol.tensor["mu"] )
+        [ 0.5 -0.1  0. ]
+        >>> print( mol.tensor["ccsd(t) alpha"] )
+        [[10  0  0]
+         [ 0 20  0]
+         [ 0  0 30]]
+
+        >>> mol.frame = "pas" # change molecular frame to principal axes system
+        >>> print(mol.tensor["mu"].round(6)) # print tensor "mu" in principal axes system
+        [-0.299156  0.400636  0.099985]
+        >>> print(mol.tensor["ccsd(t) alpha"].round(6)) # print tensor "ccsd(t) alpha" in principal axes system
+        [[18.865071  3.663798  3.167346]
+         [ 3.663798 12.076468 -1.865857]
+         [ 3.167346 -1.865857 29.058462]]
+
+        >>> mol.tensor = ("ccsd(t) alpha", [[10,1,0],[2,20,0],[3,0,30]]) # attempt to add new tensor with the same name
+        Traceback (most recent call last):
+            ...
+        ValueError: Tensor with the name 'ccsd(t) alpha' already exists
+
+        """
         try:
             x = self.tens
         except AttributeError:
@@ -155,8 +211,8 @@ class RigidMolecule():
             for name,array in tens.items():
                 ndim = array.ndim
                 if ndim>len(sa):
-                    raise ValueError(f"Number of dimensions for tensor '{name}' is equal to {ndim} " \
-                            +f"and it exceeds the maximum {len(sa)}") from None
+                    raise ValueError(f"Number of dimensions for tensor '{name}' = {ndim} " \
+                            +f"exceeds the maximum = {len(sa)}") from None
                 key = "".join(sa[i]+si[i]+"," for i in range(ndim)) \
                     + "".join(si[i] for i in range(ndim)) + "->" \
                     + "".join(sa[i] for i in range(ndim))
@@ -169,13 +225,6 @@ class RigidMolecule():
 
     @tensor.setter
     def tensor(self, arg):
-        """Defines Cartesian tensor in the molecule-fixed frame
-
-        Examples:
-            tensor = ("mu", [0.5, -0.1, 0]) to add a permanent dipole moment vector.
-            tensor = ("my_alpha", [[10,0,0],[0,20,0],[0,0,30]]) to add a rank-2 tensor, such as,
-                for example, polarizability.
-        """
         # check if input is (name, tensor)
         try:
             name, tens = arg
@@ -184,22 +233,21 @@ class RigidMolecule():
             raise ValueError(f"Pass an iterable with two items, tensor = ('name', tensor)") from None
         # check if name and tensor have proper types
         if not isinstance(name, str):
-            raise TypeError(f"Unsupported argument type '{type(name)}' for tensor name, must be 'str'") from None
+            raise TypeError(f"Bad argument type '{type(name)}' for tensor name") from None
         if isinstance(tens, (tuple, list)):
             tens = np.array(tens)
         elif isinstance(tens, (np.ndarray,np.generic)):
             pass
         else:
-            raise TypeError(f"Unsupported argument type '{type(tens)}' for tensor values, " \
-                    +f"must be one of: 'list', 'numpy.ndarray'") from None
+            raise TypeError(f"Bad argument type '{type(tens)}' for tensor values ") from None
         # check if name and tensor have proper values
-        if "," in name or len(name)==0:
-            raise ValueError(f"Illegal tensor name '{name}', it must not contain commas and must not be empty")
+        if "," in name or len(name) == 0:
+            raise ValueError(f"Illegal tensor name '{name}'")
         if not all(dim==3 for dim in tens.shape):
-            raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-        if np.all(np.abs(tens)<small):
+            raise ValueError(f"Cartesian tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+        if np.all(np.abs(tens) < settings.tens_small_elem):
             raise ValueError(f"Tensor has all its elements equal to zero") from None
-        if np.any(np.abs(tens)>large*0.1):
+        if np.any(np.abs(tens) > settings.tens_large_elem):
             raise ValueError(f"Tensor has too large values of its elements") from None
         if np.any(np.isnan(tens)):
             raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
@@ -209,13 +257,60 @@ class RigidMolecule():
         except AttributeError:
             self.tens = {}
         if name in self.tens:
-            raise ValueError(f"Tensor with name '{name}' already exists") from None
+            raise ValueError(f"Tensor with the name '{name}' already exists") from None
         self.tens[name] = tens
 
 
     @property
     def frame(self):
-        """ Returns type of molecular frame (str) and frame rotation matrix (array (3,3)) """
+        """To define and change molecule-fixed frame (embedding)
+
+        >>> d2s = RigidMolecule()
+        >>> d2s.XYZ = ( "angstrom", \
+                        "S",   0.00000000,        0.00000000,        0.10358697, \
+                        "H2", -0.96311715,        0.00000000,       -0.82217544, \
+                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
+        >>> d2s.tensor = ("dipole moment", [0, 0, -9.70662418E-01])
+        >>> d2s.tensor = ("polarizability", [[30, -0.5, 0.03], \
+                                             [-0.5, 20, 1.3], \
+                                             [0.03, 1.3, 35]] )
+        >>> d2s.frame = "pas" # change frame to principal axes system (PAS)
+        >>> print(d2s.XYZ['xyz']) # print Cartesian coordinates of atoms in PAS
+        [[ 0.          0.10358697  0.        ]
+         [-0.96311715 -0.82217544  0.        ]
+         [ 0.96311715 -0.82217544  0.        ]]
+        >>> print(d2s.tensor['dipole moment']) # print tensor "dipole moment" in PAS
+        [ 0.         -0.97066242  0.        ]
+        >>> print(d2s.tensor['polarizability']) # print tensor "polarizability" in PAS
+        [[ 3.0e+01  3.0e-02 -5.0e-01]
+         [ 3.0e-02  3.5e+01  1.3e+00]
+         [-5.0e-01  1.3e+00  2.0e+01]]
+        >>> frame_type, rotation_matrix = d2s.frame # print type of frame (str) and rotation matrix
+        >>> print(frame_type)
+        pas
+        >>> print(rotation_matrix)
+        [[1. 0. 0.]
+         [0. 0. 1.]
+         [0. 1. 0.]]
+
+        >>> d2s.frame = "pol" # add frame that is rotated to principal axes of tensor "pol"
+        Traceback (most recent call last):
+            ...
+        KeyError: "Tensor 'pol' was not initialised"
+        >>> d2s.frame = "polarizability" # wait, we don't have tensor "pol" but "polarizability"
+        >>> frame_type, rotation_matrix = d2s.frame # print frame type and total (collective) rotation matrix
+        >>> print(frame_type)
+        pas,polarizability
+        >>> print(rotation_matrix.round(6))
+        [[-0.049338 -0.99511   0.085563]
+         [ 0.998779 -0.048939  0.006765]
+         [-0.002544  0.085792  0.99631 ]]
+        >>> print(d2s.tensor["polarizability"].round(6)) # check if "polarizability" tensor is diagonal in new frame
+        [[19.863432  0.        0.      ]
+         [ 0.       30.024702  0.      ]
+         [ 0.        0.       35.111866]]
+
+        """
         try:
             rotmat = self.frame_rotation
             frame_type = self.frame_type
@@ -227,20 +322,7 @@ class RigidMolecule():
 
     @frame.setter
     def frame(self, arg):
-        """Defines rotation of molecular frame
-
-        Cartesian coordinates of atoms and all Cartesian tensors will be rotated to a new frame.
-
-        Examples:
-            frame = "pas" will rotate to a principal axes system with x,y,z = a,b,c.
-            frame = "tens_name" will rotate to a principal axes system of a 3x3 tensor with the name 
-                "tens_name", this tensor must be initialized before using a command
-                tensor = (tens_name, [[x,x,x],[x,x,x],[x,x,x]]).
-            frame = "zxy" will permute axes x-->z, y-->x, and y-->z.
-            frame = "zxy,pas" will rotate to "pas" and permute x-->z, y-->x, and y-->z.
-        """
         if isinstance(arg, str):
-
             try:
                 x = self.frame_rotation
             except AttributeError:
@@ -258,7 +340,7 @@ class RigidMolecule():
                         raise RuntimeError("Eigenvalues did not converge") from None
                     self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
 
-                elif "".join(sorted(fr.lower()))=="xyz":
+                elif "".join(sorted(fr.lower())) == "xyz":
                     # axes permutation
                     ind = [("x","y","z").index(s) for s in list(fr.lower())]
                     rotmat = np.zeros((3,3), dtype=np.float64)
@@ -273,10 +355,10 @@ class RigidMolecule():
                         tens = self.tensor[fr]
                     except KeyError:
                         raise KeyError(f"Tensor '{fr}' was not initialised") from None
-                    if tens.ndim!=2:
+                    if tens.ndim != 2:
                         raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} " \
                                 +f"is not equal to 2") from None
-                    if np.any(np.abs(tens-tens.T)>small*10.0):
+                    if np.any(np.abs(tens - tens.T) > settings.tens_symm_tol):
                         raise ValueError(f"Tensor '{fr}' is not symmetric") from None
                     try:
                         diag, rotmat = np.linalg.eigh(tens)
@@ -285,8 +367,7 @@ class RigidMolecule():
                     self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
 
         else:
-            raise TypeError(f"Unsupported argument type '{type(arg)}' for frame specification, " \
-                    +f"must be 'str'") from None
+            raise TypeError(f"Bad argument type '{type(arg)}' for frame specification") from None
 
         # update string that keeps track of all frame rotations
         try:
@@ -297,13 +378,32 @@ class RigidMolecule():
 
     @property
     def B(self):
-        """ Returns Bx, By, Bz rotational constants in units of cm^-1 """
+        """Returns Bx, By, Bz rotational constants in units of cm^-1
+
+        >>> d2s = RigidMolecule()
+        >>> d2s.XYZ = ( "angstrom", \
+                        "S",   0.00000000,        0.00000000,        0.10358697, \
+                        "H2", -1.26311715,        0.00000000,       -0.82217544, \
+                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
+        >>> Bx, By, Bz = d2s.B
+        Traceback (most recent call last):
+            ...
+        RuntimeError: Can't compute rotational constants inertia tensor is not diagonal = [[ 3.066  -0.     -0.4968]
+         [-0.      8.1376 -0.    ]
+         [-0.4968 -0.      5.0716]], max offdiag = 0.4968
+
+        >>> d2s.frame = "pas" # wait, to compute rotational constants we must use principal axes frame
+        >>> Bx, By, Bz = d2s.B
+        >>> print(round(Bx,4), round(By,4), round(Bz,4))
+        5.715 3.2494 2.0716
+
+        """
         imom = self.imom()
-        tol = 1e-12
-        if np.any(np.abs(np.diag(np.diag(imom))-imom)>tol):
-            raise RuntimeError("Can't compute rotational constants for the current frame = " \
-                    +f"'{self.frame_type}', inertia tensor is not diagonal = {imom}, " \
-                    +f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom))}") from None
+        tol = settings.imom_offdiag_tol
+        if np.any(np.abs( np.diag(np.diag(imom)) - imom ) > tol):
+            raise RuntimeError("Can't compute rotational constants " \
+                    +f"inertia tensor is not diagonal = {imom.round(4)}, " \
+                    +f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom)).round(4)}") from None
         convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
         return [convert_to_cm/val for val in np.diag(imom)]
 
@@ -315,7 +415,19 @@ class RigidMolecule():
 
     @property
     def kappa(self):
-        """ Returns asymmtery parameter kappa = (2*B-A-C)/(A-C) """
+        """Returns asymmtery parameter kappa = (2*B-A-C)/(A-C)
+
+        >>> d2s = RigidMolecule()
+        >>> d2s.XYZ = ( "angstrom", \
+                        "S",   0.00000000,        0.00000000,        0.10358697, \
+                        "H2", -1.26311715,        0.00000000,       -0.82217544, \
+                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
+        >>> d2s.frame = "pas" # to compute rotational constants we must use principal axes frame
+        >>> asymmetry = d2s.kappa
+        >>> print(round(asymmetry,4))
+        -0.3534
+
+        """
         A, B, C = reversed(sorted(self.B))
         return (2*B-A-C)/(A-C)
 
@@ -326,10 +438,54 @@ class RigidMolecule():
 
 
     def imom(self):
-        """ Inertia tensor """
+        """Computes moments of inertia tensor
+
+        >>> camphor = RigidMolecule()
+        >>> camphor.XYZ = ("angstrom", \
+                    "O",     -2.547204,    0.187936,   -0.213755, \
+                    "C",     -1.382858,   -0.147379,   -0.229486, \
+                    "C",     -0.230760,    0.488337,    0.565230, \
+                    "C",     -0.768352,   -1.287324,   -1.044279, \
+                    "C",     -0.563049,    1.864528,    1.124041, \
+                    "C",      0.716269,   -1.203805,   -0.624360, \
+                    "C",      0.929548,    0.325749,   -0.438982, \
+                    "C",      0.080929,   -0.594841,    1.638832, \
+                    "C",      0.791379,   -1.728570,    0.829268, \
+                    "C",      2.305990,    0.692768,    0.129924, \
+                    "C",      0.730586,    1.139634,   -1.733020, \
+                    "H",     -1.449798,    1.804649,    1.756791, \
+                    "H",     -0.781306,    2.571791,    0.321167, \
+                    "H",      0.263569,    2.255213,    1.719313, \
+                    "H",      1.413749,   -1.684160,   -1.316904, \
+                    "H",     -0.928638,   -1.106018,   -2.110152, \
+                    "H",     -1.245108,   -2.239900,   -0.799431, \
+                    "H",      1.816886,   -1.883799,    1.170885, \
+                    "H",      0.276292,   -2.687598,    0.915376, \
+                    "H",     -0.817893,   -0.939327,    2.156614, \
+                    "H",      0.738119,   -0.159990,    2.396232, \
+                    "H",      3.085409,    0.421803,   -0.586828, \
+                    "H",      2.371705,    1.769892,    0.297106, \
+                    "H",      2.531884,    0.195217,    1.071909, \
+                    "H",      0.890539,    2.201894,   -1.536852, \
+                    "H",      1.455250,    0.830868,   -2.487875, \
+                    "H",     -0.267696,    1.035608,   -2.160680)
+        >>> imom = camphor.imom()
+        >>> print(imom.round(6))
+        [[ 3.49280826e+02 -9.59405000e-01  1.09125800e+00]
+         [-9.59405000e-01  4.27045792e+02 -8.05120000e-02]
+         [ 1.09125800e+00 -8.05120000e-02  4.60626510e+02]]
+
+        >>> camphor.frame = "pas" # rotate to principal axes system
+        >>> imom = camphor.imom()
+        >>> print(imom.round(6)) # check if moments of inertia tensor is now diagonal
+        [[349.25832    0.         0.      ]
+         [  0.       427.057364   0.      ]
+         [  0.         0.       460.637444]]
+
+        """
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
-        cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0)/np.sum(mass)
+        cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0) / np.sum(mass)
         xyz0 = xyz - cm[np.newaxis,:]
         imat = np.zeros((3,3), dtype=np.float64)
         natoms = xyz0.shape[0]
@@ -346,8 +502,59 @@ class RigidMolecule():
 
 
     def gmat(self):
-        """ Rotational kinetic energy matrix """
-        convert_to_cm = planck*avogno*1e+16/(4.0*np.pi*np.pi*vellgt)
+        """Rotational kinetic energy matrix
+
+        >>> camphor = RigidMolecule()
+        >>> camphor.XYZ = ("angstrom", \
+                    "O",     -2.547204,    0.187936,   -0.213755, \
+                    "C",     -1.382858,   -0.147379,   -0.229486, \
+                    "C",     -0.230760,    0.488337,    0.565230, \
+                    "C",     -0.768352,   -1.287324,   -1.044279, \
+                    "C",     -0.563049,    1.864528,    1.124041, \
+                    "C",      0.716269,   -1.203805,   -0.624360, \
+                    "C",      0.929548,    0.325749,   -0.438982, \
+                    "C",      0.080929,   -0.594841,    1.638832, \
+                    "C",      0.791379,   -1.728570,    0.829268, \
+                    "C",      2.305990,    0.692768,    0.129924, \
+                    "C",      0.730586,    1.139634,   -1.733020, \
+                    "H",     -1.449798,    1.804649,    1.756791, \
+                    "H",     -0.781306,    2.571791,    0.321167, \
+                    "H",      0.263569,    2.255213,    1.719313, \
+                    "H",      1.413749,   -1.684160,   -1.316904, \
+                    "H",     -0.928638,   -1.106018,   -2.110152, \
+                    "H",     -1.245108,   -2.239900,   -0.799431, \
+                    "H",      1.816886,   -1.883799,    1.170885, \
+                    "H",      0.276292,   -2.687598,    0.915376, \
+                    "H",     -0.817893,   -0.939327,    2.156614, \
+                    "H",      0.738119,   -0.159990,    2.396232, \
+                    "H",      3.085409,    0.421803,   -0.586828, \
+                    "H",      2.371705,    1.769892,    0.297106, \
+                    "H",      2.531884,    0.195217,    1.071909, \
+                    "H",      0.890539,    2.201894,   -1.536852, \
+                    "H",      1.455250,    0.830868,   -2.487875, \
+                    "H",     -0.267696,    1.035608,   -2.160680)
+        >>> gmat = camphor.gmat()
+        >>> for i in range(3):
+        ...     for j in range(3):
+        ...         print("G("+"xyz"[i]+","+"xyz"[j]+") = ", gmat[i,j].round(6))
+        G(x,x) =  0.096529
+        G(x,y) =  0.000217
+        G(x,z) =  -0.000229
+        G(y,x) =  0.000217
+        G(y,y) =  0.07895
+        G(y,z) =  1.3e-05
+        G(z,x) =  -0.000229
+        G(z,y) =  1.3e-05
+        G(z,z) =  0.073195
+
+        >>> HF = RigidMolecule() # test for linear molecule
+        >>> HF.XYZ = ("angstrom", "F", 0,0,0, "H", 0,0,0.91)
+        >>> gmat = HF.gmat()
+        Warning: rotational kinetic energy matrix is singular, singular element index = 2, singular value = 0.0
+        this is fine for linear molecule: set 1/0.0=0
+
+        """
+        convert_to_cm = planck * avogno * 1e+16 / (4.0 * np.pi * np.pi * vellgt)
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
         natoms = xyz.shape[0]
@@ -382,7 +589,7 @@ class RigidMolecule():
         no_sing = 0
         ifstop = False
         for i in range(len(sv)):
-            if sv[i]>small*np.linalg.norm(gsmall):
+            if sv[i] > settings.gmat_svd_small:
                 dmat[i,i] = 1.0/sv[i]
             else:
                 no_sing += 1
@@ -427,9 +634,9 @@ class PsiTable():
         matrix of state coefficients
         """
         if not isinstance(prim, (list, tuple, np.ndarray)):
-            raise TypeError(f"Unsupported argument type '{type(prim)}'") from None
+            raise TypeError(f"Bad argument type '{type(prim)}'") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
-            raise TypeError(f"Unsupported argument type '{type(stat)}'") from None
+            raise TypeError(f"Bad argument type '{type(stat)}'") from None
         try:
             x = [int(val) for elem in prim for val in elem]
         except ValueError:
@@ -463,7 +670,7 @@ class PsiTable():
             try:
                 shape = coefs.shape
             except AttributeError:
-                raise AttributeError(f"Unsupported argument type for coefficients matrix '{type(coefs)}'") from None
+                raise TypeError(f"Bad argument type for coefficients matrix '{type(coefs)}'") from None
             if any(x!=y for x,y in zip(shape,[nprim,nstat])):
                 raise ValueError(f"Shape of coefficients matrix = {shape} is not aligned with the " \
                         +f"number of primitives = {nprim} and number of states = {nstat}") from None
@@ -1482,7 +1689,7 @@ class CartTensor():
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
         else:
-            raise TypeError(f"Unsupported argument type '{type(arg)}' for tensor values, " \
+            raise TypeError(f"Bad argument type '{type(arg)}' for tensor values, " \
                     +f"must be one of: 'list', 'numpy.ndarray'") from None
         if not all(dim==3 for dim in tens.shape):
             raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
@@ -1866,3 +2073,7 @@ def expecting(offset=0):
     else:
         return 1
 
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
