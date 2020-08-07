@@ -288,21 +288,33 @@ class RigidMolecule():
 
 
     @property
-    def ABC(self):
-        """ Returns A, B, C rotational constants (where A>=B>=C), in units cm^-1 """
+    def B(self):
+        """ Returns Bx, By, Bz rotational constants in units of cm^-1 """
         imom = self.imom()
         tol = 1e-12
         if np.any(np.abs(np.diag(np.diag(imom))-imom)>tol):
-            raise RuntimeError("Cannot compute rotational constants for the current frame = " \
-                    +f"'{self.frame_type}', the inertia tensor is not diagonal = {imom}") from None
+            raise RuntimeError("Can't compute rotational constants for the current frame = " \
+                    +f"'{self.frame_type}', inertia tensor is not diagonal = {imom}, " \
+                    +f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom))}") from None
         convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
-        ABC = [convert_to_cm/val for val in np.diag(imom)]
-        return ABC
+        return [convert_to_cm/val for val in np.diag(imom)]
 
 
-    @ABC.setter
-    def ABC(self, val):
-        pass
+    @B.setter
+    def B(self, val):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.B") from None
+
+
+    @property
+    def kappa(self):
+        """ Returns asymmtery parameter kappa = (2*B-A-C)/(A-C) """
+        A, B, C = reversed(sorted(self.B))
+        return (2*B-A-C)/(A-C)
+
+
+    @kappa.setter
+    def kappa(self, val):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.kappa") from None
 
 
     def imom(self):
@@ -448,7 +460,7 @@ class PsiTable():
             if any(x!=y for x,y in zip(shape,[nprim,nstat])):
                 raise ValueError(f"shape of coefficients matrix = {shape} is not aligned with the " \
                         +f"number of primitives = {nprim} and number of states = {nstat}") from None
-            self.table['c'] = coefs
+            self.table['c'][:,:] = coefs
 
 
     def __add__(self, arg):
@@ -574,7 +586,7 @@ class PsiTable():
         coefs2 = arg.table['c']
         # find overlapping primitive states in both sets
         both = list(set(prim1) & set(prim2))
-        #both = set(prim1).intersection(prim2)
+        # both = set(prim1).intersection(prim2)
         if len(both)==0:
             warnings.warn(f"functions have no overlapping primitive quanta, the overlap is zero!")
         ind1 = [prim1.index(x) for x in both]
@@ -600,7 +612,7 @@ class PsiTable():
         if np.any(np.isnan(rotmat)):
             raise ValueError(f"rotation matrix has some values of its elements equal to NaN") from None
 
-        coefs = np.dot(self.table['c'], rotmat.T)
+        coefs = np.dot(self.table['c'][:,:], rotmat.T)
         if stat is None:
             stat = []
             for v in rotmat:
@@ -1473,9 +1485,9 @@ class CartTensor():
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
                     res[(cart0,irrep)].k.table['c'][ind2,:] += me * jk_table['c'][ind1,:]
 
-        for (cart,irrep),val in res.items():
-            if cart != cart0:
-                val = res[(cart0,irrep)]
+        # for (cart,irrep),val in res.items():
+        #     if cart != cart0:
+        #         val.k = res[(cart0,irrep)].k
 
         # compute M|psi>
         for ind1,(j1,m1) in enumerate(jm_table['prim']):
