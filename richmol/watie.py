@@ -40,10 +40,19 @@ class settings():
     tens_symm_tol = 1e-14
     tens_small_elem = small
     tens_large_elem = large/10.0
+    rotmat_small_elem = small
+    rotmat_large_elem = large/10.0
     gmat_svd_small = 1e-12
     assign_nprim = 1 # number of primitive basis contributions printed in the state assignment (e.g. in Richmol states file)
     assign_ndig_c2 = 4 # number of digits printed for the assignment coefficient |c|^2
 
+
+def counted(f):
+    def wrapped(*args, **kwargs):
+        wrapped.calls += 1
+        return f(*args, **kwargs)
+    wrapped.calls = 0
+    return wrapped
 
 
 def atom_data_from_label(atom_label):
@@ -631,9 +640,11 @@ class PsiTable():
 
     def __init__(self, prim, stat, coefs=None):
         if not isinstance(prim, (list, tuple, np.ndarray)):
-            raise TypeError(f"Bad argument type '{type(prim)}' for set of primitive quanta") from None
+            raise TypeError(f"Bad argument type '{type(prim)}' for set of primitive quanta, expected " \
+                    +f"list, tuple or numpy array") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
-            raise TypeError(f"Bad argument type '{type(stat)}' for set of state quanta") from None
+            raise TypeError(f"Bad argument type '{type(stat)}' for set of state quanta, expected " \
+                    +f"list tuple or numpy array") from None
         try:
             x = [int(val) for elem in prim for val in elem]
         except ValueError:
@@ -667,9 +678,10 @@ class PsiTable():
             try:
                 shape = coefs.shape
             except AttributeError:
-                raise TypeError(f"Bad argument type '{type(coefs)}' for coefficients matrix") from None
+                raise TypeError(f"Bad argument type '{type(coefs)}' for coefficients matrix, expected " \
+                        +f"numpy array") from None
             if any(x!=y for x,y in zip(shape,[nprim,nstat])):
-                raise ValueError(f"Shape of coefficients matrix = {shape} is not aligned with the " \
+                raise ValueError(f"Shape of the coefficients matrix = {shape} is not aligned with the " \
                         +f"number of primitives = {nprim} and number of states = {nstat}") from None
             self.table['c'][:,:] = coefs
 
@@ -689,12 +701,12 @@ class PsiTable():
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under sum work on different basis sets " \
-                    +f"('table['prim']' attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sum have different sets of primitive quanta " \
+                    +f"(table['prim'] attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under sum work on different basis sets " \
-                    +f"('table['stat']' attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sum have different sets of state quanta " \
+                    +f"(table['stat'] attributes do not match)") from None
 
         nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
@@ -711,12 +723,12 @@ class PsiTable():
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under subtr work on different basis sets " \
-                    +f"('table['prim']' attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under subtr have different sets of primitive quanta " \
+                    +f"(table['prim'] attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under subtr work on different basis sets " \
-                    +f"('table['stat']' attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under subtr have different sets of state quanta " \
+                    +f"(table['stat'] attributes do not match)") from None
 
         nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
@@ -758,10 +770,10 @@ class PsiTable():
         stat2 = [tuple(x) for x in arg.table['stat'][:nstat2]]
 
         if len(stat1[0]) != len(stat2[0]):
-            raise ValueError(f"Two tables in append have different length of the elements in 'stat'") \
+            raise ValueError(f"Two sets in append have different length of the elements in 'stat'") \
                     from None
         if len(prim1[0]) != len(prim2[0]):
-            raise ValueError(f"Two tables in append have different length of the elements in 'prim'") \
+            raise ValueError(f"Two sets in append have different length of the elements in 'prim'") \
                     from None
 
         prim = list(set(prim1 + prim2))
@@ -789,8 +801,8 @@ class PsiTable():
 
         # check for duplicates in 'stat'
         if len(list(set(tuple(s) for s in stat))) != len(stat):
-            raise ValueError(f"Two tables in append have overlapping 'stat' elements that correspond " \
-                    +f"to different coefficient vectors") from None
+            raise ValueError(f"Two sets in append have overlapping 'stat' elements that correspond " \
+                    +f"to different coefficient vectors, try option 'del_duplicate_stat=True'") from None
 
         return PsiTable(prim, stat, coefs)
 
@@ -825,26 +837,27 @@ class PsiTable():
         try:
             shape = rotmat.shape
         except AttributeError:
-            raise AttributeError(f"Bad type for a rotation matrix '{type(rotmat)}' (use numpy array)") from None
+            raise AttributeError(f"Bad argument type '{type(rotmat)}' for rotation matrix, expected " \
+                    +f"numpy array") from None
 
         if enr is None:
             pass
         elif isinstance(enr, (list, tuple, np.ndarray)):
             if shape[0] != len(enr):
-                raise ValueError(f"Number of elements in energy array = {len(enr)} is not aligned " \
-                        +f"with the number of rows in rotation matrix = {shape[0]}") from None
+                raise ValueError(f"Number of elements in the energy array = {len(enr)} is not aligned " \
+                        +f"with the number of rows in the rotation matrix = {shape[0]}") from None
         else:
-            raise ValueError(f"Bad type for a set of associated energies '{type(enr)}' (use list, tuple, " \
-                    +f"or numpy array)") from None
+            raise ValueError(f"Bad argument type '{type(enr)}' for a set of associated energies, " \
+                    +f"expected list, tuple, numpy array") from None
 
         nstat = self.table['c'].shape[1]
         if shape[1] != nstat:
-            raise ValueError(f"Number of columns in rotation matrix = {shape[1]} is not aligned with " \
-                    +f"the number of basis states = {nstat}") from None
+            raise ValueError(f"Number of columns in the rotation matrix = {shape[1]} is not aligned " \
+                    +f"with the number ofstates = {nstat}") from None
 
-        if np.all(np.abs(rotmat)<small):
+        if np.all(np.abs(rotmat) < settings.rotmat_small_elem):
             raise ValueError(f"Rotation matrix has all its elements equal to zero") from None
-        if np.any(np.abs(rotmat)>large*0.1):
+        if np.any(np.abs(rotmat) > settings.rotmat_large_elem):
             raise ValueError(f"Rotation matrix has too large values of its elements") from None
         if np.any(np.isnan(rotmat)):
             raise ValueError(f"Rotation matrix has some values of its elements equal to NaN") from None
@@ -864,8 +877,8 @@ class PsiTable():
                 ll = [ elem for i in range(len(ind)) for elem in list(elem_stat[i])+[c2[i]] ]
                 stat.append(ll)
         elif len(stat) != rotmat.shape[0]:
-            raise ValueError(f"Number of elements in state assignment = {len(stat)} is not aligned " \
-                    +f"with the number of rows in rotation matrix = {rotmat.shape[0]}") from None
+            raise ValueError(f"Number of elements in the state assignment = {len(stat)} is not aligned " \
+                    +f"with the number of rows in the rotation matrix = {rotmat.shape[0]}") from None
         prim = [elem for elem in self.table['prim']]
         res = PsiTable(prim, stat, coefs)
 
@@ -1059,18 +1072,21 @@ class PsiTableMK():
 
 
     def overlap(self, arg):
-        """Computes overlap <self | arg >
+        """Computes overlap between states sets <self | arg >
+
+        If one return value is requested, computes only the overlap between the k-parts,
+        in the case of two requested return values, computes overlaps between both k- and m-parts
 
         >>> J = 10
         >>> bas1 = SymtopBasis(J) # initialize basis, PsiTableMK type
         >>> bas2 = SymtopBasis(J)
-        >>> ovlp = bas1.overlap(bas2) # compute overlap between k-parts of bas1 and bas2 bases
+        >>> ovlp = bas1.overlap(bas2) # compute overlap between the k-parts of bas1 and bas2
         >>> print(np.diag(ovlp).round(6)) # since bas1 == bas2, the overlap must be the identity matrix
         [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
          1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
          1.+0.j]
 
-        >>> # if two return values requested, it returns also overlap between m-parts
+        >>> # if two return values requested, it returns also overlap between the m-parts
         >>> ovlp, ovlp_m = bas1.overlap(bas2)
         >>> print(np.diag(ovlp_m).round(6))
         [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
@@ -1087,11 +1103,11 @@ class PsiTableMK():
             x = arg.k
         except AttributeError:
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        ovlp_m = self.m.overlap(arg.m)
         ovlp_k = self.k.overlap(arg.k)
         if howmany == 1:
             return ovlp_k
         elif howmany > 1:
+            ovlp_m = self.m.overlap(arg.m)
             return ovlp_k, ovlp_m
 
 
@@ -1122,7 +1138,7 @@ class PsiTableMK():
 
 
     def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
-        """Applies unitary transformation to states in k- and m-parts
+        """Applies unitary transformation to states in the k- and m-parts
 
         Args:
             krot (numpy.ndarray or tuple (numpy.ndarray, np.ndarray)): Unitary transformation matrix
@@ -1173,20 +1189,29 @@ class PsiTableMK():
         return PsiTableMK(res_k, res_m)
 
 
+    @counted
     def store_richmol(self, name, append=False):
-        """Stores state energies and assignments in Richmol energies file
+        """Stores energies of all states in PsiTableMK in Richmol energies file
+
+        To control the number of primitive functions printed for the state assignment, change
+        settings.assign_nprim (=1..6), to change the number of significant digits to be used for
+        printing the primitive coefficients (in fact |c|^2), change settings.assign_ndig_c2 (=1..10)
 
         Args:
             name (str): Name of the file to store energies into.
-            append (str): If True, the energies of states will be appended to existing file.
+            append (str): If True, the data will be appended to existing file.
         """
         Jk = list(set(J for J in self.k.table['prim'][:,0]))
         Jm = list(set(J for J in self.m.table['prim'][:,0]))
         if len(Jk)>1 or len(Jm)>1:
-            raise ValueError(f"Multiple values of J quanta = {Jk} and {Jm} in k- and m-parts") from None
+            raise ValueError(f"Multiple values of J quanta = {Jk} and {Jm} in the k- and m-parts, " \
+                    +f"because Richmol matrix elements files are generated for different pairs " \
+                    +f"of J quanta, mixing states with different J in the states set is not a good " \
+                    +f"idea when it comes to storing state energies and their ID numbers") from None
         else:
             if Jk[0] != Jm[0]:
-                raise ValueError(f"Non-equal values of J quanta = {Jk[0]} and {Jm[0]} in k- and m-parts") from None
+                raise ValueError(f"Different values of J quanta = {Jk[0]} and {Jm[0]} in the k- " \
+                        +f"and m-parts (no idea how this happened)") from None
             J = Jk[0]
 
         nstat = self.k.table['c'].shape[1]
@@ -1195,23 +1220,27 @@ class PsiTableMK():
         try:
             enr = self.k.enr[:nstat]
         except AttributeError:
-            raise AttributeError(f"States set has no associated energies") from None
+            raise AttributeError(f"States set have no associated energies, these are usually assigned " \
+                    +f"at the step of unitary rotation, see PsiTableMK.rotate") from None
 
         try:
             sym = self.k.sym[:nstat]
         except AttributeError:
             sym = ["A" for i in range(nstat)]
 
-        if append==True:
-            mode = "a+"
+        if self.store_richmol.calls == 1:
+            if append==True:
+                mode = "a+"
+            else:
+                mode = "w"
         else:
-            mode = "w"
+            mode = "a"
 
         with open(name, mode) as fl:
             for istat in range(nstat):
                 id = istat + 1
                 fl.write(" %3i"%J + " %6i"%id + " %4s"%sym[istat] + "  1" + " %20.12f"%enr[istat] \
-                        + " ".join(" %s"%elem for elem in assign[istat]) + "\n")
+                        + " ".join(" %3s"%elem for elem in assign[istat]) + "\n")
 
 
 
@@ -1303,14 +1332,14 @@ class SymtopBasis(PsiTableMK):
 
 
 
-def symmetrize(arg, sym="D2", tol=1e-12):
+def symmetrize(arg, sym="D2", thresh=1e-12):
     """Returns dictionary of symmetry-adapted objects 'arg' for different irreps (as dict keys)
     of the symmetry group defined by 'sym'
 
     Args:
         arg (PsiTableMK): Basis of symmetric-top functions.
         sym (str): Point symmetry group, defaults to "D2".
-        tol (float): Tolerance for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
+        thresh (float): Threshold for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
     """
     try:
         x = arg.k
@@ -1351,9 +1380,10 @@ def symmetrize(arg, sym="D2", tol=1e-12):
                 ind_k.append(ik)
                 ind_p.append(ind)
             except ValueError:
-                if np.any(abs(proj[:,:,ik])>tol) or np.any(abs(proj[:,ik,:])>tol):
-                    raise ValueError(f"input set {retrieve_name(arg)} is missing primitive functions " \
-                            +f"that are required for symmetrization, e.g., (J,k) = {(J,k)}") from None
+                if np.any(abs(proj[:,:,ik]) > thresh) or np.any(abs(proj[:,ik,:]) > thresh):
+                    raise ValueError(f"Input set {retrieve_name(arg)} is missing some primitive " \
+                            +f"functions that are required for symmetrization, for example, " \
+                            +f"(J,k) = {(J,k)} is missing") from None
 
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
             pmat = np.dot(proj[irrep,:,ind_k], arg.k.table['c'][ind_p,:])
@@ -1362,7 +1392,7 @@ def symmetrize(arg, sym="D2", tol=1e-12):
     # remove states with zero coefficients
     remove = []
     for sym_lab,elem in res.items():
-        elem.k = elem.k.del_zero_stat(tol=1e-12)
+        elem.k = elem.k.del_zero_stat(thresh=1e-12)
         if elem.k is None:
             remove.append(sym_lab)
     for sym_lab in remove: del res[sym_lab]
@@ -1370,8 +1400,8 @@ def symmetrize(arg, sym="D2", tol=1e-12):
     # check if the total number of states remains the same
     nstat_sym = sum(elem.k.table['c'].shape[1] for elem in res.values()) 
     if nstat_sym != nstat:
-        raise RuntimeError(f"total number of states before symmetrization = {nstat} is different " \
-                +f"from the total number of states summed over all irreps = {nstat_sym}")
+        raise RuntimeError(f"Total number of states before symmetrization = {nstat} is different " \
+                +f"from the total number of states across all irreps = {nstat_sym}")
 
     return res
 
@@ -1736,7 +1766,7 @@ Jzz = mol_Jzz
 
 
 class CartTensor():
-    """ Basic class for laboratory-frame Cartesian tensor operators
+    """Basic class for laboratory-frame Cartesian tensor operators
 
     Args:
         arg (np.ndarray, list or tuple): Array with tensor elements in the molecule-fixed frame.
@@ -1772,13 +1802,13 @@ class CartTensor():
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
         else:
-            raise TypeError(f"Bad argument type '{type(arg)}' for tensor values, " \
-                    +f"must be one of: 'list', 'numpy.ndarray'") from None
+            raise TypeError(f"Bad argument type '{type(arg)}' for tensor, expected list, tuple, " \
+                    +f"or numpy array") from None
         if not all(dim==3 for dim in tens.shape):
             raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-        if np.all(np.abs(tens)<small):
+        if np.all(np.abs(tens) < settings.tens_small_elem):
             raise ValueError(f"Tensor has all its elements equal to zero") from None
-        if np.any(np.abs(tens)>large*0.1):
+        if np.any(np.abs(tens) > settings.tens_large_elem):
             raise ValueError(f"Tensor has too large values of its elements") from None
         if np.any(np.isnan(tens)):
             raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
@@ -1819,7 +1849,7 @@ class CartTensor():
 
 
     def __call__(self, arg):
-        """ Computes |psi'> = CartTensor|psi>
+        """Computes |psi'> = CartTensor|psi>
 
         Args:
             arg (PsiTableMK): |psi>, set of linear combinations of symmetric-top functions.
@@ -1899,7 +1929,7 @@ class CartTensor():
 
 
     def me(self, psi_bra, psi_ket):
-        """ Computes matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket>
+        """Computes matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket>
 
         Args:
             psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
@@ -1954,7 +1984,7 @@ class CartTensor():
 
 
     def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
-        """ Stores tensor matrix elements in Richmol file
+        """Stores tensor matrix elements in Richmol file
 
         Args:
             psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
@@ -1989,11 +2019,11 @@ class CartTensor():
         Jm_bra = list(set(J for J in psi_bra.m.table['prim'][:,0]))
         if len(Jk_bra)>1 or len(Jm_bra)>1:
             raise ValueError(f"Function {retrieve_name(psi_bra)} couples states with different " \
-                    +f"J quanta = {Jk_bra} and {Jm_bra} for k- and m-parts, richmol matrix element " \
+                    +f"J quanta = {Jk_bra} and {Jm_bra} in the k- and m-parts, Richmol matrix element " \
                     +f"file cannot be created")
         else:
             if Jk_bra[0] != Jm_bra[0]:
-                raise ValueError(f"Inconsistent J quanta = {Jk_bra[0]} and {Jm_bra[0]} in the k- and " \
+                raise ValueError(f"Different J quanta = {Jk_bra[0]} and {Jm_bra[0]} in the k- and " \
                         +f"m-dependent parts of function {retrieve_name(psi_bra)}")
             J2 = Jk_bra[0]
 
@@ -2001,11 +2031,11 @@ class CartTensor():
         Jm_ket = list(set(J for J in psi_ket.m.table['prim'][:,0]))
         if len(Jk_ket)>1 or len(Jm_ket)>1:
             raise ValueError(f"Function {retrieve_name(psi_ket)} couples states with different " \
-                    +f"J quanta = {Jk_ket} and {Jm_ket} for k- and m-parts, richmol matrix element " \
+                    +f"J quanta = {Jk_ket} and {Jm_ket} in the k- and m-parts, Richmol matrix element " \
                     +f"file cannot be created")
         else:
             if Jk_ket[0] != Jm_ket[0]:
-                raise ValueError(f"Inconsistent J quanta = {Jk_ket[0]} and {Jm_ket[0]} in the k- and " \
+                raise ValueError(f"Different J quanta = {Jk_ket[0]} and {Jm_ket[0]} in the k- and " \
                         +f"m-dependent parts of function {retrieve_name(psi_ket)}")
             J1 = Jk_ket[0]
 
@@ -2043,7 +2073,7 @@ class CartTensor():
             kmat_cmplx = None
             return
         else:
-            raise RuntimeError(f"Elements of K-tensor are complex-valued, expected purely real " \
+            raise RuntimeError(f"Elements of the K-tensor are complex-valued, expected purely real " \
                     +f"or purely imaginary numbers\nK = {kmat}")
 
         # check if elements of M-tensor are all purely real or imaginary
@@ -2058,7 +2088,7 @@ class CartTensor():
             elif np.all(abs(elem[:,:,:].real) < zero_tol) and np.all(abs(elem[:,:,:].imag) < zero_tol):
                 mmat_cmplx[key] = None
             else:
-                raise RuntimeError(f"Elements of {key} M-tensor are complex-valued, expected purely " \
+                raise RuntimeError(f"Elements of the {key} M-tensor are complex-valued, expected purely " \
                         +f"real or purely imaginary numbers\nM = {elem}")
 
         if all(cmplx is None for cmplx in mmat_cmplx.values()):
@@ -2118,7 +2148,7 @@ class CartTensor():
                         else:
                             continue
                         if np.any(abs(me)>thresh):
-                            fl.write(" %4i"%m1 + " %4i"%m2 + " ".join("  %20.12e"%elem for elem in me) + "\n")
+                            fl.write(" %4s"%m1 + " %4s"%m2 + " ".join("  %20.12e"%elem for elem in me) + "\n")
                 icart+=1
             fl.write("K-tensor\n")
             for i1 in range(psi_ket.k.table['c'].shape[1]):
@@ -2132,6 +2162,146 @@ class CartTensor():
                     if np.any(abs(me)>thresh):
                         fl.write(" %6i"%id1 + " %6i"%id2 + "    1 1 " + " ".join("  %20.12e"%elem for elem in me) + "\n")
             fl.write("End richmol format")
+
+
+
+class WignerD(CartTensor):
+    """ Wigner D-matrix D_{m,k}^{(J)} """
+    def __init__(self, J, m, k):
+        self.cart = ['0']
+        self.tens_flat = np.array([1], dtype=np.float64)
+        if m == k:
+            self.os = [(J,m)]
+            self.Ux = np.array([[1]], dtype=np.complex128)
+            self.Us = np.array([[1]], dtype=np.complex128)
+        else:
+            self.os = [(J,m), (J,k)]
+            self.Ux = np.array([[1, 0]], dtype=np.complex128)
+            self.Us = np.array([[0],[1]], dtype=np.complex128)
+
+
+
+class WignerExpand(CartTensor):
+    """Arbitrary function of two Euler angles theta and phi expanded in terms of Wigner D-functions
+
+    Args:
+        func(theta, phi): Function of two Euler angles theta and phi.
+        jmax (int): Max value of the quantum number J spanned by the set of Wigner D-functions
+            D_{m,k}^{(J)} (m,k=-J..J) used in the expansion of function 'func'.
+        npoints_leb (int): Size of the Lebedev angular quadrature used for numerical integration.
+        thresh (float): Threshold for neglecting small expansion coefficients.
+    """
+
+    def __init__(self, func, jmax=100, npoints_leb=5810, tol=1e-12):
+
+        self.cart = ['0']
+        self.rank = 0
+        self.tens_flat = np.array([1], dtype=np.float64)
+
+        # expansion coefficients
+
+        overlap_me = overlap_integrals_func_symtop(func, jmax, npoints_leb)
+
+        wcoef = {}
+        nirrep = 0
+        omega = []
+        for j in range(jmax+1):
+            fac = np.sqrt((2*j+1)/(8.0*np.pi**2))
+            me = np.array([overlap_me[im,j] * fac for m,im in zip(range(-jmax,jmax+1),range(2*jmax+1)) if abs(m) <= j])
+            if np.all(abs(me) < thresh): continue
+            wcoef[j] = me
+            nirrep += 1
+            omega.append(j)
+
+        # Cartesian <--> spherical tensor transformation matrices
+
+        self.os = [(o,s) for o in omega for s in range(-o,o+1)]
+        dim1 = 1
+        dim2 = len(self.os)
+        self.Ux = np.zeros((dim1,dim2), dtype=np.complex128)
+        self.Us = np.zeros((dim2,dim1), dtype=np.complex128)
+
+        ind_sigma = {(omega,sigma) : [s for s in range(-omega,omega+1)].index(sigma) \
+                     for (omega,sigma) in self.os}
+
+        for i,(omega,sigma) in enumerate(self.os):
+            isigma = ind_sigma[(omega,sigma)]
+            self.Ux[0,i] = wcoef[omega][isigma]
+            if sigma == 0:
+                self.Us[i,0] = 1.0
+
+
+    def overlap(self, func, jmax=100, npoints=5810):
+        """ Computes overlap integrals between symmetric-top functions and input function 'func',
+        which is a function of two Euler angles theta and phi, using Lebedev quadrature
+
+        Args:
+            func(theta, phi): Function of two Euler angles theta and phi.
+            jmax (int): Max value of the quantum number J spanned by the set of symmetric-top functions.
+            npoints (int): Size of the Lebedev angular quadrature used for numerical integration.
+
+        Returns:
+            ovlp (array (2*jmax+1,jmax)): Overlap integrals ovlp(im,J) = <J,k=0,m|func>, where
+            m,im in zip(range(-J,J+1),range(2J+1)) for J in range(0,jmax+1).
+        """
+        # initialize Lebedev quadrature
+
+        npoints_c = c_int(npoints)
+        grid = np.asfortranarray(np.zeros((2,npoints), dtype=np.float64))
+        weight = np.zeros(npoints, dtype=np.float64)
+
+        fsymtop.angular_lebedev.argtypes = [ \
+            c_int, \
+            np.ctypeslib.ndpointer(np.float64, ndim=2, flags='F'), \
+            np.ctypeslib.ndpointer(np.float64, ndim=1, flags='C') ]
+
+        fsymtop.angular_lebedev.restype = None
+
+        fsymtop.angular_lebedev( \
+            npoints_c, \
+            grid, \
+            weight )
+
+        # compute symmetric-top functions |j,k=0,m>
+        # for j=0..jmax and m=-j..j on the Lebedev grid for theta and phi angles
+
+        jmax_c = c_int(jmax)
+        symtop_grid_r = np.asfortranarray(np.zeros((2*jmax+1,jmax+1,npoints), dtype=np.float64))
+        symtop_grid_i = np.asfortranarray(np.zeros((2*jmax+1,jmax+1,npoints), dtype=np.float64))
+
+        fsymtop.symtop_2d_grid_theta_phi.argtypes = [ \
+            c_int, \
+            c_int, \
+            np.ctypeslib.ndpointer(np.float64, ndim=2, flags='F'), \
+            np.ctypeslib.ndpointer(np.float64, ndim=3, flags='F'), \
+            np.ctypeslib.ndpointer(np.float64, ndim=3, flags='F') ]
+
+        fsymtop.symtop_2d_grid_theta_phi.restype = None
+
+        fsymtop.symtop_2d_grid_theta_phi( \
+            npoints_c, \
+            jmax_c, grid, \
+            symtop_grid_r, \
+            symtop_grid_i )
+
+        grid = grid.reshape((2,npoints)) # grid[0:1,ipoint] = theta,phi
+        symtop_grid = np.array( symtop_grid_r.reshape((2*jmax+1,jmax+1,npoints)) \
+                              - symtop_grid_i.reshape((2*jmax+1,jmax+1,npoints))*1j, \
+                              dtype=np.complex128 )  # symtop_grid[m,j,ipoint] = |j,k=0,m>
+
+        # input function on 2D grid of theta and phi angles
+        # and matrix element <j,k=0,m|user_func> using Lebedev quadrature
+
+        func_times_weight = np.array( [func(theta,phi) * wght \
+                                       for theta,phi,wght in zip(grid[0,:],grid[1,:],weight)], \
+                                    dtype=np.float64 )
+
+        ovlp = np.sum(symtop_grid * func_times_weight, axis=2)
+
+        twopi = np.pi*2
+        ovlp *= twopi  # factor 2Pi comes from the implicit integration over the third Euler angle chi
+
+        return ovlp
 
 
 
