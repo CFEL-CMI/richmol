@@ -636,25 +636,46 @@ class RigidMolecule():
 
 
 class PsiTable():
-    """ Basic class for operations on wavefunction coefficients """
+    """Basic class to handle operations on rotational wavefunctions, which are represented
+    by a table of superposition coefficients with different primitive basis functions in rows
+    and different states in columns.
+
+    Attributes:
+        table : structured numpy array
+            table['c'][:,:] is a numpy.complex128 matrix, holds wafefunctions' superposition
+            coefficients, with primitive basis functions stored in rows and states in columns.
+            table['prim'][:] is an array of tuples of integer quantum numbers (q1, q2, ...)
+            used for assignment of different primitive basis functions.
+            table['stat'][:] is an array of tuples of U10 quantum numbers (s1, s2, ...)
+            used for assignment of different states.
+        enr : numpy array, enr.shape = table['c'].shape[1]
+            Contains states' energies. This attribute is dynamically added as part of unitary
+            transformation of the wavefunction set in rotate().
+        sym : numpy array, sym.shape = table['c'].shape[1]
+            Contains states' symmetry labels. This attribute is dynamically added as part of ....
+    """
 
     def __init__(self, prim, stat, coefs=None):
+        """Initialize PsiTable from the list of primitive quanta 'prim', state assignments 'stat',
+        and, if provided, matrix of superposition coefficients 'coefs' (zero matrix by default).
+        """
         if not isinstance(prim, (list, tuple, np.ndarray)):
             raise TypeError(f"Bad argument type '{type(prim)}' for set of primitive quanta, expected " \
                     +f"list, tuple or numpy array") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
             raise TypeError(f"Bad argument type '{type(stat)}' for set of state quanta, expected " \
-                    +f"list tuple or numpy array") from None
+                    +f"list, tuple or numpy array") from None
         try:
             x = [int(val) for elem in prim for val in elem]
         except ValueError:
-            raise ValueError(f"Failed to convert element into integer") from None
+            raise ValueError(f"Failed to convert element in 'prim' into integer") from None
 
         nprim = len(prim)
         nstat = len(stat)
-        assert (nprim>0), f"Number of primitives nprim = 0"
-        assert (nstat>0), f"Number of states nstat = 0"
-        assert (nprim>=nstat), f"nprim < nstat: {nprim} < {nstat}"
+        assert (nprim>0), f"Number of primitives = 0"
+        assert (nstat>0), f"Number of states = 0"
+        assert (nprim>=nstat), f"Number of primitives is smaller than number of states, i.e. " \
+                +f"nprim < nstat: {nprim} < {nstat}"
 
         nelem_stat = list(set(len(elem) for elem in stat))
         if len(nelem_stat)>1:
@@ -688,6 +709,8 @@ class PsiTable():
 
     @classmethod
     def fromPsiTable(cls, arg):
+        """Initialize PsiTable from an argument of PsiTable type using deepcopy
+        """
         if not isinstance(arg, PsiTable):
             raise TypeError(f"Bad argument type '{type(arg)}', expected 'PsiTable'") from None
         cls = copy.deepcopy(arg)
@@ -757,6 +780,7 @@ class PsiTable():
 
 
     def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
+        """ Appends two wavefunction sets together """
         try:
             x = arg.table
         except AttributeError:
@@ -808,6 +832,12 @@ class PsiTable():
 
 
     def overlap(self, arg):
+        """Computes overlap < self | arg >
+
+        Args:
+            arg : PsiTable
+                Wavefunction set to compute overlap with
+        """
         try:
             x = arg.table
         except AttributeError:
@@ -828,6 +858,21 @@ class PsiTable():
 
 
     def rotate(self, arg, stat=None):
+        """Applies unitary transformation to wavefunction set
+
+        Args:
+            arg : numpy.ndarray or tuple (numpy.ndarray, numpy.ndarray)
+                Contains unitary transformation matrix and, if provided, a set of associated
+                state energies (second in tuple).
+                The number of columns in unitary transformation matrix must be equal to
+                the number of states self.table['c'].shape[1].
+            stat : list
+                User-defined assignments for resulting unitary-transformed wavefunctions.
+
+        Returns:
+            Resulting unitary-transformed wavefunction set as PsiTable object.
+            If state energies are provided in 'arg', they are stored in self.enr.
+        """
         try:
             rotmat, enr = arg
         except ValueError:
@@ -960,8 +1005,15 @@ class PsiTable():
 
 
 class PsiTableMK():
-    """Basic class for operations on rotational wavefunctions, based on the 'PsiTable' class,
-    keeps separately J,k and J,m spaces of quantum numbers (referred as k-part and m-part)
+    """Basic class to handle operations on rotational wavefunctions, which are represented
+    by two tables of superposition coefficients (PsiTable class), one for k-subset and one for
+    m-subset of quantum numbers.
+
+    Attributes:
+        k : PsiTable  class
+            Holds table of superposition coefficients for k-subset.
+        m : PsiTable  class
+            Holds table of superposition coefficients for m-subset.
     """
 
     def __init__(self, psik, psim):
@@ -972,6 +1024,7 @@ class PsiTableMK():
 
         # initialize using PsiTable.__init__
         # this way some of the attributes (added dynamically) in psik and psim will be lost
+        #
         # nstat = psim.table['c'].shape[1]
         # self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
         # nstat = psik.table['c'].shape[1]
@@ -979,6 +1032,7 @@ class PsiTableMK():
 
         # initialize using PsiTable.fromPsiTable
         # this way psik and psim will be deep-copied keeping all dynamically added attributes
+        #
         self.m = PsiTable.fromPsiTable(psim)
         self.k = PsiTable.fromPsiTable(psik)
 
@@ -1024,20 +1078,29 @@ class PsiTableMK():
 
 
     def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
-        """Appends two sets together, if requested can delete duplicate states ('del_duplicate_stat' = True),
-        delete states with all coefficients below 'thresh' ('del_zero_stat' = True), and delete primitive
-        functions that have negligible contribution (below 'thresh') to all states ('del_zero_prim' = True).
+        """Appends two wavefunction sets together
+
+        If requested, can delete duplicate states ('del_duplicate_stat' = True),
+        delete states with all coefficients below 'thresh' ('del_zero_stat' = True),
+        and delete primitive functions that have negligible contribution (below 'thresh')
+        to all states ('del_zero_prim' = True)
+
+        Args:
+            arg : PsiTableMK class
+                Wavefunction set to be appended to the current set
+
+        Examples:
 
         >>> J1 = 2
         >>> J2 = 3
         >>> bas1 = SymtopBasis(J1) # initialize basis, PsiTableMK type
         >>> bas2 = SymtopBasis(J2)
-        >>> bas = bas1.append(bas1) # try to add two sets that have identical states, bas1 and bas1
+        >>> bas = bas1.append(bas1) # try to add two sets bas1 and bas2 that have identical states
         Traceback (most recent call last):
             ...
-        ValueError: Two tables in append have overlapping 'stat' elements that correspond to different coefficient vectors
+        ValueError: Two sets in append have overlapping 'stat' elements that correspond to different coefficient vectors, try option 'del_duplicate_stat=True'
 
-        >>> # to avoid this problem, we ask to delete all duplicate states in the appended set 'bas'
+        >>> # to avoid this problem, we ask to delete all duplicate states in the resulting set 'bas'
         >>> bas = bas1.append(bas1, del_duplicate_stat=True)
         >>> # since we expect that 'bas' == 'bas1', the number of state and primitive functions must be equal in two sets
         >>> no_prim, no_states = bas.k.table['c'].shape
@@ -1072,21 +1135,27 @@ class PsiTableMK():
 
 
     def overlap(self, arg):
-        """Computes overlap between states sets <self | arg >
+        """Computes overlap between wavefunction sets < self | arg >
 
-        If one return value is requested, computes only the overlap between the k-parts,
-        in the case of two requested return values, computes overlaps between both k- and m-parts
+        If one return value is requested, computes only overlap between the k-subspaces,
+        in case of two requested return values, computes overlaps between both k- and m-subspaces
+
+        Args:
+            arg : PsiTableMK class
+                Wavefunction set to compute the overlap with
+
+        Examples:
 
         >>> J = 10
         >>> bas1 = SymtopBasis(J) # initialize basis, PsiTableMK type
         >>> bas2 = SymtopBasis(J)
-        >>> ovlp = bas1.overlap(bas2) # compute overlap between the k-parts of bas1 and bas2
+        >>> ovlp = bas1.overlap(bas2) # compute overlap between k-subspaces of bas1 and bas2
         >>> print(np.diag(ovlp).round(6)) # since bas1 == bas2, the overlap must be the identity matrix
         [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
          1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
          1.+0.j]
 
-        >>> # if two return values requested, it returns also overlap between the m-parts
+        >>> # if two return values requested, it returns also overlap between the m-subspaces
         >>> ovlp, ovlp_m = bas1.overlap(bas2)
         >>> print(np.diag(ovlp_m).round(6))
         [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
@@ -1138,22 +1207,30 @@ class PsiTableMK():
 
 
     def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
-        """Applies unitary transformation to states in the k- and m-parts
+        """Applies unitary transformation to wavefunction sets
 
         Args:
-            krot (numpy.ndarray or tuple (numpy.ndarray, np.ndarray)): Unitary transformation matrix
-                for states in the k-part and, if provided, a set of associated state energies.
-                Note, the number of columns in unitary transformation matrix must be equal to
+            krot : numpy.ndarray or tuple (numpy.ndarray, numpy.ndarray)
+                Unitary transformation matrix for k-subspace wavefunctions and, if provided,
+                a set of corresponding state energies.
+                The number of columns in unitary transformation matrix must be equal to
                 the number of states self.k.table['c'].shape[1].
-            mrot (numpy.ndarray or tuple (numpy.ndarray, np.ndarray)): Unitary transformation matrix
-                for states in the m-part and, if provided, a set of associated state energies.
-                Note, the number of columns in unitary transformation matrix must be equal to
+            mrot : numpy.ndarray or tuple (numpy.ndarray, np.ndarray)
+                Unitary transformation matrix for m-subspace wavefunctions and, if provided,
+                a set of corresponding state energies.
+                The number of columns in unitary transformation matrix must be equal to
                 the number of states self.m.table['c'].shape[1].
-            kstat (list): User-defined assignment of unitary-transformed states in the k-part.
-            mstat (list): User-defined assignment of unitary-transformed states in the m-part.
+            kstat : list
+                User-defined assignment of the resulting unitary-transformed k-subspace wavefunctions.
+            mstat : list
+                User-defined assignment of the resulting unitary-transformed m-subspace wavefunctions.
 
         Returns:
-            New unitary-transformed set of functions as PsiTableMK object.
+            Unitary-transformed wavefunction set as PsiTableMK object.
+            If state energies are provided in 'krot' or/and 'mrot', they are stored
+            in self.k.enr and self.m.enr, respectively.
+
+        Examples:
 
         >>> # set up symmetric-top basis for J=10, compute matrix representation
         >>> # of rigid-rotor Hamiltonian, compute its eigenvalues and eigenvectors
@@ -1167,14 +1244,14 @@ class PsiTableMK():
         >>> bas2 = bas.rotate(krot=(eigenvec.T, eigenval))
 
         >>> # compute matrix representation of the above Hamiltonian in the new 'rotated'
-        >>> # basis 'bas2', check if it is diagonal with diagonal elements given by the eigenvalues
+        >>> # basis 'bas2', check if it is diagonal, with diagonal elements given by the eigenvalues
         >>> hamiltonian = 10 * Jxx(bas2) + 12 * Jyy(bas2) + 14 * Jzz(bas2)
         >>> ham_matrix = bas2.overlap(hamiltonian)
         >>> diag = np.diag(ham_matrix) # diagonal elements
         >>> max_off_diag = np.max(np.abs(ham_matrix - np.diag(diag))) # maximal off-diagonal element
         >>> print(np.abs(eigenval - diag).round(6)) # check if diagonal is equal to eigenvalues
         [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
-        >>> print(max_off_diag.round(10)) # check if max off diagonal element is close to zero
+        >>> print(max_off_diag.round(10)) # check if max off-diagonal element is close to zero
         0.0
 
         """
@@ -1191,15 +1268,17 @@ class PsiTableMK():
 
     @counted
     def store_richmol(self, name, append=False):
-        """Stores energies of all states in PsiTableMK in Richmol energies file
+        """Stores energies of wavefunction set in Richmol energies file
 
-        To control the number of primitive functions printed for the state assignment, change
-        settings.assign_nprim (=1..6), to change the number of significant digits to be used for
-        printing the primitive coefficients (in fact |c|^2), change settings.assign_ndig_c2 (=1..10)
+        To control the number of primitive functions printed for state assignment, change
+        settings.assign_nprim (=1..6), to change the number of significant digits printed
+        for squared modulus of primitive coefficients, change settings.assign_ndig_c2 (=1..10)
 
         Args:
-            name (str): Name of the file to store energies into.
-            append (str): If True, the data will be appended to existing file.
+            name : str
+                Name of the file to store energies into.
+            append : str
+                If True, the data will be appended to existing file.
         """
         Jk = list(set(J for J in self.k.table['prim'][:,0]))
         Jm = list(set(J for J in self.m.table['prim'][:,0]))
@@ -1248,8 +1327,10 @@ class SymtopBasis(PsiTableMK):
     """Basis of symmetric top functions for selected J
 
     Args:
-        J (int): Quantum number of the rotational angular momentum.
-        linear (bool): set True if molecule is linear, in this case quantum number k is kept at zero.
+        J : int
+            Quantum number of the rotational angular momentum.
+        linear : bool
+            Set True if molecule is linear, in this case quantum number k is kept at zero.
     """
 
     def __init__(self, J, linear=False):
@@ -1302,12 +1383,15 @@ class SymtopBasis(PsiTableMK):
         |J,k,tau> = c1|J,k> + c2|J,-k>
 
         Args:
-            j, k, tau (int): J, k, and tau quantum numbers, where k can take values between 0 and J
+            j, k, tau : int 
+                J, k, and tau quantum numbers, where k can take values between 0 and J
                 and tau=0 or 1 is parity defined as (-1)^tau.
 
         Returns:
-            coefs (list): Wang's symmetrization coefficients, coefs=[c1,c2] for k>0 and coefs=[c1] for k=0.
-            kval (list): List of k-values, kval=[k,-k] for k0 and kval=[k] for k=0.
+            coefs : list
+                Wang's symmetrization coefficients, coefs=[c1,c2] for k>0 and coefs=[c1] for k=0.
+            kval : list
+                List of k-values, kval=[k,-k] for k0 and kval=[k] for k=0.
         """
         assert (k>=0), f"k = {k} < 0"
         assert (j>=0), f"J = {j} < 0"
@@ -1337,9 +1421,12 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     of the symmetry group defined by 'sym'
 
     Args:
-        arg (PsiTableMK): Basis of symmetric-top functions.
-        sym (str): Point symmetry group, defaults to "D2".
-        thresh (float): Threshold for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
+        arg : PsiTableMK
+            Basis of symmetric-top functions.
+        sym : str
+            Point symmetry group, defaults to "D2".
+        thresh : float
+            Threshold for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
     """
     try:
         x = arg.k
@@ -1408,6 +1495,9 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
 
 
 class SymtopSymmetry():
+    """Basic class to handle symmetry of rotational wavefunctions,
+    generates projection operators for different irreps of chosen symmetry group.
+    """
 
     def __init__(self, J):
 
@@ -1766,10 +1856,29 @@ Jzz = mol_Jzz
 
 
 class CartTensor():
-    """Basic class for laboratory-frame Cartesian tensor operators
+    """Basic class to handle matrix elements of laboratory-frame Cartesian tensor operators
+
+    Attributes:
+        rank : int
+            Rank of tensor operator.
+        Us : numpy.complex128 2D array
+            Cartesian-to-spherical-tensor transformation matrix.
+        Ux : numpy.complex128 2D array
+            Spherical-tensor-to-Cartesian transformation matrix (Ux = (Ux^T)^*).
+        cart : array of str
+            Contains string labels of different Cartesian components in the order corresponding
+            to the order of Cartesian components in rows of 'Ux' (columns of 'Us').
+        os : [(omega,sigma) for omega in range(nirrep) for sigma in range(-omega,omega+1)]
+            List of spherical-tensor indices (omega,sigma) in the order corresponding
+            to the spherical-tensor components in columns of 'Ux' (rows of 'Us'),
+            'nirrep' here is the number of tensor irreducible representations.
+        tens_flat : 1D array
+            Contains elements of Cartesian tensor in the molecular frame, flattened in the order
+            corresponding to the order of Cartesian components in 'cart'.
 
     Args:
-        arg (np.ndarray, list or tuple): Array with tensor elements in the molecule-fixed frame.
+        arg : np.ndarray, list or tuple
+            Contains elements of Cartesian tensor in the molecular frame.
     """
 
     # transformation matrix for tensors of rank in tmat_s.keys()
@@ -1852,11 +1961,15 @@ class CartTensor():
         """Computes |psi'> = CartTensor|psi>
 
         Args:
-            arg (PsiTableMK): |psi>, set of linear combinations of symmetric-top functions.
+            arg : PsiTableMK)
+                |psi>, set of linear combinations of symmetric-top functions.
 
         Returns:
-            res (dict of PsiTableMK): |psi'>, resulting tensor-projected set of linear combinations
-                of symmetric-top functions.
+            res : dict of PsiTableMK
+                |psi'>, resulting tensor-projected set of linear combinations of symmetric-top
+                functions for different laboratory-frame Cartesian components and different
+                irreducible components of the tensor as dict keys (cart,irrep),
+                where cart is in self.cart and irrep is in set(omega for (omega,sigma) in self.os).
         """
         try:
             jm_table = arg.m.table
@@ -1929,14 +2042,16 @@ class CartTensor():
 
 
     def me(self, psi_bra, psi_ket):
-        """Computes matrix elements of Cartesian tensor operator <psi_bra|CartTensor|psi_ket>
+        """Computes matrix elements of Cartesian tensor operator < psi_bra | CartTensor | psi_ket >
 
         Args:
-            psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
+            psi_bra, psi_ket : PsiTableMK
+                Set of linear combinations of symmetric-top functions.
 
         Returns:
-            res (dict of 4D arrays): Matrix elements between states in psi_bra and psi_ket sets
-                of functions, for different lab-fixed Cartesian components of the tensor (as dict keys).
+            res : dict of 4D arrays
+                Matrix elements between states in psi_bra and psi_ket sets of functions, for different
+                laboratory-frame Cartesian components of the tensor (in self.cart) as dict keys.
                 For each Cartesian component, matrix elements are stored in a 4D matrix
                 [k2,m2,k1,m1], where k2 and k1 are the k-state indices in psi_bra and psi_ket
                 respectively, and m2 and m1 are the corresponding m-state indices.
@@ -1987,12 +2102,16 @@ class CartTensor():
         """Stores tensor matrix elements in Richmol file
 
         Args:
-            psi_bra, psi_ket (PsiTableMK): Set of linear combinations of symmetric-top functions.
-            name (str): Name of the tensor operator (single word), defaults to "tens"+str(self.rank).
-            fname (str): Name of the file for storing tensor matrix elements, defaults to 'name'.
+            psi_bra, psi_ket : PsiTableMK)
+                Set of linear combinations of symmetric-top functions.
+            name : str
+                Name of the tensor operator (single word), defaults to "tens"+str(self.rank).
+            fname : str
+                Name of the file for storing tensor matrix elements, defaults to 'name'.
                 The actual file name will be fname+"_j"+str(J_ket)+"_j"+str(J_bra)+".rchm", where
                 J_bra and J_ket are respective J quanta of bra and ket states.
-            thresh (float): Threshold for storing matrix elements in file.
+            thresh : float
+                Threshold for neglecting matrix elements.
         """
         zero_tol = small*10
 
@@ -2185,11 +2304,15 @@ class WignerExpand(CartTensor):
     """Arbitrary function of two Euler angles theta and phi expanded in terms of Wigner D-functions
 
     Args:
-        func(theta, phi): Function of two Euler angles theta and phi.
-        jmax (int): Max value of the quantum number J spanned by the set of Wigner D-functions
+        func(theta, phi)
+            Function of two Euler angles theta and phi.
+        jmax : int
+            Max value of the quantum number J spanned by the set of Wigner D-functions
             D_{m,k}^{(J)} (m,k=-J..J) used in the expansion of function 'func'.
-        npoints_leb (int): Size of the Lebedev angular quadrature used for numerical integration.
-        thresh (float): Threshold for neglecting small expansion coefficients.
+        npoints_leb : int
+            Size of the Lebedev angular quadrature used for numerical integration.
+        thresh : float
+            Threshold for neglecting small expansion coefficients.
     """
 
     def __init__(self, func, jmax=100, npoints_leb=5810, tol=1e-12):
@@ -2232,17 +2355,21 @@ class WignerExpand(CartTensor):
 
 
     def overlap(self, func, jmax=100, npoints=5810):
-        """ Computes overlap integrals between symmetric-top functions and input function 'func',
-        which is a function of two Euler angles theta and phi, using Lebedev quadrature
+        """Computes overlap integrals between symmetric-top functions and input function 'func',
+        of two Euler angles theta and phi, using Lebedev quadrature
 
         Args:
-            func(theta, phi): Function of two Euler angles theta and phi.
-            jmax (int): Max value of the quantum number J spanned by the set of symmetric-top functions.
-            npoints (int): Size of the Lebedev angular quadrature used for numerical integration.
+            func(theta, phi)
+                Function of two Euler angles theta and phi.
+            jmax : int
+                Max value of the quantum number J spanned by the set of symmetric-top functions.
+            npoints : int
+                Size of the Lebedev angular quadrature used for numerical integration.
 
         Returns:
-            ovlp (array (2*jmax+1,jmax)): Overlap integrals ovlp(im,J) = <J,k=0,m|func>, where
-            m,im in zip(range(-J,J+1),range(2J+1)) for J in range(0,jmax+1).
+            ovlp : array (2*jmax+1,jmax)
+                Overlap integrals ovlp(im,J) = <J,k=0,m|func>,
+                where m,im in zip(range(-J,J+1),range(2J+1)) for J in range(0,jmax+1).
         """
         # initialize Lebedev quadrature
 
