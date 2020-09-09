@@ -523,7 +523,7 @@ class Etensor():
 
         coefs_new = {}
 
-        elif method=="taylor":
+        if method=="taylor":
 
             # use Taylor series expansion of matrix exponential
 
