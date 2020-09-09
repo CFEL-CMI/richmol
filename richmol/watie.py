@@ -1331,7 +1331,7 @@ class PsiTableMK():
 
     @property
     def sym(self):
-        """Returns symmetry of basis states """
+        """ Returns symmetry of basis states """
         nstat = self.k.table['c'].shape[1]
         try:
             sym = self.k.sym[:nstat]
@@ -1340,8 +1340,12 @@ class PsiTableMK():
         return sym
 
     @sym.setter
-    def sym(self):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.sym") from None
+    def sym(self, val):
+        if isinstance(val, str):
+            nstat = self.k.table['c'].shape[1]
+            self.k.sym = np.array([val for istate in range(nstat)])
+        else:
+            raise TypeError(f"Bad type for symmetry: '{type(val)}'") from None
 
 
     @counted
