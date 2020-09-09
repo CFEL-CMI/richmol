@@ -423,31 +423,6 @@ class Etensor():
     __rmul__ = __mul__
 
 
-    def MKvec_old(self, MF, K, vec):
-        """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
-
-        Args:
-            MF (dict): M-tensor contracted with electric field, same as Etensor().MF.
-            K (dict): K-tensor, same as Etensor().K.
-            vec (dict): Wavepacket vector, same as Psi().coefs.
-
-        Returns:
-            vec_new (dict): result of (MF x K) * vec, has the same structure as vec.
-        """
-        vec_new = {}
-        for fkey in list(set(MF.keys()) & set(K.keys())):
-            f1, f2 = fkey
-            dim1 = MF[fkey][0].shape[1]
-            dim2 = K[fkey][0].shape[1]
-            dim = MF[fkey][0].shape[0] * K[fkey][0].shape[0]
-            vecT = np.transpose(vec[f2].reshape(dim1, dim2))
-            vec_new[f1] = np.zeros(dim, dtype=np.complex128)
-            for mm,kk in zip(MF[fkey],K[fkey]):
-                tmat = csr_matrix.dot(kk, vecT)
-                vec_new[f1] += np.dot(mm,np.transpose(tmat)).reshape(dim)
-        return vec_new
-
-
     def MKvec(self, MF, K, vec):
         """Computes product (MF x K) * vec, where 'x' and '*' denote tensor and dot products.
 
@@ -547,59 +522,6 @@ class Etensor():
         # compute exp(-i*dt/hbar H'(t))
 
         coefs_new = {}
-
-        if method=="taylor2":
-
-            # use Taylor series expansion of matrix exponential
-
-            fac = -1j * dt * 2*np.pi*lightspeed * self.prefac
-
-            # zero and first power
-
-            Mpow = copy.deepcopy(self.MF)
-            Kpow = copy.deepcopy(self.K)
-            coefs_ = self.MKvec2(Mpow, Kpow, coefs)
-            coefs_new = {f : coefs[f] + coefs_[f] * fac for f in coefs.keys()}
-
-            # higher powers
-
-            facp = fac
-            coefs_iorder = {f:np.zeros(psi.coefs[f].shape, dtype=np.complex128) for f in psi.flist}
-
-            for iorder in range(2,maxorder):
-
-                facp = facp * fac / float(iorder)
-                for f in psi.flist:
-                    coefs_iorder[f][:] = 0
-
-                for fkey in list(set(Mpow.keys()) & set(Kpow.keys())):
-                    f1, f2 = fkey
-                    for f in psi.flist:
-                        try:
-                            M = self.MF[(f1,f)]
-                            Mp = Mpow[(f,f2)]
-                        except KeyError:
-                            continue
-                        try:
-                            K = self.K[(f1,f)]
-                            Kp = Kpow[(f,f2)]
-                        except KeyError:
-                            continue
-                        Mt = [np.dot(x, y) for x,y in zip(M,Mp)]
-                        Kt = [csr_matrix.dot(x, y) for x,y in zip(K,Kp)]
-                        coefs_ = self.MKvec2({(f1,f2):Mt}, {(f1,f2):Kt}, coefs)
-                        coefs_iorder[f1] += coefs_[f1]
-
-                for f in coefs_iorder.keys():
-                    coefs_new[f] += coefs_iorder[f] * facp
-
-                if sum([np.sum(np.abs(coefs_iorder[f]*facp)**2) for f in coefs_iorder.keys()]) < conv:
-                    break
-
-                if iorder==maxorder:
-                    raise RuntimeError(f"Taylor series expansion of matrix exponential failed" \
-                            +f" to converge, max expansion order {maxorder} reached")
-
 
         elif method=="taylor":
 
