@@ -1282,6 +1282,68 @@ class PsiTableMK():
         return PsiTableMK(res_k, res_m)
 
 
+    @property
+    def nstates(self):
+        """ Returns number of basis states (functions) """
+        return self.k.table['c'].shape[1]
+
+    @nstates.setter
+    def nstates(self):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.nstates") from None
+
+
+    @property
+    def enr(self):
+        """ Returns energies of basis states """
+        nstat = self.k.table['c'].shape[1]
+        try:
+            enr = self.k.enr
+        except AttributeError:
+            raise AttributeError(f"Basis states have no associated energies, these are usually assigned " \
+                    +f"at the step of unitary rotation, see PsiTableMK.rotate") from None
+        return enr
+
+    @enr.setter
+    def enr(self):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.enr") from None
+
+
+    @property
+    def assign(self):
+        """Returns assignment of basis states
+
+        To control the number of primitive functions printed in the state assignment, change
+        settings.assign_nprim (=1..6), to change the number of significant digits printed
+        for squared modulus of primitive coefficients, change settings.assign_ndig_c2 (=1..10)
+        """
+        nstat = self.k.table['c'].shape[1]
+        assign = self.k.table['stat'][:nstat]
+        try:
+            sym = self.k.sym[:nstat]
+        except AttributeError:
+            sym = ["A" for i in range(nstat)]
+        return assign
+
+    @assign.setter
+    def assign(self):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.assign") from None
+
+
+    @property
+    def sym(self):
+        """Returns symmetry of basis states """
+        nstat = self.k.table['c'].shape[1]
+        try:
+            sym = self.k.sym[:nstat]
+        except AttributeError:
+            sym = ["A" for i in range(nstat)]
+        return sym
+
+    @sym.setter
+    def sym(self):
+        raise AttributeError(f"You can't set {retrieve_name(self)}.sym") from None
+
+
     @counted
     def store_richmol(self, name, append=False):
         """Stores energies of wavefunction set in Richmol energies file
