@@ -84,8 +84,7 @@ class RigidMolecule():
 
     @property
     def XYZ(self):
-        """To set and return Cartesian coordinates of atoms in molecule, the effect of frame
-        rotations will be automatically accounted for
+        """To set and return Cartesian coordinates of atoms in molecule
 
         >>> d2s = RigidMolecule()
         >>> d2s.XYZ = ( "angstrom", \
@@ -102,7 +101,7 @@ class RigidMolecule():
          [ 0.96311715  0.         -0.82217544]]
 
         >>> d2s.frame = "zxy" # change molecular frame where the axes are swapped places, e.g., xyz --> zxy
-        >>> print(d2s.XYZ['xyz'].round(8)) # print Cartesian coordinates of atoms, these will be in the new coordinate frame
+        >>> print(d2s.XYZ['xyz'].round(8)) # print Cartesian coordinates of atoms in the new molecular frame
         [[ 0.10358697  0.          0.        ]
          [-0.82217544 -0.96311715  0.        ]
          [-0.82217544  0.96311715  0.        ]]
@@ -181,13 +180,15 @@ class RigidMolecule():
 
     @property
     def tensor(self):
-        """To set and return molecule-fixed Cartesian tensors, the effect of frame rotations
-        will be automatically accounted for
+        """To set and return molecule-fixed Cartesian tensors
 
         >>> mol = RigidMolecule()
-        >>> mol.XYZ = ("angstrom", "O", 0,0,0, "H", 0.8, 0.6, 0, "H", -1,2, 0.6, 0) # Cartesian coordinates of atoms
-        >>> mol.tensor = ("mu", [0.5, -0.1, 0]) # add new rank-1 tensor with name "mu"
-        >>> mol.tensor = ("ccsd(t) alpha", [[10,0,0],[0,20,0],[0,0,30]]) # add rank-2 tensor with name "ccsd(t) alpha"
+        >>> # specify Cartesian coordinates of atoms (water molecule)
+        >>> mol.XYZ = ("angstrom", "O", 0,0,0, "H", 0.8, 0.6, 0, "H", -1,2, 0.6, 0)
+        >>> # add new rank-1 tensor with name "mu"
+        >>> mol.tensor = ("mu", [0.5, -0.1, 0])
+        >>> # add rank-2 tensor with name "ccsd(t) alpha"
+        >>> mol.tensor = ("ccsd(t) alpha", [[10,0,0],[0,20,0],[0,0,30]])
         >>> print( mol.tensor["mu"] )
         [ 0.5 -0.1  0. ]
         >>> print( mol.tensor["ccsd(t) alpha"] )
@@ -195,15 +196,18 @@ class RigidMolecule():
          [ 0 20  0]
          [ 0  0 30]]
 
-        >>> mol.frame = "pas" # change molecular frame to principal axes system
-        >>> print(mol.tensor["mu"].round(6)) # print tensor "mu" in principal axes system
+        >>> # change molecular frame to the principal axes system
+        >>> mol.frame = "pas"
+        >>> # print tensors "mu" and "ccsd(t) alpha" in the new molecular frame
+        >>> print(mol.tensor["mu"].round(6))
         [-0.299156  0.400636  0.099985]
-        >>> print(mol.tensor["ccsd(t) alpha"].round(6)) # print tensor "ccsd(t) alpha" in principal axes system
+        >>> print(mol.tensor["ccsd(t) alpha"].round(6))
         [[18.865071  3.663798  3.167346]
          [ 3.663798 12.076468 -1.865857]
          [ 3.167346 -1.865857 29.058462]]
 
-        >>> mol.tensor = ("ccsd(t) alpha", [[10,1,0],[2,20,0],[3,0,30]]) # attempt to add new tensor with the same name
+        >>> # try to add new tensor with the name identical to the one added before
+        >>> mol.tensor = ("ccsd(t) alpha", [[10,1,0],[2,20,0],[3,0,30]])
         Traceback (most recent call last):
             ...
         ValueError: Tensor with the name 'ccsd(t) alpha' already exists
@@ -283,18 +287,23 @@ class RigidMolecule():
         >>> d2s.tensor = ("polarizability", [[30, -0.5, 0.03], \
                                              [-0.5, 20, 1.3], \
                                              [0.03, 1.3, 35]] )
-        >>> d2s.frame = "pas" # change frame to principal axes system (PAS)
-        >>> print(d2s.XYZ['xyz']) # print Cartesian coordinates of atoms in PAS
+        >>> # change frame to principal axes system (PAS)
+        >>> d2s.frame = "pas"
+        >>> # print Cartesian coordinates of atoms in PAS
+        >>> print(d2s.XYZ['xyz'])
         [[ 0.          0.10358697  0.        ]
          [-0.96311715 -0.82217544  0.        ]
          [ 0.96311715 -0.82217544  0.        ]]
-        >>> print(d2s.tensor['dipole moment']) # print tensor "dipole moment" in PAS
+        >>> # print tensor "dipole moment" in PAS
+        >>> print(d2s.tensor['dipole moment'])
         [ 0.         -0.97066242  0.        ]
-        >>> print(d2s.tensor['polarizability']) # print tensor "polarizability" in PAS
+        >>> # print tensor "polarizability" in PAS
+        >>> print(d2s.tensor['polarizability'])
         [[ 3.0e+01  3.0e-02 -5.0e-01]
          [ 3.0e-02  3.5e+01  1.3e+00]
          [-5.0e-01  1.3e+00  2.0e+01]]
-        >>> frame_type, rotation_matrix = d2s.frame # print type of frame (str) and rotation matrix
+        >>> # print type of frame (str) and rotation matrix
+        >>> frame_type, rotation_matrix = d2s.frame
         >>> print(frame_type)
         pas
         >>> print(rotation_matrix)
@@ -302,19 +311,22 @@ class RigidMolecule():
          [0. 0. 1.]
          [0. 1. 0.]]
 
-        >>> d2s.frame = "pol" # add frame that is rotated to principal axes of tensor "pol"
+        >>> # add frame that is rotated to principal axes of tensor "pol"
+        >>> d2s.frame = "pol"
         Traceback (most recent call last):
             ...
         KeyError: "Tensor 'pol' was not initialised"
         >>> d2s.frame = "polarizability" # wait, we don't have tensor "pol" but "polarizability"
-        >>> frame_type, rotation_matrix = d2s.frame # print frame type and total (collective) rotation matrix
+        >>> # print frame type and total (collective) rotation matrix
+        >>> frame_type, rotation_matrix = d2s.frame
         >>> print(frame_type)
         pas,polarizability
         >>> print(rotation_matrix.round(6))
         [[-0.049338 -0.99511   0.085563]
          [ 0.998779 -0.048939  0.006765]
          [-0.002544  0.085792  0.99631 ]]
-        >>> print(d2s.tensor["polarizability"].round(6)) # check if "polarizability" tensor is diagonal in new frame
+        >>> # check if "polarizability" tensor is diagonal in new frame
+        >>> print(d2s.tensor["polarizability"].round(6))
         [[19.863432  0.        0.      ]
          [ 0.       30.024702  0.      ]
          [ 0.        0.       35.111866]]
@@ -401,7 +413,8 @@ class RigidMolecule():
          [-0.      8.1376 -0.    ]
          [-0.4968 -0.      5.0716]], max offdiag = 0.4968
 
-        >>> d2s.frame = "pas" # wait, to compute rotational constants we must use principal axes frame
+        >>> # to compute rotational constants we must use principal axes frame
+        >>> d2s.frame = "pas"
         >>> Bx, By, Bz = d2s.B
         >>> print(round(Bx,4), round(By,4), round(Bz,4))
         5.715 3.2494 2.0716
@@ -484,9 +497,11 @@ class RigidMolecule():
          [-9.59405000e-01  4.27045792e+02 -8.05120000e-02]
          [ 1.09125800e+00 -8.05120000e-02  4.60626510e+02]]
 
-        >>> camphor.frame = "pas" # rotate to principal axes system
+        >>> # rotate to principal axes system
+        >>> camphor.frame = "pas"
         >>> imom = camphor.imom()
-        >>> print(imom.round(6)) # check if moments of inertia tensor is now diagonal
+        >>> # check if moments of inertia tensor is now diagonal
+        >>> print(imom.round(6))
         [[349.25832    0.         0.      ]
          [  0.       427.057364   0.      ]
          [  0.         0.       460.637444]]
@@ -556,7 +571,8 @@ class RigidMolecule():
         G(z,y) =  1.3e-05
         G(z,z) =  0.073195
 
-        >>> HF = RigidMolecule() # test for linear molecule
+        >>> # test for linear molecule
+        >>> HF = RigidMolecule()
         >>> HF.XYZ = ("angstrom", "F", 0,0,0, "H", 0,0,0.91)
         >>> gmat = HF.gmat()
         Warning: rotational kinetic energy matrix is singular, singular element index = 2, singular value = 0.0
