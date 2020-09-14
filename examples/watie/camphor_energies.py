@@ -55,7 +55,7 @@ print("inertia tensor:\n", camphor.imom())
 
 # compute rotational energies for J = 0..40
 
-Jmax = 10
+Jmax = 20
 Bx, By, Bz = camphor.B
 
 ###############################
