@@ -418,7 +418,7 @@ class TestEnergies(unittest.TestCase):
         mol = watie.RigidMolecule()
         mol.XYZ = XYZ
         mol.frame = "pas"
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         # without symmetry
         enr_all = []
         for J in self.J_list:
@@ -426,9 +426,9 @@ class TestEnergies(unittest.TestCase):
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            H = B * Jx2 + C * Jy2 + A * Jz2
+            H = Bx * Jx2 + By * Jy2 + Bz * Jz2
             hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
+            enr, vec = np.linalg.eigh(hmat.real)
             enr_all += [e for e in enr]
         # using D2 symmetry
         enr_all_d2 = []
@@ -438,9 +438,9 @@ class TestEnergies(unittest.TestCase):
                 Jx2 = watie.Jxx(bas)
                 Jy2 = watie.Jyy(bas)
                 Jz2 = watie.Jzz(bas)
-                H = B * Jx2 + C * Jy2 + A * Jz2
+                H = Bx * Jx2 + By * Jy2 + Bz * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all_d2 += [e for e in enr]
         self.assertTrue( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr_all),sorted(enr_all_d2))) )
 
@@ -451,7 +451,7 @@ class TestEnergies(unittest.TestCase):
         mol = watie.RigidMolecule()
         mol.XYZ = XYZ
         mol.frame = "pas"
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         # without symmetry
         enr_all = []
         for J in self.J_list:
@@ -459,9 +459,9 @@ class TestEnergies(unittest.TestCase):
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            H = B * Jx2 + C * Jy2 + A * Jz2
+            H = Bx * Jx2 + By * Jy2 + Bz * Jz2
             hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
+            enr, vec = np.linalg.eigh(hmat.real)
             enr_all += [e for e in enr]
         # using C2v symmetry
         enr_all_c2v = []
@@ -471,9 +471,9 @@ class TestEnergies(unittest.TestCase):
                 Jx2 = watie.Jxx(bas)
                 Jy2 = watie.Jyy(bas)
                 Jz2 = watie.Jzz(bas)
-                H = B * Jx2 + C * Jy2 + A * Jz2
+                H = Bx * Jx2 + By * Jy2 + Bz * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all_c2v += [e for e in enr]
         self.assertTrue( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr_all),sorted(enr_all_c2v))) )
 
@@ -486,15 +486,15 @@ class TestEnergies(unittest.TestCase):
         # compute set of reference energies
         enr0 = []
         mol.frame = "pas"
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            H = B * Jx2 + C * Jy2 + A * Jz2
+            H = Bx * Jx2 + By * Jy2 + Bz * Jz2
             hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
+            enr, vec = np.linalg.eigh(hmat.real)
             enr0 += [e for e in enr]
         # test different axes in PAS and different choices of quantization axes
         for itrial in range(self.frame_ntrials):
@@ -505,7 +505,7 @@ class TestEnergies(unittest.TestCase):
                 del mol.frame_type
                 mol.frame = "pas"
             mol.frame = random.choice(frames)
-            A, B, C = mol.ABC
+            A, B, C = mol.B
             # compute energies for different J and different choices of quantization axes
             # without symmetry
             enr_all = [[],[],[],[],[],[]]
@@ -517,32 +517,32 @@ class TestEnergies(unittest.TestCase):
                 #
                 H = B * Jx2 + C * Jy2 + A * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[0] += [e for e in enr]
                 #
                 H = A * Jx2 + B * Jy2 + C * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[1] += [e for e in enr]
                 #
                 H = A * Jx2 + C * Jy2 + B * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[2] += [e for e in enr]
                 #
                 H = B * Jx2 + A * Jy2 + C * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[3] += [e for e in enr]
                 #
                 H = C * Jx2 + A * Jy2 + B * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[4] += [e for e in enr]
                 #
                 H = C * Jx2 + B * Jy2 + A * Jz2
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all[5] += [e for e in enr]
             # check energies against reference
             self.assertTrue( all( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr))) \
@@ -558,32 +558,32 @@ class TestEnergies(unittest.TestCase):
                     #
                     H = B * Jx2 + C * Jy2 + A * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[0] += [e for e in enr]
                     #
                     H = A * Jx2 + B * Jy2 + C * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[1] += [e for e in enr]
                     #
                     H = A * Jx2 + C * Jy2 + B * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[2] += [e for e in enr]
                     #
                     H = B * Jx2 + A * Jy2 + C * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[3] += [e for e in enr]
                     #
                     H = C * Jx2 + A * Jy2 + B * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[4] += [e for e in enr]
                     #
                     H = C * Jx2 + B * Jy2 + A * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[5] += [e for e in enr]
             # check energies against reference
             self.assertTrue( all( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr))) \
@@ -599,32 +599,32 @@ class TestEnergies(unittest.TestCase):
                     #
                     H = B * Jx2 + C * Jy2 + A * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[0] += [e for e in enr]
                     #
                     H = A * Jx2 + B * Jy2 + C * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[1] += [e for e in enr]
                     #
                     H = A * Jx2 + C * Jy2 + B * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[2] += [e for e in enr]
                     #
                     H = B * Jx2 + A * Jy2 + C * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[3] += [e for e in enr]
                     #
                     H = C * Jx2 + A * Jy2 + B * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[4] += [e for e in enr]
                     #
                     H = C * Jx2 + B * Jy2 + A * Jz2
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all[5] += [e for e in enr]
             # check energies against reference
             self.assertTrue( all( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr))) \
@@ -639,15 +639,15 @@ class TestEnergies(unittest.TestCase):
         # compute set of reference energies
         enr0 = []
         mol.frame = "pas"
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            H = B * Jx2 + C * Jy2 + A * Jz2
+            H = Bx * Jx2 + By * Jy2 + Bz * Jz2
             hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
+            enr, vec = np.linalg.eigh(hmat.real)
             enr0 += [e for e in enr]
         # now test different frames
         for itrial in range(self.frame_ntrials):
@@ -676,7 +676,7 @@ class TestEnergies(unittest.TestCase):
                             gmat[2,1] * watie.Jzy(bas) + \
                             gmat[2,2] * watie.Jzz(bas) )
                 hmat = bas.overlap(H)
-                enr, vec = np.linalg.eigh(hmat)
+                enr, vec = np.linalg.eigh(hmat.real)
                 enr_all += [e for e in enr]
             # check energies against reference
             self.assertTrue( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
@@ -691,15 +691,15 @@ class TestEnergies(unittest.TestCase):
         # compute set of reference energies
         enr0 = []
         mol.frame = "pas"
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         for J in self.J_list:
             bas = watie.SymtopBasis(J)
             Jx2 = watie.Jxx(bas)
             Jy2 = watie.Jyy(bas)
             Jz2 = watie.Jzz(bas)
-            H = B * Jx2 + C * Jy2 + A * Jz2
+            H = Bx * Jx2 + By * Jy2 + Bz * Jz2
             hmat = bas.overlap(H)
-            enr, vec = np.linalg.eigh(hmat)
+            enr, vec = np.linalg.eigh(hmat.real)
             enr0 += [e for e in enr]
         # now test different axes permutations in PAS frame
         for itrial in range(self.frame_ntrials):
@@ -725,7 +725,7 @@ class TestEnergies(unittest.TestCase):
                                 gmat[2,1] * watie.Jzy(bas) + \
                                 gmat[2,2] * watie.Jzz(bas) )
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all += [e for e in enr]
             # check energies against reference
             self.assertTrue( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
@@ -744,7 +744,7 @@ class TestEnergies(unittest.TestCase):
                                 gmat[2,1] * watie.Jzy(bas) + \
                                 gmat[2,2] * watie.Jzz(bas) )
                     hmat = bas.overlap(H)
-                    enr, vec = np.linalg.eigh(hmat)
+                    enr, vec = np.linalg.eigh(hmat.real)
                     enr_all += [e for e in enr]
             # check energies against reference
             self.assertTrue( all(abs(x-y)<self.enr_tol for x,y in zip(sorted(enr0),sorted(enr_all))) )
