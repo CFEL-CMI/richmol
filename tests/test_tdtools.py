@@ -7,8 +7,8 @@ from richmol.tdtools import Psi, Etensor
 class testEtensor(unittest.TestCase):
     """
     """
-    # Test OCS alignment: reproduce chronological sequence of occupation
-    #                     probabilities using Taylor method for matrix exponential
+    ## Test OCS alignment: reproduce chronological sequence of occupation
+    ##                     probabilities using Taylor method for matrix exponential
     def test_alignment_ocs_taylor(self):
 
         # matrix exponential method
@@ -179,8 +179,8 @@ class testEtensor(unittest.TestCase):
 
 
 
-    # Test OCS alignment: reproduce chronological sequence of occupation
-    #                     probabilities using Taylor method for matrix exponential
+    ## Test OCS alignment: reproduce chronological sequence of occupation
+    ##                     probabilities using Taylor method for matrix exponential
     def test_alignment_ocs_lanczos(self):
 
         # matrix exponential method

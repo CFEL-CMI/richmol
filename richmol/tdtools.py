@@ -562,7 +562,7 @@ class Etensor():
 
             # use Arnoldi iteration
 
-            fac = -1j * 2*np.pi*lightspeed * self.prefac
+            fac = -1j * dt * 2*np.pi*lightspeed * self.prefac
 
             time0 = time.time()
 
@@ -580,7 +580,7 @@ class Etensor():
 
                 v = self.MKvec(self.MF, self.K, V[k - 1])
                 for j in range(k):
-                    H[j, k - 1] = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                    H[j, k - 1] = sum([np.vdot(V[j][f], v[f]) for f in psi.flist])
                     v = {f : v[f] - H[j, k - 1] * V[j][f] for f in psi.flist}
 
                 # calculate current approximation and convergence
@@ -593,7 +593,7 @@ class Etensor():
                 # stop if new vector vanishes
 
                 H[k, k - 1] = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
-                if not H[k, k - 1] > conv:
+                if H[k, k - 1] < conv:
                     break
 
                 v = {f : v[f] / H[k, k - 1] for f in psi.flist}
@@ -612,7 +612,7 @@ class Etensor():
 
             # use Lanczos iteration
 
-            fac = -1j * 2*np.pi*lightspeed * self.prefac
+            fac = -1j * dt * 2*np.pi*lightspeed * self.prefac
 
             time0 = time.time()
 
@@ -623,7 +623,7 @@ class Etensor():
 
             V.append(copy.deepcopy(coefs))
             w = self.MKvec(self.MF, self.K, V[0])
-            T[0, 0] = sum([np.dot(w[f].conj(), V[0][f]) for f in psi.flist])
+            T[0, 0] = sum([np.vdot(w[f], V[0][f]) for f in psi.flist])
             W.append({f : w[f] - T[0, 0] * V[0][f] for f in psi.flist})
 
             coefs_kminus1, coefs_k, conv_k, k = {}, V[0], 1, 1
@@ -643,14 +643,14 @@ class Etensor():
                 else:
                     v = {f : np.ones(V[k - 1][f].shape, dtype=np.complex128) for f in psi.flist}
                     for j in range(k):
-                        proj_j = sum([np.dot(V[j][f].conj(), v[f]) for f in psi.flist])
+                        proj_j = sum([np.vdot(V[j][f], v[f]) for f in psi.flist])
                         v = {f : v[f] - proj_j * V[j][f] for f in psi.flist}
                     norm_v = np.sqrt(sum([np.sum(np.abs(v[f])**2) for f in psi.flist]))
                     v = {f : v[f] / norm_v for f in psi.flist}
                     V.append(v)
 
                 w = self.MKvec(self.MF, self.K, V[k])
-                T[k, k] = sum([np.dot(w[f].conj(), V[k][f]) for f in psi.flist])
+                T[k, k] = sum([np.vdot(w[f], V[k][f]) for f in psi.flist])
                 w = {f : w[f] - T[k, k] * V[k][f] - T[k - 1, k] * V[k - 1][f] for f in psi.flist}
                 W.append(w)
 
