@@ -19,7 +19,7 @@ def read(fname):
 setup(
     name                = "richmol",
     version             = "0.1a1",
-    author              = "Andrey Yachmenev, Cem Saribal, Linda Thesing, Emil Zak",
+    author              = "Andrey Yachmenev, Cem Saribal, Yahya Saleh, Emil Zak, Linda Thesing",
     author_email        = "andrey.yachmenev@cfel.de",
     description         = ("Richmol is an open-source suit of programs designed for efficient"
                            "calculations of the molecular rotational-vibrational energy levels"
