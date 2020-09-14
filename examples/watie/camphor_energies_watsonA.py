@@ -52,11 +52,11 @@ KHz = 1.0/vellgt*1e3
 A, B, C  = (1446.968977*MHz, 1183.367110*MHz, 1097.101031*MHz)
 DeltaJ = 0.0334804*KHz
 DeltaJK = 0.083681*KHz
-DeltaK = 0.06558*KHz
+DeltaK = -0.06558*KHz
 deltaJ = 0.0028637*KHz
 deltaK = 0.024858*KHz
 
-Jmax = 20
+Jmax = 40
 
 # don't use molecular symmetry
 
@@ -84,7 +84,7 @@ for J in range(Jmax+1):
     Jm2 = Jm() * Jm(bas)
 
     # build Hamiltonian
-    H = A * Jx2 + B * Jy2 + C * Jz2 \
+    H = C * Jx2 + B * Jy2 + A * Jz2 \
       - DeltaJ  * J4 - DeltaJK * J2Jz2 - DeltaK  * Jz4 \
       - 0.5 * DeltaJ * (J2*(Jp2+Jm2)+Jp2*J2+Jm2*J2) \
       - 0.5 * DeltaK * (Jz2*(Jp2+Jm2)+Jp2*Jz2+Jm2*Jz2)
@@ -126,7 +126,7 @@ for J in range(Jmax+1):
         Jm2 = Jm() * Jm(bas)
 
         # build Hamiltonian
-        H = A * Jx2 + B * Jy2 + C * Jz2 \
+        H = C * Jx2 + B * Jy2 + A * Jz2 \
           - DeltaJ  * J4 - DeltaJK * J2Jz2 - DeltaK  * Jz4 \
           - 0.5 * DeltaJ * (J2*(Jp2+Jm2)+Jp2*J2+Jm2*J2) \
           - 0.5 * DeltaK * (Jz2*(Jp2+Jm2)+Jp2*Jz2+Jm2*Jz2)
@@ -145,8 +145,21 @@ for J in range(Jmax+1):
                     "  ".join(s+"=%s"%q for s,q, in zip(("| J","k","tau","abs(c)^2")*nprim, bas2.assign[istate])) )
 
 
-# check if energies computed using different ways of setting up the Hamiltonian and basis agree with each other
+# # check if energies computed using different ways of setting up the Hamiltonian and basis agree with each other
 
 tol = 1e-12
 print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_d2))) )
 
+# compare with energies from pgopher
+
+print("\nCompare with pgopher")
+enr_pgopher = []
+with open("examples/watie/camphor_watsonA_pgopher.txt", "r") as fl:
+    lines = fl.readlines()
+    for line in lines[2:]:
+        w = line.split()
+        enr_pgopher.append(float(w[3])*MHz)
+
+print("\nrotational energies, computed - pgopher")
+for ep,e in zip(sorted(enr_pgopher),sorted(enr_all)):
+    print(ep,e,"%6.4e"%(ep-e))
