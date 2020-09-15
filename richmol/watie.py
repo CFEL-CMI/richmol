@@ -2195,7 +2195,7 @@ class CartTensor():
             thresh : float
                 Threshold for neglecting matrix elements.
         """
-        zero_tol = small*10
+        zero_tol = 1e-14 #small*10
 
         try:
             x = psi_bra.m.table
