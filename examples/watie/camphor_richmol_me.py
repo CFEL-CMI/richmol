@@ -4,8 +4,8 @@ import sys
 
 
 ####################################################################################################
-# Example of a calculation of Richmol energy and matrix elements files for dipole moment and polarizability
-# Rigid-rotor Hamiltonian based on experimental rotational constants
+# Example of calculation of Richmol energy and matrix elements files for dipole moment and polarizability
+# using rigid-rotor Hamiltonian based on experimental rotational constants
 # No symmetry employed
 ####################################################################################################
 

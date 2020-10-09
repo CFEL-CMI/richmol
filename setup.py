@@ -21,10 +21,10 @@ setup(
     version             = "0.1a1",
     author              = "Andrey Yachmenev, Cem Saribal, Yahya Saleh, Emil Zak, Linda Thesing",
     author_email        = "andrey.yachmenev@cfel.de",
-    description         = ("Richmol is an open-source suit of programs designed for efficient"
-                           "calculations of the molecular rotational-vibrational energy levels"
-                           "and wave functions, and subsequent molecular dynamics in the presence"
-                           "of internal (induced) and external (laser) electromagnetic fields"),
+    description         = ("Richmol is an open-source suit of programs designed for variational"
+                           "calculations of molecular rotational-vibrational energy levels,"
+                           "wave functions, and subsequent molecular dynamics in the presence"
+                           "of internal (hyperfine) and external (laser) electromagnetic fields"),
     license             = "GPL",
     packages            = ["richmol"],
     cmdclass            = {'build': Build},
