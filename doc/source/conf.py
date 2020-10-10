@@ -34,7 +34,8 @@ release = '0.0.1'
 extensions = [
         'rinoh.frontend.sphinx',
         'sphinx.ext.autodoc',
-        'sphinx.ext.napoleon'
+        'sphinx.ext.napoleon',
+        'sphinx.ext.autosectionlabel'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

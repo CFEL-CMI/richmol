@@ -18,11 +18,14 @@ however the computationally critical parts are implemented with Fortran and C ro
    :numbered:
 
    overview.rst
+   theory.rst
    version.rst
    installation.rst
-   tutorial.rst
+   watie_tutorial.rst
+   tdtools_tutorial.rst
+   education.rst
 
-
+Here you can also see the `PDF version <../../_build/rinoh/richmol.pdf>`_ of this manual.
 
 .. Indices and tables
 .. ==================

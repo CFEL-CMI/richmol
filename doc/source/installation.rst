@@ -28,7 +28,8 @@ To ensure the installation is successful, start a Python3 shell, and type::
 Using optimized libraries
 =========================
 The default installation tries to find the mathematical libraries such as BLAS and LAPACK
-automatically (not yet implemented). You can compile the package with other BLAS and LAPACK vendors,
+automatically (`automatic configuration is not yet implemented`).
+You can compile the package with other BLAS and LAPACK vendors,
 such as, for example the Intel Math kernel Library (MKL)::
 
   $ need to set this up soon
