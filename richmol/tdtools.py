@@ -16,7 +16,7 @@ Psi() and Etensor() classes, respectively.
 """
 
 import numpy as np
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import csr_matrix, coo_matrix, kron
 from scipy import linalg as la
 import re
 import sys, time
@@ -679,6 +679,34 @@ class Etensor():
         psi_new = copy.deepcopy(psi)
         psi_new.coefs = coefs_new
         return psi_new
+
+
+    def matrix(self, psi, plus_diag=False):
+        """Returns matrix representation of tensor operator in field-free basis 'psi',
+        adds a field-free diagonal part when required.
+
+        Args:
+            psi (Psi()): Field-free basis set.
+            plus_diag (bool): if True, the field free energies will be added to the diagonal
+                of tensor matrix
+
+        Returns:
+            Matrix representation of tensor in field-free basis as numpy array.
+        """
+        prefac = self.prefac
+        flist = psi.flist
+        mat = {(f1,f2) : np.zeros( (len(psi.quanta[f1]), len(psi.quanta[f2])), dtype=np.complex128 ) \
+                for f1 in flist for f2 in flist}
+        for fkey in list(set(self.MF.keys()) & set(self.K.keys())):
+            for mm,kk in zip(self.MF[fkey],self.K[fkey]):
+                mat[fkey] += kron(mm, kk).todense() * prefac
+
+        if plus_diag==True:
+            for f in flist:
+                mat[(f,f)] += np.diag(psi.energy[f])
+
+        return np.block([[mat[(f1,f2)] for f2 in flist] for f1 in flist])
+
 
 
 def read_states(filename, **kwargs):
