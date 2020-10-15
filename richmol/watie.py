@@ -1425,13 +1425,13 @@ class SymtopBasis(PsiTableMK):
 
         # generate keys (j,k) for columns representing primitive functions
         if linear:
-            prim = [(int(J),0)]
+            prim = [(int(J),int(0))]
         else:
             prim = [(int(J),int(k)) for k in range(-J,J+1)]
 
         # generate keys (j,k,tau) for rows representing symmetrized functions
         if linear:
-            bas = [(J,0,np.fmod(J, 2))]
+            bas = [(int(J),int(0),int(np.fmod(J, 2)))]
         else:
             bas = []
             for k in range(0,J+1):
