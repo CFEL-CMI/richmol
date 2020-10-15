@@ -13,10 +13,10 @@
          > (0,0,1,0,2) title page author
            (0,0,0,0,2) body
       SingleStyledText('Andrey Yachmenev and CMI')
-    Paragraph('Oct 10, 2020', style='title page date')
+    Paragraph('Oct 11, 2020', style='title page date')
          > (0,0,1,0,2) title page date
            (0,0,0,0,2) body
-      SingleStyledText('Oct 10, 2020')
+      SingleStyledText('Oct 11, 2020')
 ---------------------------------- page i ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
@@ -120,18 +120,18 @@
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('5')
-        TableOfContentsEntry('2	Theoretical background	7')
+        TableOfContentsEntry('2	Theoretical backgrounds	7')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('2	Theoretical background	7')
+            MixedStyledText('2	Theoretical backgrounds	7')
               ReferenceField('2')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('2')
               Tab('	')
-              ReferenceField('Theoretical background')
+              ReferenceField('Theoretical backgrounds')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('Theoretical background')
+                SingleStyledText('Theoretical backgrounds')
               Tab('	')
               ReferenceField('7')
                    x (0,0,0,1,3) toc linked reference
@@ -154,9 +154,9 @@
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('7')
-        TableOfContentsEntry('2.2	Molecule-field interaction	7')
+        TableOfContentsEntry('2.2	Molecule-field interaction	9')
              > (0,0,0,1,2) toc level 2
-            MixedStyledText('2.2	Molecule-field interaction	7')
+            MixedStyledText('2.2	Molecule-field interaction	9')
               ReferenceField('2.2')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
@@ -167,10 +167,10 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Molecule-field interaction')
               Tab('	')
-              ReferenceField('7')
+              ReferenceField('9')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('7')
+                SingleStyledText('9')
         TableOfContentsEntry('2.3	Time-dependent Schrödinger e...')
              > (0,0,0,1,2) toc level 2
             MixedStyledText('2.3	Time-dependent Schrödinger e...')
@@ -184,13 +184,13 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Time-dependent Schrödinger equat...')
               Tab('	')
-              ReferenceField('7')
+              ReferenceField('9')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('7')
-        TableOfContentsEntry('3	Version history	9')
+                SingleStyledText('9')
+        TableOfContentsEntry('3	Version history	11')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('3	Version history	9')
+            MixedStyledText('3	Version history	11')
               ReferenceField('3')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
@@ -201,13 +201,13 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Version history')
               Tab('	')
-              ReferenceField('9')
+              ReferenceField('11')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('9')
-        TableOfContentsEntry('4	Installation	11')
+                SingleStyledText('11')
+        TableOfContentsEntry('4	Installation	13')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('4	Installation	11')
+            MixedStyledText('4	Installation	13')
               ReferenceField('4')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
@@ -218,10 +218,10 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Installation')
               Tab('	')
-              ReferenceField('11')
+              ReferenceField('13')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('11')
+                SingleStyledText('13')
         TableOfContentsEntry('4.1	Manual installation from git...')
              > (0,0,0,1,2) toc level 2
             MixedStyledText('4.1	Manual installation from git...')
@@ -235,13 +235,13 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Manual installation from github ...')
               Tab('	')
-              ReferenceField('11')
+              ReferenceField('13')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('11')
-        TableOfContentsEntry('4.2	Using optimized libraries	11')
+                SingleStyledText('13')
+        TableOfContentsEntry('4.2	Using optimized libraries	13')
              > (0,0,0,1,2) toc level 2
-            MixedStyledText('4.2	Using optimized libraries	11')
+            MixedStyledText('4.2	Using optimized libraries	13')
               ReferenceField('4.2')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
@@ -252,13 +252,13 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Using optimized libraries')
               Tab('	')
-              ReferenceField('11')
+              ReferenceField('13')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('11')
-        TableOfContentsEntry('5	Watie tutorial	13')
+                SingleStyledText('13')
+        TableOfContentsEntry('5	Watie tutorial	15')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('5	Watie tutorial	13')
+            MixedStyledText('5	Watie tutorial	15')
               ReferenceField('5')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
@@ -269,78 +269,78 @@
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Watie tutorial')
               Tab('	')
-              ReferenceField('13')
+              ReferenceField('15')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('13')
-        TableOfContentsEntry('5.1	A simple example of rotation...')
-             > (0,0,0,1,2) toc level 2
-            MixedStyledText('5.1	A simple example of rotation...')
-              ReferenceField('5.1')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('5.1')
-              Tab('	')
-              ReferenceField('A simple example of rotational s...')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('A simple example of rotational s...')
-              Tab('	')
-              ReferenceField('13')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('13')
-        TableOfContentsEntry('6	tdtools tutorial	15')
+                SingleStyledText('15')
+        TableOfContentsEntry('6	Tdtools tutorial	17')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('6	tdtools tutorial	15')
+            MixedStyledText('6	Tdtools tutorial	17')
               ReferenceField('6')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('6')
               Tab('	')
-              ReferenceField('tdtools tutorial')
+              ReferenceField('Tdtools tutorial')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('tdtools tutorial')
+                SingleStyledText('Tdtools tutorial')
               Tab('	')
-              ReferenceField('15')
+              ReferenceField('17')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('15')
-        TableOfContentsEntry('6.1	A simple example of rotation...')
-             > (0,0,0,1,2) toc level 2
-            MixedStyledText('6.1	A simple example of rotation...')
-              ReferenceField('6.1')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('6.1')
-              Tab('	')
-              ReferenceField('A simple example of rotational s...')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('A simple example of rotational s...')
-              Tab('	')
-              ReferenceField('15')
-                   x (0,0,0,1,3) toc linked reference
-                   > (0,0,0,1,1) linked reference
-                SingleStyledText('15')
-        TableOfContentsEntry('7	Richmol for education	17')
+                SingleStyledText('17')
+        TableOfContentsEntry('7	Hyfor tutorial	19')
              > (0,0,0,1,2) toc level 1
-            MixedStyledText('7	Richmol for education	17')
+            MixedStyledText('7	Hyfor tutorial	19')
               ReferenceField('7')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('7')
+              Tab('	')
+              ReferenceField('Hyfor tutorial')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('Hyfor tutorial')
+              Tab('	')
+              ReferenceField('19')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('19')
+        TableOfContentsEntry('8	Richmol molecular database	21')
+             > (0,0,0,1,2) toc level 1
+            MixedStyledText('8	Richmol molecular database	21')
+              ReferenceField('8')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('8')
+              Tab('	')
+              ReferenceField('Richmol molecular database')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('Richmol molecular database')
+              Tab('	')
+              ReferenceField('21')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('21')
+        TableOfContentsEntry('9	Richmol for education	23')
+             > (0,0,0,1,2) toc level 1
+            MixedStyledText('9	Richmol for education	23')
+              ReferenceField('9')
+                   x (0,0,0,1,3) toc linked reference
+                   > (0,0,0,1,1) linked reference
+                SingleStyledText('9')
               Tab('	')
               ReferenceField('Richmol for education')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
                 SingleStyledText('Richmol for education')
               Tab('	')
-              ReferenceField('17')
+              ReferenceField('23')
                    x (0,0,0,1,3) toc linked reference
                    > (0,0,0,1,1) linked reference
-                SingleStyledText('17')
+                SingleStyledText('23')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
     Footer('		i')
@@ -453,18 +453,62 @@
                     SingleStyledText('TROVE')
                 AnnotatedText('')   None:None <target>
                   MixedStyledText('')
-                SingleStyledText('. This set down a general layere...')
+                SingleStyledText('. This initial setting determine...')
+                MixedStyledText('H_0+H'')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H_0+H'', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H_0+H'')
+                SingleStyledText(' problem in the basis of ')
+                MixedStyledText('H_0')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H_0', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H_0')
+                SingleStyledText(' eigenstates. For example, ')
+                MixedStyledText('hyfor', style='monospaced')   None:None <literal>
+                     > (0,0,1,0,1) monospaced
+                  SingleStyledText('hyfor')
+                SingleStyledText(' module adds the nuclear spin hy...')
+                MixedStyledText('H'=H_{\rm hf}')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H'=H_{\rm hf}', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H'=H_{\rm hf}')
+                SingleStyledText(') to the rotational-vibrational ...')
+                MixedStyledText('H_0=H_{\rm rv}')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H_0=H_{\rm rv}', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H_0=H_{\rm rv}')
+                SingleStyledText(') and expands hyperfine wave fun...')
+                MixedStyledText('tdtools', style='monospaced')   None:None <literal>
+                     > (0,0,1,0,1) monospaced
+                  SingleStyledText('tdtools')
+                SingleStyledText(' module in turn can combine a ti...')
+                MixedStyledText('H'(t)')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H'(t)', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H'(t)')
+                SingleStyledText(' with the total hyperfine Hamilt...')
+                MixedStyledText('H_0\leftarrow H_{\rm rv}+H_{\rm ...')   None:None <math>
+                  WarnInline('')
+                  MixedStyledText('H_0\leftarrow H_{\rm rv}+H_{\rm ...', style='math')
+                       > (0,0,1,0,1) inline math
+                    SingleStyledText('H_0\leftarrow H_{\rm rv}+H_{\rm ...')
+                SingleStyledText(') and expand time-dependent wave...')
                 AnnotatedText('Richmol Data Files', style='internal link')   None:None <reference>
                      > (0,0,1,0,1) internal hyperlink
                   MixedStyledText('Richmol Data Files')
                     MixedStyledText('Richmol Data Files')   None:None <inline>
                       SingleStyledText('Richmol Data Files')
                 SingleStyledText('.')
-            Paragraph('The package provides a range of ...')   /home/andrey/projects/richmol/doc/source/overview.rst:16 <paragraph>
+            Paragraph('The package provides a range of ...')   /home/andrey/projects/richmol/doc/source/overview.rst:23 <paragraph>
                  > (0,0,0,0,2) body
               MixedStyledText('The package provides a range of ...')
                 SingleStyledText('The package provides a range of ...')
-            List(style='bulleted')   /home/andrey/projects/richmol/doc/source/overview.rst:20 <bullet_list>
+            List(style='bulleted')   /home/andrey/projects/richmol/doc/source/overview.rst:27 <bullet_list>
                  > (0,0,1,0,2) bulleted list
               ListItem()
                    x (0,0,1,0,4) bulleted list item
@@ -478,7 +522,7 @@
                       SingleStyledText('')
                 StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/overview.rst:None <list_item>
                      > (0,0,0,0,3) list item body
-                  Paragraph('Interface to TROVE general varia...')   /home/andrey/projects/richmol/doc/source/overview.rst:20 <paragraph>
+                  Paragraph('Interface to TROVE general varia...')   /home/andrey/projects/richmol/doc/source/overview.rst:27 <paragraph>
                        > (0,0,0,0,5) list item paragraph
                          (0,0,0,0,2) body
                     MixedStyledText('Interface to TROVE general varia...')
@@ -502,7 +546,7 @@
                       SingleStyledText('')
                 StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/overview.rst:None <list_item>
                      > (0,0,0,0,3) list item body
-                  Paragraph('Interface to DUO general variati...')   /home/andrey/projects/richmol/doc/source/overview.rst:24 <paragraph>
+                  Paragraph('Interface to DUO general variati...')   /home/andrey/projects/richmol/doc/source/overview.rst:31 <paragraph>
                        > (0,0,0,0,5) list item paragraph
                          (0,0,0,0,2) body
                     MixedStyledText('Interface to DUO general variati...')
@@ -514,19 +558,19 @@
                       AnnotatedText('')   None:None <target>
                         MixedStyledText('')
                       SingleStyledText(' general variational approach fo...')
-            Section(id='%overview#how-to-cite')   /home/andrey/projects/richmol/doc/source/overview.rst:30 <section>
-              Heading('1.1 How to cite')   /home/andrey/projects/richmol/doc/source/overview.rst:30 <title>
+            Section(id='%overview#how-to-cite')   /home/andrey/projects/richmol/doc/source/overview.rst:37 <section>
+              Heading('1.1 How to cite')   /home/andrey/projects/richmol/doc/source/overview.rst:37 <title>
                    > (0,0,0,1,2) heading level 2
                      (0,0,0,0,2) other heading levels
                   MixedStyledText('1.1 How to cite')
                     SingleStyledText('1.1')
                     SingleStyledText(' ')
                     SingleStyledText('How to cite')
-              Paragraph('General Richmol bibtex entry:')   /home/andrey/projects/richmol/doc/source/overview.rst:31 <paragraph>
+              Paragraph('General Richmol bibtex entry:')   /home/andrey/projects/richmol/doc/source/overview.rst:38 <paragraph>
                    > (0,0,0,0,2) body
                 MixedStyledText('General Richmol bibtex entry:')
                   SingleStyledText('General Richmol bibtex entry:')
-              CodeBlock('@article{Richmol,\n  author      ...')   /home/andrey/projects/richmol/doc/source/overview.rst:33 <literal_block>
+              CodeBlock('@article{Richmol,\n  author      ...')   /home/andrey/projects/richmol/doc/source/overview.rst:40 <literal_block>
                    > (1,0,0,0,2) code block
                      (0,0,0,0,1) body
                 Token('@article', type=Token.Name.Decorator)
@@ -725,94 +769,6 @@
                      > (0,0,0,1,2) (pygments)Token.Punctuation
                 Token('\n  ', type=Token.Text)
                      > (0,0,0,1,2) (pygments)Token.Text
-                Token('doi', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('          ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('=', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token(' ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('{', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('10.1063', type=Token.Literal.Number.Float)
-                     > (0,0,0,1,2) (pygments)Token.Literal.Number.Float
-                Token('/', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token('1.5023874', type=Token.Literal.Number.Float)
-                     > (0,0,0,1,2) (pygments)Token.Literal.Number.Float
-                Token('},', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('\n  ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('url', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('          ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('=', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token(' ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('{', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('https', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token(':', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('//', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token('doi', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('.', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token('org', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('/', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token('10.1063', type=Token.Literal.Number.Float)
-                     > (0,0,0,1,2) (pygments)Token.Literal.Number.Float
-                Token('/', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token('1.5023874', type=Token.Literal.Number.Float)
-                     > (0,0,0,1,2) (pygments)Token.Literal.Number.Float
-                Token('},', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('\n  ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('archiveprefix', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('=', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token(' ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('{', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('arXiv', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('},', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('\n  ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('eprint', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('       ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('=', type=Token.Operator)
-                     > (0,0,0,1,2) (pygments)Token.Operator
-                Token(' ', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('{', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('1802.07603', type=Token.Literal.Number.Float)
-                     > (0,0,0,1,2) (pygments)Token.Literal.Number.Float
-                Token('},', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('}', type=Token.Punctuation)
-                     > (0,0,0,1,2) (pygments)Token.Punctuation
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
     Footer('		3')
@@ -835,11 +791,11 @@
         (continued) StaticGroupedFlowables(id='%overview')   None:None <start_of_file>
           (continued) Section(id='%overview#an-overview-of-richmol')   /home/andrey/projects/richmol/doc/source/overview.rst:2 <section>
                > (0,0,0,1,2) chapter
-            (continued) Section(id='%overview#how-to-cite')   /home/andrey/projects/richmol/doc/source/overview.rst:30 <section>
-              (continued) CodeBlock('@article{Richmol,\n  author      ...')   /home/andrey/projects/richmol/doc/source/overview.rst:33 <literal_block>
+            (continued) Section(id='%overview#how-to-cite')   /home/andrey/projects/richmol/doc/source/overview.rst:37 <section>
+              (continued) CodeBlock('@article{Richmol,\n  author      ...')   /home/andrey/projects/richmol/doc/source/overview.rst:40 <literal_block>
                    > (1,0,0,0,2) code block
                      (0,0,0,0,1) body
-              Paragraph('Bibtex entries for hyperfine cal...')   /home/andrey/projects/richmol/doc/source/overview.rst:48 <paragraph>
+              Paragraph('Bibtex entries for hyperfine cal...')   /home/andrey/projects/richmol/doc/source/overview.rst:55 <paragraph>
                    > (0,0,0,0,2) body
                 MixedStyledText('Bibtex entries for hyperfine cal...')
                   SingleStyledText('Bibtex entries for hyperfine cal...')
@@ -847,7 +803,7 @@
                        > (0,0,1,0,1) monospaced
                     SingleStyledText('hyfor')
                   SingleStyledText(':')
-              CodeBlock('@article{Hyfor1,\n  author       ...')   /home/andrey/projects/richmol/doc/source/overview.rst:50 <literal_block>
+              CodeBlock('@article{Hyfor1,\n  author       ...')   /home/andrey/projects/richmol/doc/source/overview.rst:57 <literal_block>
                    > (1,0,0,0,2) code block
                      (0,0,0,0,1) body
                 Token('@article', type=Token.Name.Decorator)
@@ -1789,15 +1745,11 @@
         (continued) StaticGroupedFlowables(id='%overview')   None:None <start_of_file>
           (continued) Section(id='%overview#an-overview-of-richmol')   /home/andrey/projects/richmol/doc/source/overview.rst:2 <section>
                > (0,0,0,1,2) chapter
-            Section(id='%overview#features')   /home/andrey/projects/richmol/doc/source/overview.rst:99 <section>
-              Heading('1.2 Features')   /home/andrey/projects/richmol/doc/source/overview.rst:99 <title>
+            Section(id='%overview#features')   /home/andrey/projects/richmol/doc/source/overview.rst:106 <section>
+              Heading('1.2 Features')   /home/andrey/projects/richmol/doc/source/overview.rst:106 <title>
                    > (0,0,0,1,2) heading level 2
                      (0,0,0,0,2) other heading levels
-                  MixedStyledText('1.2 Features')
-                    SingleStyledText('1.2')
-                    SingleStyledText(' ')
-                    SingleStyledText('Features')
-              List(style='bulleted')   /home/andrey/projects/richmol/doc/source/overview.rst:101 <bullet_list>
+              List(style='bulleted')   /home/andrey/projects/richmol/doc/source/overview.rst:108 <bullet_list>
                    > (0,0,1,0,2) bulleted list
                 ListItem()
                      x (0,0,1,0,4) bulleted list item
@@ -1811,7 +1763,7 @@
                         SingleStyledText('')
                   StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/overview.rst:None <list_item>
                        > (0,0,0,0,3) list item body
-                    Paragraph('Calculation of rotational energi...')   /home/andrey/projects/richmol/doc/source/overview.rst:101 <paragraph>
+                    Paragraph('Calculation of rotational energi...')   /home/andrey/projects/richmol/doc/source/overview.rst:108 <paragraph>
                          > (0,0,0,0,5) list item paragraph
                            (0,0,0,0,2) body
                       MixedStyledText('Calculation of rotational energi...')
@@ -1846,7 +1798,7 @@
                         SingleStyledText('')
                   StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/overview.rst:None <list_item>
                        > (0,0,0,0,3) list item body
-                    Paragraph('Calculation of nuclear spin hype...')   /home/andrey/projects/richmol/doc/source/overview.rst:106 <paragraph>
+                    Paragraph('Calculation of nuclear spin hype...')   /home/andrey/projects/richmol/doc/source/overview.rst:113 <paragraph>
                          > (0,0,0,0,5) list item paragraph
                            (0,0,0,0,2) body
                       MixedStyledText('Calculation of nuclear spin hype...')
@@ -1863,25 +1815,21 @@
                         SingleStyledText('')
                   StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/overview.rst:None <list_item>
                        > (0,0,0,0,3) list item body
-                    Paragraph('Calculation of time-dependent wa...')   /home/andrey/projects/richmol/doc/source/overview.rst:109 <paragraph>
+                    Paragraph('Calculation of time-dependent wa...')   /home/andrey/projects/richmol/doc/source/overview.rst:116 <paragraph>
                          > (0,0,0,0,5) list item paragraph
                            (0,0,0,0,2) body
                       MixedStyledText('Calculation of time-dependent wa...')
                         SingleStyledText('Calculation of time-dependent wa...')
-            Section(id='%overview#design')   /home/andrey/projects/richmol/doc/source/overview.rst:116 <section>
-              Heading('1.3 Design')   /home/andrey/projects/richmol/doc/source/overview.rst:116 <title>
+            Section(id='%overview#design')   /home/andrey/projects/richmol/doc/source/overview.rst:123 <section>
+              Heading('1.3 Design')   /home/andrey/projects/richmol/doc/source/overview.rst:123 <title>
                    > (0,0,0,1,2) heading level 2
                      (0,0,0,0,2) other heading levels
                   MixedStyledText('1.3 Design')
                     SingleStyledText('1.3')
                     SingleStyledText(' ')
                     SingleStyledText('Design')
-              Paragraph('write about the hierarchy of var...')   /home/andrey/projects/richmol/doc/source/overview.rst:117 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('write about the hierarchy of var...')
-                  SingleStyledText('write about the hierarchy of var...')
-            Section(id='%overview#richmol-data-files')   /home/andrey/projects/richmol/doc/source/overview.rst:120 <section>
-              Heading('1.4 Richmol Data Files')   /home/andrey/projects/richmol/doc/source/overview.rst:120 <title>
+            Section(id='%overview#richmol-data-files')   /home/andrey/projects/richmol/doc/source/overview.rst:126 <section>
+              Heading('1.4 Richmol Data Files')   /home/andrey/projects/richmol/doc/source/overview.rst:126 <title>
                    > (0,0,0,1,2) heading level 2
                      (0,0,0,0,2) other heading levels
                   MixedStyledText('1.4 Richmol Data Files')
@@ -1971,17 +1919,17 @@
       Field('2', style='number')
            > (0,0,2,0,3) body matter chapter number
         SingleStyledText('2')
-  Paragraph('Theoretical background', style='body matter chapter title')
+  Paragraph('Theoretical backgrounds', style='body matter chapter title')
        > (0,0,1,0,2) body matter chapter title
          (0,0,0,0,2) body
-    Field('Theoretical background')
-      SingleStyledText('Theoretical background')
+    Field('Theoretical backgrounds')
+      SingleStyledText('Theoretical backgrounds')
 #### ChainedContainer('column1')
   (continued) StaticGroupedFlowables()
     (continued) DocumentTree()
       (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
         StaticGroupedFlowables(id='%theory')   None:None <start_of_file>
-          Section(id='%theory#theoretical-background')   /home/andrey/projects/richmol/doc/source/theory.rst:2 <section>
+          Section(id='%theory#theoretical-backgrounds')   /home/andrey/projects/richmol/doc/source/theory.rst:2 <section>
                > (0,0,0,1,2) chapter
             Paragraph('A basic knowledge of the underly...')   /home/andrey/projects/richmol/doc/source/theory.rst:3 <paragraph>
                  > (0,0,0,0,2) body
@@ -1995,60 +1943,122 @@
                     SingleStyledText('2.1')
                     SingleStyledText(' ')
                     SingleStyledText('Molecular rotations')
-              Paragraph('The molecular rotational Hamilto...')   /home/andrey/projects/richmol/doc/source/theory.rst:10 <paragraph>
+              Paragraph('The rotational energy levels, wa...')   /home/andrey/projects/richmol/doc/source/theory.rst:10 <paragraph>
                    > (0,0,0,0,2) body
-                MixedStyledText('The molecular rotational Hamilto...')
-                  SingleStyledText('The molecular rotational Hamilto...')
-                  MixedStyledText('B_x, B_y, B_z')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('B_x, B_y, B_z', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('B_x, B_y, B_z')
-                  SingleStyledText(' as')
-              Paragraph('\hat{H} = B_x\hat{J}_x^2 + B_y\h...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:13 <math_block>
-                   > (0,0,1,0,2) math block
-                     (0,0,1,0,1) inline math
-                     (0,0,0,0,2) body
-                MixedStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')
-                  SingleStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')
-              Paragraph('where the rotational constants c...')   /home/andrey/projects/richmol/doc/source/theory.rst:17 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('where the rotational constants c...')
-                  SingleStyledText('where the rotational constants c...')
-                  MixedStyledText('x,y,z')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('x,y,z', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('x,y,z')
-                  SingleStyledText(' coincide with the moments of in...')
-                  MixedStyledText('I_x, I_y, I_z')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('I_x, I_y, I_z', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('I_x, I_y, I_z')
-                  SingleStyledText('. In other words, the molecular ...')
-                  MixedStyledText('I_{\alpha\beta}=I_\alpha\delta_{...')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('I_{\alpha\beta}=I_\alpha\delta_{...', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('I_{\alpha\beta}=I_\alpha\delta_{...')
+                MixedStyledText('The rotational energy levels, wa...')
+                  SingleStyledText('The rotational energy levels, wa...')
+                  MixedStyledText('watie', style='monospaced')   None:None <literal>
+                       > (0,0,1,0,1) monospaced
+                    SingleStyledText('watie')
                   SingleStyledText('.')
-            Section(id='%theory#molecule-field-interaction')   /home/andrey/projects/richmol/doc/source/theory.rst:25 <section>
-              Heading('2.2 Molecule-field interaction')   /home/andrey/projects/richmol/doc/source/theory.rst:25 <title>
-                   > (0,0,0,1,2) heading level 2
-                     (0,0,0,0,2) other heading levels
-                  MixedStyledText('2.2 Molecule-field interaction')
-                    SingleStyledText('2.2')
-                    SingleStyledText(' ')
-                    SingleStyledText('Molecule-field interaction')
-            Section(id='%theory#time-dependent-schrodinger-equation')   /home/andrey/projects/richmol/doc/source/theory.rst:29 <section>
-              Heading('2.3 Time-dependent Schrödinger e...')   /home/andrey/projects/richmol/doc/source/theory.rst:29 <title>
-                   > (0,0,0,1,2) heading level 2
-                     (0,0,0,0,2) other heading levels
-                  MixedStyledText('2.3 Time-dependent Schrödinger e...')
-                    SingleStyledText('2.3')
-                    SingleStyledText(' ')
-                    SingleStyledText('Time-dependent Schrödinger equat...')
+              Section(id='%theory#principal-axes-system')   /home/andrey/projects/richmol/doc/source/theory.rst:15 <section>
+                Heading('2.1.1 Principal axes system')   /home/andrey/projects/richmol/doc/source/theory.rst:15 <title>
+                     > (0,0,0,1,2) heading level 3
+                       (0,0,0,0,2) other heading levels
+                    MixedStyledText('2.1.1 Principal axes system')
+                      SingleStyledText('2.1.1')
+                      SingleStyledText(' ')
+                      SingleStyledText('Principal axes system')
+                Paragraph('The molecular rotational Hamilto...')   /home/andrey/projects/richmol/doc/source/theory.rst:16 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('The molecular rotational Hamilto...')
+                    SingleStyledText('The molecular rotational Hamilto...')
+                    MixedStyledText('B_x, B_y, B_z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('B_x, B_y, B_z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('B_x, B_y, B_z')
+                    SingleStyledText(' as')
+                Paragraph('\hat{H} = B_x\hat{J}_x^2 + B_y\h...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:19 <math_block>
+                     > (0,0,1,0,2) math block
+                       (0,0,1,0,1) inline math
+                       (0,0,0,0,2) body
+                  MixedStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')
+                    SingleStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')
+                Paragraph('The rotational constants can be ...')   /home/andrey/projects/richmol/doc/source/theory.rst:23 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('The rotational constants can be ...')
+                    SingleStyledText('The rotational constants can be ...')
+                    MixedStyledText('x,y,z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('x,y,z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('x,y,z')
+                    SingleStyledText(' coincide with the moments of in...')
+                    MixedStyledText('I_x, I_y, I_z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('I_x, I_y, I_z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('I_x, I_y, I_z')
+                    SingleStyledText('. Put differently, the molecular...')
+                    MixedStyledText('I_{\alpha\beta}=I_\alpha\delta_{...')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('I_{\alpha\beta}=I_\alpha\delta_{...', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('I_{\alpha\beta}=I_\alpha\delta_{...')
+                    SingleStyledText('. Such coordinate system is call...')
+                Paragraph('In order to change the molecular...')   /home/andrey/projects/richmol/doc/source/theory.rst:31 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('In order to change the molecular...')
+                    SingleStyledText('In order to change the molecular...')
+                    MixedStyledText('\mathbf I')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\mathbf I', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\mathbf I')
+                    SingleStyledText(', i.e.,')
+                Paragraph('\mathbf{I} = \mathbf{V} \mathbf{...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:34 <math_block>
+                     > (0,0,1,0,2) math block
+                       (0,0,1,0,1) inline math
+                       (0,0,0,0,2) body
+                  MixedStyledText('\mathbf{I} = \mathbf{V} \mathbf{...')
+                    SingleStyledText('\mathbf{I} = \mathbf{V} \mathbf{...')
+                Paragraph('and rotates with the eigenvector...')   /home/andrey/projects/richmol/doc/source/theory.rst:38 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('and rotates with the eigenvector...')
+                    SingleStyledText('and rotates with the eigenvector...')
+                    MixedStyledText('\mathbf{V}^{-1}')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\mathbf{V}^{-1}', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\mathbf{V}^{-1}')
+                    SingleStyledText(' all Cartesian vectors, which in...')
+                    MixedStyledText('\mathbf{r}_{\rm atom}')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\mathbf{r}_{\rm atom}', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\mathbf{r}_{\rm atom}')
+                    SingleStyledText(' and all molecular Cartesian ten...')
+                    MixedStyledText('\boldsymbol{\mu}')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\boldsymbol{\mu}', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\boldsymbol{\mu}')
+                    SingleStyledText(' or polarizability ')
+                    MixedStyledText('\boldsymbol{\alpha}')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\boldsymbol{\alpha}', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\boldsymbol{\alpha}')
+                    SingleStyledText(', i.e.,')
+                Paragraph('\mathbf{r}_{\rm atom}^{\rm(PAS)}...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:43 <math_block>
+                     > (0,0,1,0,2) math block
+                       (0,0,1,0,1) inline math
+                       (0,0,0,0,2) body
+                  MixedStyledText('\mathbf{r}_{\rm atom}^{\rm(PAS)}...')
+                    SingleStyledText('\mathbf{r}_{\rm atom}^{\rm(PAS)}...')
+                Paragraph('The rotational constants are com...')   /home/andrey/projects/richmol/doc/source/theory.rst:49 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('The rotational constants are com...')
+                    SingleStyledText('The rotational constants are com...')
+                StaticGroupedFlowables(style='block quote')   None:None <block_quote>
+                     > (0,0,1,0,1) block quote
+                  Paragraph('B_\alpha = \frac{\hbar^2}{2hc I_...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:51 <math_block>
+                       > (0,0,1,0,2) math block
+                         (0,0,1,0,1) inline math
+                         (0,0,0,0,2) body
+                    MixedStyledText('B_\alpha = \frac{\hbar^2}{2hc I_...')
+                      SingleStyledText('B_\alpha = \frac{\hbar^2}{2hc I_...')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
     Footer('		7')
@@ -2068,6 +2078,388 @@
   (continued) StaticGroupedFlowables()
     (continued) DocumentTree()
       (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+        (continued) StaticGroupedFlowables(id='%theory')   None:None <start_of_file>
+          (continued) Section(id='%theory#theoretical-backgrounds')   /home/andrey/projects/richmol/doc/source/theory.rst:2 <section>
+               > (0,0,0,1,2) chapter
+            (continued) Section(id='%theory#molecular-rotations')   /home/andrey/projects/richmol/doc/source/theory.rst:9 <section>
+              (continued) Section(id='%theory#principal-axes-system')   /home/andrey/projects/richmol/doc/source/theory.rst:15 <section>
+                Admonition()   /home/andrey/projects/richmol/doc/source/theory.rst:None <note>
+                     > (0,0,0,1,2) note admonition
+                       (0,0,0,0,2) admonition
+                  Paragraph('Note The rotation of all Cartesi...')
+                       > (0,0,0,0,2) body
+                    MixedStyledText('Note The rotation of all Cartesi...')
+                      MixedStyledText('Note', style='inline title')
+                           x (0,0,1,1,3) note admonition inline title
+                           > (0,0,1,0,3) admonition inline title
+                        SingleStyledText('Note')
+                      SingleStyledText(' ')
+                      MixedStyledText('The rotation of all Cartesian qu...')
+                        SingleStyledText('The ')
+                        MixedStyledText('rotation', style='title reference')   None:None <title_reference>
+                             > (0,0,1,0,1) title reference
+                          SingleStyledText('rotation')
+                        SingleStyledText(' of all Cartesian quantities in ')
+                        MixedStyledText('watie', style='monospaced')   None:None <literal>
+                             > (0,0,1,0,1) monospaced
+                          SingleStyledText('watie')
+                        SingleStyledText(' module is done automatically fo...')
+                        MixedStyledText('watie.RigidMolecule.frame()', style='monospaced')   None:None <literal>
+                             > (0,0,1,0,1) monospaced
+                          SingleStyledText('watie.RigidMolecule.frame()')
+                        SingleStyledText(' to “pas”, for example. There is...')
+              Section(id='%theory#quantization-axis')   /home/andrey/projects/richmol/doc/source/theory.rst:65 <section>
+                Heading('2.1.2 Quantization axis')   /home/andrey/projects/richmol/doc/source/theory.rst:65 <title>
+                     > (0,0,0,1,2) heading level 3
+                       (0,0,0,0,2) other heading levels
+                    MixedStyledText('2.1.2 Quantization axis')
+                      SingleStyledText('2.1.2')
+                      SingleStyledText(' ')
+                      SingleStyledText('Quantization axis')
+                Paragraph('The eigenvalues of inertia tenso...')   /home/andrey/projects/richmol/doc/source/theory.rst:66 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('The eigenvalues of inertia tenso...')
+                    SingleStyledText('The eigenvalues of inertia tenso...')
+                    MixedStyledText('I_x^{\rm diag}\leq I_y^{\rm diag...')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('I_x^{\rm diag}\leq I_y^{\rm diag...', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('I_x^{\rm diag}\leq I_y^{\rm diag...')
+                    SingleStyledText(', accordingly ')
+                    MixedStyledText('B_x\geq B_y\geq B_z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('B_x\geq B_y\geq B_z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('B_x\geq B_y\geq B_z')
+                    SingleStyledText('. In spectroscopic literature ro...')
+                    MixedStyledText('A\geq B\geq C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A\geq B\geq C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A\geq B\geq C')
+                    SingleStyledText(' and the corresponding PAS axes ...')
+                    MixedStyledText('a,b,c')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('a,b,c', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('a,b,c')
+                    SingleStyledText('.')
+                Paragraph('One is free to permute the x,y,z...')   /home/andrey/projects/richmol/doc/source/theory.rst:72 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('One is free to permute the x,y,z...')
+                    SingleStyledText('One is free to permute the ')
+                    MixedStyledText('x,y,z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('x,y,z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('x,y,z')
+                    SingleStyledText(' axes without any effect on the ...')
+                    MixedStyledText('z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('z')
+                    SingleStyledText(' axis in order to simplify calcu...')
+                    MixedStyledText('\cos^2\theta')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\cos^2\theta', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\cos^2\theta')
+                    SingleStyledText(' (where ')
+                    MixedStyledText('\theta')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\theta', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\theta')
+                    SingleStyledText(' is the Euler angle between the ...')
+                    MixedStyledText('Z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('Z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('Z')
+                    SingleStyledText(' and molecular ')
+                    MixedStyledText('z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('z')
+                    SingleStyledText(' axes).')
+                Admonition()   /home/andrey/projects/richmol/doc/source/theory.rst:None <note>
+                     > (0,0,0,1,2) note admonition
+                       (0,0,0,0,2) admonition
+                  Paragraph('Note Computed observables, such ...')
+                       > (0,0,0,0,2) body
+                    MixedStyledText('Note Computed observables, such ...')
+                      MixedStyledText('Note', style='inline title')
+                           x (0,0,1,1,3) note admonition inline title
+                           > (0,0,1,0,3) admonition inline title
+                        SingleStyledText('Note')
+                      SingleStyledText(' ')
+                      MixedStyledText('Computed observables, such as en...')
+                        SingleStyledText('Computed observables, such as en...')
+                        MixedStyledText('x,y,z')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('x,y,z', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('x,y,z')
+                        SingleStyledText(' axes in molecule as well as the...')
+                        MixedStyledText('\hat{H} = A\hat{J}_x^2 + B\hat{J...')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\hat{H} = A\hat{J}_x^2 + B\hat{J...', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\hat{H} = A\hat{J}_x^2 + B\hat{J...')
+                        SingleStyledText(', or ')
+                        MixedStyledText('\hat{H} = C\hat{J}_x^2 + A\hat{J...')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\hat{H} = C\hat{J}_x^2 + A\hat{J...', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\hat{H} = C\hat{J}_x^2 + A\hat{J...')
+                        SingleStyledText(', or ')
+                        MixedStyledText('\hat{H} = B\hat{J}_x^2 + C\hat{J...')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\hat{H} = B\hat{J}_x^2 + C\hat{J...', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\hat{H} = B\hat{J}_x^2 + C\hat{J...')
+                        SingleStyledText(', etc.')
+                Paragraph('There are few special types of m...')   /home/andrey/projects/richmol/doc/source/theory.rst:90 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('There are few special types of m...')
+                    SingleStyledText('There are few special types of m...')
+                    MixedStyledText('spherical top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('spherical top')
+                    SingleStyledText(' molecules with ')
+                    MixedStyledText('A=B=C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A=B=C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A=B=C')
+                    SingleStyledText(', ')
+                    MixedStyledText('prolate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('prolate symmetric top')
+                    SingleStyledText(' molecules with ')
+                    MixedStyledText('A>B=C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A>B=C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A>B=C')
+                    SingleStyledText(', and ')
+                    MixedStyledText('oblate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('oblate symmetric top')
+                    SingleStyledText(' molecules with ')
+                    MixedStyledText('A=B>C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A=B>C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A=B>C')
+                    SingleStyledText('. Linear molecules have only two...')
+                    MixedStyledText('A=B')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A=B', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A=B')
+                    SingleStyledText('. For these special cases the Sc...')
+                    MixedStyledText('x,y,z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('x,y,z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('x,y,z')
+                    SingleStyledText(' axes are chosen in a certain wa...')
+                    MixedStyledText('prolate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('prolate symmetric top')
+                    SingleStyledText(' molecules the ')
+                    MixedStyledText('z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('z')
+                    SingleStyledText(' axis must be aligned along the ...')
+                    MixedStyledText('a')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('a', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('a')
+                    SingleStyledText(' axis. For ')
+                    MixedStyledText('oblate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('oblate symmetric top')
+                    SingleStyledText(' molecules the ')
+                    MixedStyledText('z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('z')
+                    SingleStyledText(' axis must be aligned along the ...')
+                    MixedStyledText('c')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('c', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('c')
+                    SingleStyledText(' axis.')
+                Paragraph('The solutions of spherical top a...')   /home/andrey/projects/richmol/doc/source/theory.rst:101 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('The solutions of spherical top a...')
+                    SingleStyledText('The solutions of ')
+                    MixedStyledText('spherical top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('spherical top')
+                    SingleStyledText(' and ')
+                    MixedStyledText('symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('symmetric top')
+                    SingleStyledText(' problems are symmetric-top func...')
+                    MixedStyledText('|J,k,m\rangle')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('|J,k,m\rangle', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('|J,k,m\rangle')
+                    SingleStyledText('. For more general problem of ro...')
+                    MixedStyledText('asymmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('asymmetric top')
+                    SingleStyledText(' molecules (molecules with all t...')
+                    MixedStyledText('A>B>C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A>B>C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A>B>C')
+                    SingleStyledText(') the wave function is build as ...')
+                    MixedStyledText('x,y,z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('x,y,z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('x,y,z')
+                    SingleStyledText(' axes in an ')
+                    MixedStyledText('asymmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('asymmetric top')
+                    SingleStyledText(' molecule will affect the linear...')
+                    MixedStyledText('near prolate top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('near prolate top')
+                    SingleStyledText(' with ')
+                    MixedStyledText('A>B\approx C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A>B\approx C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A>B\approx C')
+                    SingleStyledText(' or ')
+                    MixedStyledText('near oblate top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('near oblate top')
+                    SingleStyledText(' with ')
+                    MixedStyledText('A\approx B>C')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('A\approx B>C', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('A\approx B>C')
+                    SingleStyledText(', it might be beneficial, mainly...')
+                    MixedStyledText('z')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('z', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('z')
+                    SingleStyledText(' in accord with the correspondin...')
+                    MixedStyledText('symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('symmetric top')
+                    SingleStyledText('. To tell which of ')
+                    MixedStyledText('symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('symmetric top')
+                    SingleStyledText(' types a given molecule is close...')
+                    MixedStyledText('\kappa=(2B-A-C)/(A-C)')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('\kappa=(2B-A-C)/(A-C)', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('\kappa=(2B-A-C)/(A-C)')
+                    SingleStyledText(', which is equal to ')
+                    MixedStyledText('-1')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('-1', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('-1')
+                    SingleStyledText(' for a ')
+                    MixedStyledText('prolate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('prolate symmetric top')
+                    SingleStyledText(' and ')
+                    MixedStyledText('+1')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('+1', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('+1')
+                    SingleStyledText(' for an ')
+                    MixedStyledText('oblate symmetric top', style='title reference')   None:None <title_reference>
+                         > (0,0,1,0,1) title reference
+                      SingleStyledText('oblate symmetric top')
+                    SingleStyledText('.')
+                Admonition()   /home/andrey/projects/richmol/doc/source/theory.rst:None <note>
+                     > (0,0,0,1,2) note admonition
+                       (0,0,0,0,2) admonition
+                  Paragraph('Note A standard spectroscopic co...')
+                       > (0,0,0,0,2) body
+                    MixedStyledText('Note A standard spectroscopic co...')
+                      MixedStyledText('Note', style='inline title')
+                           x (0,0,1,1,3) note admonition inline title
+                           > (0,0,1,0,3) admonition inline title
+                        SingleStyledText('Note')
+                      SingleStyledText(' ')
+                      MixedStyledText('A standard spectroscopic convent...')
+                        SingleStyledText('A standard spectroscopic convent...')
+                        MixedStyledText('\kappa\simeq -1')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\kappa\simeq -1', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\kappa\simeq -1')
+                        SingleStyledText(', permute the ')
+                        MixedStyledText('x,y,z')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('x,y,z', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('x,y,z')
+                        SingleStyledText(' axes such that ')
+                        MixedStyledText('B_z')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('B_z', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('B_z')
+                        SingleStyledText(' becomes the largest rotational ...')
+                        MixedStyledText('\kappa\simeq +1')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\kappa\simeq +1', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\kappa\simeq +1')
+                        SingleStyledText(', permute the ')
+                        MixedStyledText('x,y,z')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('x,y,z', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('x,y,z')
+                        SingleStyledText(' such that ')
+                        MixedStyledText('B_z')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('B_z', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('B_z')
+                        SingleStyledText(' becomes the smallest rotational...')
+                        MixedStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')   None:None <math>
+                          WarnInline('')
+                          MixedStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...', style='math')
+                               > (0,0,1,0,1) inline math
+                            SingleStyledText('\hat{H} = B_x\hat{J}_x^2 + B_y\h...')
+                        SingleStyledText('. In ')
+                        MixedStyledText('watie', style='monospaced')   None:None <literal>
+                             > (0,0,1,0,1) monospaced
+                          SingleStyledText('watie')
+                        SingleStyledText(' the axes permutations can be se...')
+                        MixedStyledText('watie.RigidMolecule.frame()', style='monospaced')   None:None <literal>
+                             > (0,0,1,0,1) monospaced
+                          SingleStyledText('watie.RigidMolecule.frame()')
+                        SingleStyledText('.')
 #### UpExpandingContainer('header')
   StaticGroupedFlowables()
     Header('Richmol, Release 0.0.1')
@@ -2095,9 +2487,134 @@
         Field('2')
           SingleStyledText('2')
         SingleStyledText('.  ')
-        Field('Theoretical background')
-          SingleStyledText('Theoretical background')
+        Field('Theoretical backgrounds')
+          SingleStyledText('Theoretical backgrounds')
 ---------------------------------- page 9 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+        (continued) StaticGroupedFlowables(id='%theory')   None:None <start_of_file>
+          (continued) Section(id='%theory#theoretical-backgrounds')   /home/andrey/projects/richmol/doc/source/theory.rst:2 <section>
+               > (0,0,0,1,2) chapter
+            (continued) Section(id='%theory#molecular-rotations')   /home/andrey/projects/richmol/doc/source/theory.rst:9 <section>
+              Section(id='%theory#other-choices-of-axes')   /home/andrey/projects/richmol/doc/source/theory.rst:126 <section>
+                Heading('2.1.3 Other choices of axes')   /home/andrey/projects/richmol/doc/source/theory.rst:126 <title>
+                     > (0,0,0,1,2) heading level 3
+                       (0,0,0,0,2) other heading levels
+                    MixedStyledText('2.1.3 Other choices of axes')
+                      SingleStyledText('2.1.3')
+                      SingleStyledText(' ')
+                      SingleStyledText('Other choices of axes')
+                Paragraph('Another popular choice of the mo...')   /home/andrey/projects/richmol/doc/source/theory.rst:127 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('Another popular choice of the mo...')
+                    SingleStyledText('Another popular choice of the mo...')
+                StaticGroupedFlowables(style='block quote')   None:None <block_quote>
+                     > (0,0,1,0,1) block quote
+                  Paragraph('\hat{H} = \frac{1}{2}\sum_{\alph...', style='math')   /home/andrey/projects/richmol/doc/source/theory.rst:132 <math_block>
+                       > (0,0,1,0,2) math block
+                         (0,0,1,0,1) inline math
+                         (0,0,0,0,2) body
+                    MixedStyledText('\hat{H} = \frac{1}{2}\sum_{\alph...')
+                      SingleStyledText('\hat{H} = \frac{1}{2}\sum_{\alph...')
+                Paragraph('where G_{\alpha,\beta} is the ro...')   /home/andrey/projects/richmol/doc/source/theory.rst:136 <paragraph>
+                     > (0,0,0,0,2) body
+                  MixedStyledText('where G_{\alpha,\beta} is the ro...')
+                    SingleStyledText('where ')
+                    MixedStyledText('G_{\alpha,\beta}')   None:None <math>
+                      WarnInline('')
+                      MixedStyledText('G_{\alpha,\beta}', style='math')
+                           > (0,0,1,0,1) inline math
+                        SingleStyledText('G_{\alpha,\beta}')
+                    SingleStyledText(' is the rotational kinetic energ...')
+            Section(id='%theory#molecule-field-interaction')   /home/andrey/projects/richmol/doc/source/theory.rst:140 <section>
+              Heading('2.2 Molecule-field interaction')   /home/andrey/projects/richmol/doc/source/theory.rst:140 <title>
+                   > (0,0,0,1,2) heading level 2
+                     (0,0,0,0,2) other heading levels
+                  MixedStyledText('2.2 Molecule-field interaction')
+                    SingleStyledText('2.2')
+                    SingleStyledText(' ')
+                    SingleStyledText('Molecule-field interaction')
+            Section(id='%theory#time-dependent-schrodinger-equation')   /home/andrey/projects/richmol/doc/source/theory.rst:144 <section>
+              Heading('2.3 Time-dependent Schrödinger e...')   /home/andrey/projects/richmol/doc/source/theory.rst:144 <title>
+                   > (0,0,0,1,2) heading level 2
+                     (0,0,0,0,2) other heading levels
+                  MixedStyledText('2.3 Time-dependent Schrödinger e...')
+                    SingleStyledText('2.3')
+                    SingleStyledText(' ')
+                    SingleStyledText('Time-dependent Schrödinger equat...')
+#### UpExpandingContainer('header')
+  StaticGroupedFlowables()
+    Header('		Richmol, Release 0.0.1')
+         > (0,0,0,0,2) header
+           (0,0,0,0,1) body
+      MixedStyledText('		Richmol, Release 0.0.1')
+        Tab('	')
+        Tab('	')
+        Field('Richmol')
+          SingleStyledText('Richmol')
+        SingleStyledText(', ')
+        Field('Release 0.0.1')
+          SingleStyledText('Release 0.0.1')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('2.2.  Molecule-field interaction...')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('2.2.  Molecule-field interaction...')
+        Field('2.2')
+          SingleStyledText('2.2')
+        SingleStyledText('.  ')
+        Field('Molecule-field interaction')
+          SingleStyledText('Molecule-field interaction')
+        Tab('	')
+        Tab('	')
+        Field('9')
+          SingleStyledText('9')
+---------------------------------- page 10 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+#### UpExpandingContainer('header')
+  StaticGroupedFlowables()
+    Header('Richmol, Release 0.0.1')
+         > (0,0,0,0,2) header
+           (0,0,0,0,1) body
+      MixedStyledText('Richmol, Release 0.0.1')
+        Field('Richmol')
+          SingleStyledText('Richmol')
+        SingleStyledText(', ')
+        Field('Release 0.0.1')
+          SingleStyledText('Release 0.0.1')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('10		Chapter 2.  Theoretical back...')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('10		Chapter 2.  Theoretical back...')
+        Field('10')
+          SingleStyledText('10')
+        Tab('	')
+        Tab('	')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+        Field('2')
+          SingleStyledText('2')
+        SingleStyledText('.  ')
+        Field('Theoretical backgrounds')
+          SingleStyledText('Theoretical backgrounds')
+---------------------------------- page 11 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
@@ -2164,15 +2681,15 @@
                          > fallback to default style
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('		9')
+    Footer('		11')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('		9')
+      MixedStyledText('		11')
         Tab('	')
         Tab('	')
-        Field('9')
-          SingleStyledText('9')
----------------------------------- page 10 ----------------------------------
+        Field('11')
+          SingleStyledText('11')
+---------------------------------- page 12 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
@@ -2194,12 +2711,12 @@
           SingleStyledText('Release 0.0.1')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('10		Chapter 3.  Version history')
+    Footer('12		Chapter 3.  Version history')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('10		Chapter 3.  Version history')
-        Field('10')
-          SingleStyledText('10')
+      MixedStyledText('12		Chapter 3.  Version history')
+        Field('12')
+          SingleStyledText('12')
         Tab('	')
         Tab('	')
         StringField('Chapter')
@@ -2210,7 +2727,7 @@
         SingleStyledText('.  ')
         Field('Version history')
           SingleStyledText('Version history')
----------------------------------- page 11 ----------------------------------
+---------------------------------- page 13 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
@@ -2329,156 +2846,14 @@
                    > (0,0,0,0,2) body
                 MixedStyledText('The default installation tries t...')
                   SingleStyledText('The default installation tries t...')
-              CodeBlock('$ need to set this up soon')   /home/andrey/projects/richmol/doc/source/installation.rst:34 <literal_block>
+                  MixedStyledText('automatic configuration is not y...', style='title reference')   None:None <title_reference>
+                       > (0,0,1,0,1) title reference
+                    SingleStyledText('automatic configuration is not y...')
+                  SingleStyledText('). You can compile the package w...')
+              CodeBlock('$ need to set this up soon')   /home/andrey/projects/richmol/doc/source/installation.rst:35 <literal_block>
                    > (1,0,0,0,2) code block
                      (0,0,0,0,1) body
                 SingleStyledText('$ need to set this up soon')
-#### DownExpandingContainer('footer')
-  StaticGroupedFlowables()
-    Footer('		11')
-         > (0,0,0,0,2) footer
-           (0,0,0,0,1) body
-      MixedStyledText('		11')
-        Tab('	')
-        Tab('	')
-        Field('11')
-          SingleStyledText('11')
----------------------------------- page 12 ----------------------------------
-#### FootnoteContainer('footnotes')
-  StaticGroupedFlowables()
-#### DownExpandingContainer('floats')
-  StaticGroupedFlowables()
-#### ChainedContainer('column1')
-  (continued) StaticGroupedFlowables()
-    (continued) DocumentTree()
-      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
-#### UpExpandingContainer('header')
-  StaticGroupedFlowables()
-    Header('Richmol, Release 0.0.1')
-         > (0,0,0,0,2) header
-           (0,0,0,0,1) body
-      MixedStyledText('Richmol, Release 0.0.1')
-        Field('Richmol')
-          SingleStyledText('Richmol')
-        SingleStyledText(', ')
-        Field('Release 0.0.1')
-          SingleStyledText('Release 0.0.1')
-#### DownExpandingContainer('footer')
-  StaticGroupedFlowables()
-    Footer('12		Chapter 4.  Installation')
-         > (0,0,0,0,2) footer
-           (0,0,0,0,1) body
-      MixedStyledText('12		Chapter 4.  Installation')
-        Field('12')
-          SingleStyledText('12')
-        Tab('	')
-        Tab('	')
-        StringField('Chapter')
-          SingleStyledText('Chapter')
-        SingleStyledText(' ')
-        Field('4')
-          SingleStyledText('4')
-        SingleStyledText('.  ')
-        Field('Installation')
-          SingleStyledText('Installation')
----------------------------------- page 13 ----------------------------------
-#### FootnoteContainer('footnotes')
-  StaticGroupedFlowables()
-#### DownExpandingContainer('floats')
-  StaticGroupedFlowables()
-#### FlowablesContainer('chapter title')
-  Paragraph('Chapter 5', style='body matter chapter label')
-       > (0,0,1,0,2) body matter chapter label
-         (0,0,0,0,2) body
-    MixedStyledText('Chapter 5')
-      MixedStyledText('Chapter ')
-        StringField('Chapter')
-          SingleStyledText('Chapter')
-        SingleStyledText(' ')
-      Field('5', style='number')
-           > (0,0,2,0,3) body matter chapter number
-        SingleStyledText('5')
-  Paragraph('Watie tutorial', style='body matter chapter title')
-       > (0,0,1,0,2) body matter chapter title
-         (0,0,0,0,2) body
-    Field('Watie tutorial')
-      SingleStyledText('Watie tutorial')
-#### ChainedContainer('column1')
-  (continued) StaticGroupedFlowables()
-    (continued) DocumentTree()
-      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
-        StaticGroupedFlowables(id='%watie_tutorial')   None:None <start_of_file>
-          Section(id='%watie_tutorial#watie-tutorial')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:2 <section>
-               > (0,0,0,1,2) chapter
-            Paragraph('This tutorial shows few examples...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:4 <paragraph>
-                 > (0,0,0,0,2) body
-              MixedStyledText('This tutorial shows few examples...')
-                SingleStyledText('This tutorial shows few examples...')
-            Section(id='%watie_tutorial#a-simple-example-of-rotational-states-calculation')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:7 <section>
-              Heading('5.1 A simple example of rotation...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:7 <title>
-                   > (0,0,0,1,2) heading level 2
-                     (0,0,0,0,2) other heading levels
-                  MixedStyledText('5.1 A simple example of rotation...')
-                    SingleStyledText('5.1')
-                    SingleStyledText(' ')
-                    SingleStyledText('A simple example of rotational s...')
-              Paragraph('Here is an example of computing ...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:8 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Here is an example of computing ...')
-                  SingleStyledText('Here is an example of computing ...')
-              CodeBlock('>>> xxx\n>>> xxx\n')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:11 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('>>> ', type=Token.Generic.Prompt)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Prompt
-                Token('xxx', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('>>> ', type=Token.Generic.Prompt)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Prompt
-                Token('', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('xxx', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-              Paragraph('Next example shows how one can u...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:14 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Next example shows how one can u...')
-                  SingleStyledText('Next example shows how one can u...')
-              CodeBlock('>>>\n>>>\n')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:17 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('>>>\n>>>\n', type=Token.Generic.Output)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Output
-              Paragraph('Alternatively, one can use the k...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:20 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Alternatively, one can use the k...')
-                  SingleStyledText('Alternatively, one can use the k...')
-                  MixedStyledText('G')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('G', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('G')
-                  SingleStyledText('-matrix to build the Hamiltonian...')
-              CodeBlock('>>>\n>>>\n')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:23 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('>>>\n>>>\n', type=Token.Generic.Output)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Output
-              Paragraph('We can also play with the embedd...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:26 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('We can also play with the embedd...')
-                  SingleStyledText('We can also play with the embedd...')
-                  MixedStyledText('x,y,z')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('x,y,z', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('x,y,z')
-                  SingleStyledText(' in the molecule by changing the...')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
     Footer('		13')
@@ -2511,10 +2886,10 @@
           SingleStyledText('Release 0.0.1')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('14		Chapter 5.  Watie tutorial')
+    Footer('14		Chapter 4.  Installation')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('14		Chapter 5.  Watie tutorial')
+      MixedStyledText('14		Chapter 4.  Installation')
         Field('14')
           SingleStyledText('14')
         Tab('	')
@@ -2522,109 +2897,48 @@
         StringField('Chapter')
           SingleStyledText('Chapter')
         SingleStyledText(' ')
-        Field('5')
-          SingleStyledText('5')
+        Field('4')
+          SingleStyledText('4')
         SingleStyledText('.  ')
-        Field('Watie tutorial')
-          SingleStyledText('Watie tutorial')
+        Field('Installation')
+          SingleStyledText('Installation')
 ---------------------------------- page 15 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
   StaticGroupedFlowables()
 #### FlowablesContainer('chapter title')
-  Paragraph('Chapter 6', style='body matter chapter label')
+  Paragraph('Chapter 5', style='body matter chapter label')
        > (0,0,1,0,2) body matter chapter label
          (0,0,0,0,2) body
-    MixedStyledText('Chapter 6')
+    MixedStyledText('Chapter 5')
       MixedStyledText('Chapter ')
         StringField('Chapter')
           SingleStyledText('Chapter')
         SingleStyledText(' ')
-      Field('6', style='number')
+      Field('5', style='number')
            > (0,0,2,0,3) body matter chapter number
-        SingleStyledText('6')
-  Paragraph('tdtools tutorial', style='body matter chapter title')
+        SingleStyledText('5')
+  Paragraph('Watie tutorial', style='body matter chapter title')
        > (0,0,1,0,2) body matter chapter title
          (0,0,0,0,2) body
-    Field('tdtools tutorial')
-      SingleStyledText('tdtools tutorial')
+    Field('Watie tutorial')
+      SingleStyledText('Watie tutorial')
 #### ChainedContainer('column1')
   (continued) StaticGroupedFlowables()
     (continued) DocumentTree()
       (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
-        StaticGroupedFlowables(id='%tdtools_tutorial')   None:None <start_of_file>
-          Section(id='%tdtools_tutorial#tdtools-tutorial')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:2 <section>
+        StaticGroupedFlowables(id='%watie_tutorial')   None:None <start_of_file>
+          Section(id='%watie_tutorial#watie-tutorial')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:2 <section>
                > (0,0,0,1,2) chapter
-            Paragraph('This tutorial shows few examples...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:4 <paragraph>
+            Paragraph('This tutorial shows few examples...')   /home/andrey/projects/richmol/doc/source/watie_tutorial.rst:4 <paragraph>
                  > (0,0,0,0,2) body
               MixedStyledText('This tutorial shows few examples...')
                 SingleStyledText('This tutorial shows few examples...')
-            Section(id='%tdtools_tutorial#a-simple-example-of-rotational-states-calculation')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:9 <section>
-              Heading('6.1 A simple example of rotation...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:9 <title>
-                   > (0,0,0,1,2) heading level 2
-                     (0,0,0,0,2) other heading levels
-                  MixedStyledText('6.1 A simple example of rotation...')
-                    SingleStyledText('6.1')
-                    SingleStyledText(' ')
-                    SingleStyledText('A simple example of rotational s...')
-              Paragraph('Here is an example of computing ...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:10 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Here is an example of computing ...')
-                  SingleStyledText('Here is an example of computing ...')
-              CodeBlock('>>> xxx\n>>> xxx\n')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:13 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('>>> ', type=Token.Generic.Prompt)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Prompt
-                Token('xxx', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('>>> ', type=Token.Generic.Prompt)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Prompt
-                Token('', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-                Token('xxx', type=Token.Name)
-                     > (0,0,0,1,2) (pygments)Token.Name
-                Token('\n', type=Token.Text)
-                     > (0,0,0,1,2) (pygments)Token.Text
-              Paragraph('Next example shows how one can u...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:16 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Next example shows how one can u...')
-                  SingleStyledText('Next example shows how one can u...')
-              CodeBlock('>>>\n>>>\n')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:19 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('>>>\n>>>\n', type=Token.Generic.Output)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Output
-              Paragraph('Alternatively, one can use the k...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:22 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('Alternatively, one can use the k...')
-                  SingleStyledText('Alternatively, one can use the k...')
-                  MixedStyledText('G')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('G', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('G')
-                  SingleStyledText('-matrix to build the Hamiltonian...')
-              CodeBlock('>>>\n>>>\n')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:25 <literal_block>
-                   > (1,0,0,0,2) code block
-                     (0,0,0,0,1) body
-                Token('>>>\n>>>\n', type=Token.Generic.Output)
-                     > (0,0,0,1,2) (pygments)Token.Generic.Output
-              Paragraph('We can also play with the embedd...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:28 <paragraph>
-                   > (0,0,0,0,2) body
-                MixedStyledText('We can also play with the embedd...')
-                  SingleStyledText('We can also play with the embedd...')
-                  MixedStyledText('x,y,z')   None:None <math>
-                    WarnInline('')
-                    MixedStyledText('x,y,z', style='math')
-                         > (0,0,1,0,1) inline math
-                      SingleStyledText('x,y,z')
-                  SingleStyledText(' in the molecule by changing the...')
+                MixedStyledText('watie', style='monospaced')   None:None <literal>
+                     > (0,0,1,0,1) monospaced
+                  SingleStyledText('watie')
+                SingleStyledText(' module.')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
     Footer('		15')
@@ -2657,12 +2971,97 @@
           SingleStyledText('Release 0.0.1')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('16		Chapter 6.  tdtools tutorial')
+    Footer('16		Chapter 5.  Watie tutorial')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('16		Chapter 6.  tdtools tutorial')
+      MixedStyledText('16		Chapter 5.  Watie tutorial')
         Field('16')
           SingleStyledText('16')
+        Tab('	')
+        Tab('	')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+        Field('5')
+          SingleStyledText('5')
+        SingleStyledText('.  ')
+        Field('Watie tutorial')
+          SingleStyledText('Watie tutorial')
+---------------------------------- page 17 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### FlowablesContainer('chapter title')
+  Paragraph('Chapter 6', style='body matter chapter label')
+       > (0,0,1,0,2) body matter chapter label
+         (0,0,0,0,2) body
+    MixedStyledText('Chapter 6')
+      MixedStyledText('Chapter ')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+      Field('6', style='number')
+           > (0,0,2,0,3) body matter chapter number
+        SingleStyledText('6')
+  Paragraph('Tdtools tutorial', style='body matter chapter title')
+       > (0,0,1,0,2) body matter chapter title
+         (0,0,0,0,2) body
+    Field('Tdtools tutorial')
+      SingleStyledText('Tdtools tutorial')
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+        StaticGroupedFlowables(id='%tdtools_tutorial')   None:None <start_of_file>
+          Section(id='%tdtools_tutorial#tdtools-tutorial')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:2 <section>
+               > (0,0,0,1,2) chapter
+            Paragraph('This tutorial shows few examples...')   /home/andrey/projects/richmol/doc/source/tdtools_tutorial.rst:4 <paragraph>
+                 > (0,0,0,0,2) body
+              MixedStyledText('This tutorial shows few examples...')
+                SingleStyledText('This tutorial shows few examples...')
+                MixedStyledText('tdtools', style='monospaced')   None:None <literal>
+                     > (0,0,1,0,1) monospaced
+                  SingleStyledText('tdtools')
+                SingleStyledText(' module.')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('		17')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('		17')
+        Tab('	')
+        Tab('	')
+        Field('17')
+          SingleStyledText('17')
+---------------------------------- page 18 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+#### UpExpandingContainer('header')
+  StaticGroupedFlowables()
+    Header('Richmol, Release 0.0.1')
+         > (0,0,0,0,2) header
+           (0,0,0,0,1) body
+      MixedStyledText('Richmol, Release 0.0.1')
+        Field('Richmol')
+          SingleStyledText('Richmol')
+        SingleStyledText(', ')
+        Field('Release 0.0.1')
+          SingleStyledText('Release 0.0.1')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('18		Chapter 6.  Tdtools tutorial')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('18		Chapter 6.  Tdtools tutorial')
+        Field('18')
+          SingleStyledText('18')
         Tab('	')
         Tab('	')
         StringField('Chapter')
@@ -2671,9 +3070,9 @@
         Field('6')
           SingleStyledText('6')
         SingleStyledText('.  ')
-        Field('tdtools tutorial')
-          SingleStyledText('tdtools tutorial')
----------------------------------- page 17 ----------------------------------
+        Field('Tdtools tutorial')
+          SingleStyledText('Tdtools tutorial')
+---------------------------------- page 19 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
@@ -2690,6 +3089,175 @@
       Field('7', style='number')
            > (0,0,2,0,3) body matter chapter number
         SingleStyledText('7')
+  Paragraph('Hyfor tutorial', style='body matter chapter title')
+       > (0,0,1,0,2) body matter chapter title
+         (0,0,0,0,2) body
+    Field('Hyfor tutorial')
+      SingleStyledText('Hyfor tutorial')
+  Paragraph('Chapter 7', style='body matter chapter label')
+       > (0,0,1,0,2) body matter chapter label
+         (0,0,0,0,2) body
+    MixedStyledText('Chapter 7')
+      MixedStyledText('Chapter ')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+      Field('7', style='number')
+           > (0,0,2,0,3) body matter chapter number
+        SingleStyledText('7')
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+        StaticGroupedFlowables(id='%hyfor_tutorial')   None:None <start_of_file>
+          Section(id='%hyfor_tutorial#hyfor-tutorial')   /home/andrey/projects/richmol/doc/source/hyfor_tutorial.rst:2 <section>
+               > (0,0,0,1,2) chapter
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('		19')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('		19')
+        Tab('	')
+        Tab('	')
+        Field('19')
+          SingleStyledText('19')
+---------------------------------- page 20 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+#### UpExpandingContainer('header')
+  StaticGroupedFlowables()
+    Header('Richmol, Release 0.0.1')
+         > (0,0,0,0,2) header
+           (0,0,0,0,1) body
+      MixedStyledText('Richmol, Release 0.0.1')
+        Field('Richmol')
+          SingleStyledText('Richmol')
+        SingleStyledText(', ')
+        Field('Release 0.0.1')
+          SingleStyledText('Release 0.0.1')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('20		Chapter 7.  Hyfor tutorial')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('20		Chapter 7.  Hyfor tutorial')
+        Field('20')
+          SingleStyledText('20')
+        Tab('	')
+        Tab('	')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+        Field('7')
+          SingleStyledText('8')
+        SingleStyledText('.  ')
+        Field('Hyfor tutorial')
+          SingleStyledText('Richmol molecular database')
+---------------------------------- page 21 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### FlowablesContainer('chapter title')
+  Paragraph('Chapter 8', style='body matter chapter label')
+       > (0,0,1,0,2) body matter chapter label
+         (0,0,0,0,2) body
+    MixedStyledText('Chapter 8')
+      MixedStyledText('Chapter ')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+      Field('8', style='number')
+           > (0,0,2,0,3) body matter chapter number
+        SingleStyledText('8')
+  Paragraph('Richmol molecular database', style='body matter chapter title')
+       > (0,0,1,0,2) body matter chapter title
+         (0,0,0,0,2) body
+    Field('Richmol molecular database')
+      SingleStyledText('Richmol molecular database')
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+        StaticGroupedFlowables(id='%richmol_database')   None:None <start_of_file>
+          Section(id='%richmol_database#richmol-molecular-database')   /home/andrey/projects/richmol/doc/source/richmol_database.rst:2 <section>
+               > (0,0,0,1,2) chapter
+            Paragraph('The database contains precompute...')   /home/andrey/projects/richmol/doc/source/richmol_database.rst:3 <paragraph>
+                 > (0,0,0,0,2) body
+              MixedStyledText('The database contains precompute...')
+                SingleStyledText('The database contains precompute...')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('		21')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('		21')
+        Tab('	')
+        Tab('	')
+        Field('21')
+          SingleStyledText('21')
+---------------------------------- page 22 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### ChainedContainer('column1')
+  (continued) StaticGroupedFlowables()
+    (continued) DocumentTree()
+      (continued) StaticGroupedFlowables()   /home/andrey/projects/richmol/doc/source/index.rst:0 <compound>
+#### UpExpandingContainer('header')
+  StaticGroupedFlowables()
+    Header('Richmol, Release 0.0.1')
+         > (0,0,0,0,2) header
+           (0,0,0,0,1) body
+      MixedStyledText('Richmol, Release 0.0.1')
+        Field('Richmol')
+          SingleStyledText('Richmol')
+        SingleStyledText(', ')
+        Field('Release 0.0.1')
+          SingleStyledText('Release 0.0.1')
+#### DownExpandingContainer('footer')
+  StaticGroupedFlowables()
+    Footer('22		Chapter 8.  Richmol molecula...')
+         > (0,0,0,0,2) footer
+           (0,0,0,0,1) body
+      MixedStyledText('22		Chapter 8.  Richmol molecula...')
+        Field('22')
+          SingleStyledText('22')
+        Tab('	')
+        Tab('	')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+        Field('8')
+          SingleStyledText('8')
+        SingleStyledText('.  ')
+        Field('Richmol molecular database')
+          SingleStyledText('Richmol molecular database')
+---------------------------------- page 23 ----------------------------------
+#### FootnoteContainer('footnotes')
+  StaticGroupedFlowables()
+#### DownExpandingContainer('floats')
+  StaticGroupedFlowables()
+#### FlowablesContainer('chapter title')
+  Paragraph('Chapter 9', style='body matter chapter label')
+       > (0,0,1,0,2) body matter chapter label
+         (0,0,0,0,2) body
+    MixedStyledText('Chapter 9')
+      MixedStyledText('Chapter ')
+        StringField('Chapter')
+          SingleStyledText('Chapter')
+        SingleStyledText(' ')
+      Field('9', style='number')
+           > (0,0,2,0,3) body matter chapter number
+        SingleStyledText('9')
   Paragraph('Richmol for education', style='body matter chapter title')
        > (0,0,1,0,2) body matter chapter title
          (0,0,0,0,2) body
@@ -2706,7 +3274,13 @@
                  > (0,0,0,0,2) body
               MixedStyledText('Here we provide a suite of compu...')
                 SingleStyledText('Here we provide a suite of compu...')
-      Paragraph('Here you can also see the PDF ve...')   /home/andrey/projects/richmol/doc/source/index.rst:28 <paragraph>
+            Paragraph('… Add excercises from Modern Mol...')   /home/andrey/projects/richmol/doc/source/education.rst:9 <paragraph>
+                 > (0,0,0,0,2) body
+              MixedStyledText('… Add excercises from Modern Mol...')
+                MixedStyledText('… Add excercises from Modern Mol...', style='title reference')   None:None <title_reference>
+                     > (0,0,1,0,1) title reference
+                  SingleStyledText('… Add excercises from Modern Mol...')
+      Paragraph('Here you can also see the PDF ve...')   /home/andrey/projects/richmol/doc/source/index.rst:30 <paragraph>
            > (0,0,0,0,2) body
         MixedStyledText('Here you can also see the PDF ve...')
           SingleStyledText('Here you can also see the ')
@@ -2719,15 +3293,15 @@
           SingleStyledText(' of this manual.')
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('		17')
+    Footer('		23')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('		17')
+      MixedStyledText('		23')
         Tab('	')
         Tab('	')
-        Field('17')
-          SingleStyledText('17')
----------------------------------- page 19 ----------------------------------
+        Field('23')
+          SingleStyledText('23')
+---------------------------------- page 25 ----------------------------------
 #### FootnoteContainer('footnotes')
   StaticGroupedFlowables()
 #### DownExpandingContainer('floats')
@@ -2740,11 +3314,11 @@
     StaticGroupedFlowables()
 #### DownExpandingContainer('footer')
   StaticGroupedFlowables()
-    Footer('		19')
+    Footer('		25')
          > (0,0,0,0,2) footer
            (0,0,0,0,1) body
-      MixedStyledText('		19')
+      MixedStyledText('		25')
         Tab('	')
         Tab('	')
-        Field('19')
-          SingleStyledText('19')
+        Field('25')
+          SingleStyledText('25')
