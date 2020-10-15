@@ -1,4 +1,4 @@
-from richmol.watie import RigidMolecule, SymtopBasis, vellgt, Jxx, Jyy, Jzz, settings, CartTensor
+from richmol.watie import RigidMolecule, SymtopBasis, JJ, settings, CartTensor
 import numpy as np
 import sys
 
@@ -19,24 +19,19 @@ ocs.tensor = ("polarizability", [[25.5778097,0,0], \
                                  [0,25.5778097,0], \
                                  [0,0,52.4651140]])
 
-ocs.frame = "pas"
+#ocs.frame = "pas"
 
 Bx, By, Bz = ocs.B
-print(Bx, By, Bz)
+print("rotational constants:", Bx, By, Bz)
 
 # compute rotational energies for J = 0..30
 
 Jmax = 30
 
-settings.assign_nprim = 2 # number of primitive functions used for state assignment
-settings.assign_ndig_c2 = 6 # number of digits printed for the assignment coefficient
-
 wavefunc = {}
 for J in range(Jmax+1):
     bas = SymtopBasis(J, linear=True)
-    Jy2 = Jyy(bas)
-    Jz2 = Jzz(bas)
-    H = By * Jy2 + Bz * Jz2
+    H = Bx * JJ(bas) # linear molecule Hamiltonian
     hmat = bas.overlap(H)
     enr, vec = np.linalg.eigh(hmat.real)
     wavefunc[J] = bas.rotate(krot=(vec.T, enr))
