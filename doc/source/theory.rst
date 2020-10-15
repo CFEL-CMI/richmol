@@ -13,31 +13,38 @@ are computed by the module ``watie``.
 
 Principal axes system
 ---------------------
-The molecular rotational Hamiltonian can be set up from the molecular rotational constants
+The molecular rotational Hamiltonian can be set up using molecular rotational constants
 :math:`B_x, B_y, B_z` as
 
 .. math::
 
-        \hat{H} = B_x\hat{J}_x^2 + B_y\hat{J}_y^2 + B_z\hat{J}_z^2.
+        \hat{H} = B_x\hat{J}_x^2 + B_y\hat{J}_y^2 + B_z\hat{J}_z^2
 
-The rotational constants can be computed form the equilibrium geometry of the molecule, i.e.,
+for non-linear molecules, and as
+
+.. math::
+
+        \hat{H} = B\hat{J}^2
+
+for linear (:math:`B=B_x=B_y,~B_z=\infty`) and spherical-top (:math:`B=B_x=B_y=B_z`) molecules.
+The rotational constants can be computed form the equilibrium geometry of a molecule, i.e.,
 Cartesian coordinates of atoms, or, when available, taken from experimental measurements.
-This form of Hamiltonian assumes that the molecule-fixed frame is oriented within molecule such that
-the axes :math:`x,y,z` coincide with the moments of inertia :math:`I_x, I_y, I_z`.
+This form of Hamiltonian assumes that the molecule-fixed frame is oriented within a molecule such that
+the :math:`x,y,z` axes coincide with the principal axes of inertia :math:`I_x, I_y, I_z`.
 Put differently, the molecular inertia tensor is diagonal, i.e.,
 :math:`I_{\alpha\beta}=I_\alpha\delta_{\alpha\beta}~(\alpha,\beta=x,y,z)`.
 Such coordinate system is called the Principal Axes System (PAS).
 
-In order to change the molecular coordinate system to PAS, one computes and diagonalizes
+In order to change molecular coordinate system to PAS, we need to compute and diagonalize
 the moment of inertia tensor :math:`\mathbf I`, i.e.,
 
 .. math::
 
-        \mathbf{I} = \mathbf{V} \mathbf{I}^{\rm diag} \mathbf{V}^{-1},
+        \mathbf{I} = \mathbf{V} \mathbf{I}^{\rm diag} \mathbf{V}^{-1}.
 
-and rotates with the eigenvector matrix :math:`\mathbf{V}^{-1}`
-all Cartesian vectors, which include Cartesian coordinates of atoms
-:math:`\mathbf{r}_{\rm atom}` and all molecular Cartesian tensors, such  as, for example,
+Afterwards, rotate with the eigenvector matrix :math:`\mathbf{V}^{-1}`
+the Cartesian coordinates of atoms
+:math:`\mathbf{r}_{\rm atom}` as well as all molecular multipole moment tensors, such  as, for example,
 dipole moment :math:`\boldsymbol{\mu}` or polarizability :math:`\boldsymbol{\alpha}`, i.e.,
 
 .. math::
@@ -52,30 +59,21 @@ The rotational constants are computed as
 
         B_\alpha = \frac{\hbar^2}{2hc I_\alpha^{\rm diag}}~~(\alpha=x,y,z).
 
-
-.. note::
-
-        The `rotation` of all Cartesian quantities in ``watie`` module is done automatically
-        following the user's choice of molecular frame, which is done by setting
-        :func:`watie.RigidMolecule.frame` to "pas", for example.
-        There is no need to do the above rotations of Cartesian coordinates and tensors manually
-        (in place).
-
 Quantization axis
 -----------------
-The eigenvalues of inertia tensor after diagonalization are sorted such that
+The eigenvalues of the inertia tensor after diagonalization are sorted such that
 :math:`I_x^{\rm diag}\leq I_y^{\rm diag} \leq I_z^{\rm diag}`, accordingly
 :math:`B_x\geq B_y\geq B_z`.
-In spectroscopic literature rotational constants sorted in descending order are labelled
+In spectroscopic literature, rotational constants sorted in the descending order are labelled
 as :math:`A\geq B\geq C` and the corresponding PAS axes as :math:`a,b,c`.
 
-One is free to permute the :math:`x,y,z` axes without any effect on the final results,
+One is free to permute the :math:`x,y,z` axes without any effect on final results,
 such as energies, wave functions, or time-evolution dynamics in fields.
 However, a particular choice of the axes can change complexity of the rotational wave
 functions and as a result their spectroscopic assignments.
 Sometimes it is beneficial to choose certain PAS axis as the :math:`z` axis in order to simplify
-calculations of observables, such as, for example, expectation values of :math:`\cos^2\theta`
-(where :math:`\theta` is the Euler angle between the laboratory :math:`Z` and molecular :math:`z`
+calculations of the observables, such as, for example, expectation values of :math:`\cos^2\theta`
+(where :math:`\theta` is the Euler angle between laboratory :math:`Z` and molecular :math:`z`
 axes).
 
 .. note::
@@ -98,8 +96,8 @@ inertia :math:`a` axis.
 For `oblate symmetric top` molecules the :math:`z` axis must be aligned along the largest inertia
 :math:`c` axis.
 
-The solutions of `spherical top` and `symmetric top` problems are symmetric-top functions
-:math:`|J,k,m\rangle`. For more general problem of rotation of `asymmetric top` molecules
+The solutions of the `spherical top` and `symmetric top` problems are symmetric-top functions
+:math:`|J,k,m\rangle`. For a more general problem of rotation of `asymmetric top` molecules
 (molecules with all three rotational constants different :math:`A>B>C`) the wave function
 is build as a linear combination of symmetric-top functions, so the choice of the :math:`x,y,z`
 axes in an `asymmetric top` molecule will affect the linear combination coefficients,
@@ -117,15 +115,15 @@ symmetric top` and :math:`+1` for an `oblate symmetric top`.
         permute the :math:`x,y,z` axes such that :math:`B_z` becomes the largest
         rotational constant, and when :math:`\kappa\simeq +1`, permute
         the :math:`x,y,z` such that :math:`B_z` becomes the smallest rotational
-        constant. The Hamiltonian is
+        constant.
+        The expression for the Hamiltonian is then identical for all cases, i.e.,
         :math:`\hat{H} = B_x\hat{J}_x^2 + B_y\hat{J}_y^2 + B_z\hat{J}_z^2`.
-        In ``watie`` the axes permutations can be set by a user using the molecular frame function
-        :func:`watie.RigidMolecule.frame()`.
 
 Other choices of axes
 ---------------------
 Another popular choice of the molecular axes is along the principal moments of molecular
-polarizability tensor. In general, one follows the same procedure as for the PAS, with the molecular
+polarizability tensor. In general, in order to change the coordinate system,
+one follows the same procedure as for the PAS, with the molecular
 polarizability tensor put in place of the moment of inertia tensor.
 The rotational Hamiltonian is then constructed as
 
@@ -134,6 +132,41 @@ The rotational Hamiltonian is then constructed as
         \hat{H} = \frac{1}{2}\sum_{\alpha,\beta=x,y,z}G_{\alpha,\beta}\hat{J}_\alpha\hat{J}_\beta,
 
 where :math:`G_{\alpha,\beta}` is the rotational kinetic energy matrix.
+
+Typical computational protocol using ``watie`` module
+-----------------------------------------------------
+
+* Input molecular parameters
+
+  * Cartesian coordinates of atoms for the equilibrium configuration, using :func:`RigidMolecule.XYZ`,
+    together with the values of dipole moment vector, polarizability tensor, etc., using
+    :func:`RigidMolecule.tensor`.
+    These can be computed `ab initio` or taken (inferred) from spectroscopic experiment.
+
+  * Experimental values of rotational constants, if available.
+
+* Choose coordinate system, using :func:`RigidMolecule.frame`, as PAS, principal polarizability
+  frame, etc. If necessary, permute :math:`x,y,z` axes, using :func:`RigidMolecule.frame`.
+
+* For selected values of quantum number of the total angular momentum :math:`J`:
+
+  * Set up basis of symmetric-top functions, using :func:`SymtopBasis`.
+
+    * If necessary, symmetrize basis functions for a selected point-symmetry or rotation symmetry group
+      :math:`D_2`, using :func:`symmetrize`.
+
+  * Set up rotational Hamiltonian using rotational constants (in case of PAS) or kinetic :math:`G` matrix (in
+    case of other frame choices). For this, use :func:`JJ` (:math:`\hat{J}^2`), :func:`Jxx`
+    (:math:`\hat{J}_x^2`), :func:`Jxy` (:math:`\hat{J}_{x}\hat{J}_{y}`), ..., :func:`Jzz` (:math:`\hat{J}_z^2`)
+    operators. The kinetic matrix :math:`G` is computed by :func:`RigidMolecule.gmat`.
+
+  * Compute matrix elements of Hamiltonian in the basis of symmetric-top functions, using
+    :func:`SymtopBasis.overlap`
+
+  * Compute eigenvalues and eigenvectors of Hamiltonian using, e.g., :func:`numpy.linalg.eigh`.
+
+  * If necessary, transform the initial basis of symmetric-top functions to the eigenfunction representation
+    of rotational Hamiltonian, using :func:`SymtopBasis.rotate`.
 
 
 Molecule-field interaction
