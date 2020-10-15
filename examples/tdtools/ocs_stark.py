@@ -31,11 +31,13 @@ def hmatrix(ham, psi):
 if __name__ == "__main__":
 
     # read basis states
-    fname_enr = '../../database/OCS/old_watie/ocs_energies_j0_j30.rchm'
+    # fname_enr = '../../database/OCS/old_watie/ocs_energies_j0_j30.rchm'
+    fname_enr = '../../database/OCS/OCS_energies_j0_j30.rchm'
     psi = Psi(fname_enr, fmin=0, fmax=30, mmin=-30, mmax=30, dm=1, df=1)
 
     # read tensor matrix elements (e.g., dipole moment)
-    dipole_me = '../../database/OCS/old_watie/ocs_matelem_mu_j<j1>_j<j2>.rchm'
+    # dipole_me = '../../database/OCS/old_watie/ocs_matelem_mu_j<j1>_j<j2>.rchm'
+    dipole_me = '../../database/OCS/OCS_mu_j<j1>_j<j2>.rchm'
     tensor = Etensor(dipole_me, psi)
 
     # static dc field along Z axis in units of V/m
