@@ -19,8 +19,8 @@ sys.setrecursionlimit(1500)
 # -- Project information -----------------------------------------------------
 
 project = 'Richmol'
-copyright = '2020, Andrey Yachmenev and CMI group, https://www.controlled-molecule-imaging.org'
-author = 'Andrey Yachmenev and CMI'
+copyright = '2020, RichMol developers, https://www.controlled-molecule-imaging.org'
+author = 'RichMol developers'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
