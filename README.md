@@ -18,8 +18,8 @@ Installation
 
         cd richmol
 	./configure
-        python3 setup.py build
-        python3 setup.py install --user
+	python3 setup.py build
+	python3 setup.py install --user
 
 Tutorials
 ---------
