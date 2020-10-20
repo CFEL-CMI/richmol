@@ -5,6 +5,12 @@
 Python-based Simulations of Rovibrational Molecular Dynamics
 ============================================================
 
+* [Stable release 0.1.0](https://github.com/CFEL-CMI/richmol/releases/tag/v0.1.0)
+* [Changelog](../master/CHANGELOG)
+* [Documentation](http://www.richmol.org/richmol)
+* [Installation](#installation)
+* [Features](../master/FEATURES)
+
 Installation
 ------------
 * Prerequisites
