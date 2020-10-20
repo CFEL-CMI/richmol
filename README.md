@@ -2,24 +2,26 @@
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/richmol_logo.png" height="200px"/>
 </div>
 
-Python-based Simulations of Rovibrational Molecular Dnamics
-===========================================================
+Python-based Simulations of Rovibrational Molecular Dynamics
+============================================================
 
 Installation
 ------------
 * Prerequisites
     - Python 3.6 or higher
-    - Numpy x.x.x or higher
-    - Scipy x.xx or higher
-    - h5py x.x.x or higher
-    - gfortran xx or higher (alternatively Intel Fortran xxx or higher)
+    - Numpy 1.17.3 or higher
+    - Scipy 1.3.1 or higher
+    - h5py 2.10.0 or higher
+    - hypothesis 5.20.2 or higher
+    - mendeleev 0.6.0 or higher
+    - gfortran/gcc 7.5.0 or higher (alternatively use Intel Fortran Compiler)
 
 * Compile core module
 
-        cd richmol
-	./configure
-	python3 setup.py build
-	python3 setup.py install --user
+       cd richmol
+       configure
+       python3 setup.py build
+       python3 setup.py install --user
 
 Tutorials
 ---------
