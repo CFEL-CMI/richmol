@@ -38,14 +38,14 @@ if __name__ == "__main__":
     # read tensor matrix elements (e.g., dipole moment)
     # dipole_me = '../../database/OCS/old_watie/ocs_matelem_mu_j<j1>_j<j2>.rchm'
     dipole_me = '../../database/OCS/OCS_mu_j<j1>_j<j2>.rchm'
-    tensor = Etensor(dipole_me, psi)
+    dipole = Etensor(dipole_me, psi)
 
     # static dc field along Z axis in units of V/m
     field = [0,0, 1e4 * 100] # [x,y,z] field components
 
     # dipole interaction Hamiltonian
     # note that field must be in units V/m
-    H = -1.0 * tensor * field
+    H = -1.0 * dipole * field
 
     # compute and diagonalize Hamiltonian using the above function
     hmat = hmatrix(H, psi)
@@ -58,3 +58,6 @@ if __name__ == "__main__":
     # print and compare energies
     for e,e2 in zip(diag,diag2):
         print(e,abs(e-e2))
+
+    # compute matrix elements of dipole in the field-free basis
+    dipole_me = [dipole.matrix(psi, ix=ix) for ix in range(dipole.ncart)]

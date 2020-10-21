@@ -681,29 +681,52 @@ class Etensor():
         return psi_new
 
 
-    def matrix(self, psi, plus_diag=False):
-        """Returns matrix representation of tensor operator in field-free basis 'psi',
-        adds a field-free diagonal part when required.
+    def matrix(self, psi, ix=1, plus_diag=True):
+        """Returns matrix representation of tensor operator or Hamiltonian (i.e. tensor times field)
+        in the field-free basis 'psi'. For matrix elements of Hamiltonian, adds a field-free diagonal
+        part when required.
 
         Args:
             psi (Psi()): Field-free basis set.
+            ix (int): Tensor's Cartesian component index for which the matrix elements are computed.
             plus_diag (bool): if True, the field free energies will be added to the diagonal
-                of tensor matrix
+                of Hamiltonian matrix.
 
         Returns:
-            Matrix representation of tensor in field-free basis as numpy array.
+            Matrix representation of tensor or Hamiltonian in the field-free basis as numpy array.
         """
-        prefac = self.prefac
         flist = psi.flist
         mat = {(f1,f2) : np.zeros( (len(psi.quanta[f1]), len(psi.quanta[f2])), dtype=np.complex128 ) \
                 for f1 in flist for f2 in flist}
-        for fkey in list(set(self.MF.keys()) & set(self.K.keys())):
-            for mm,kk in zip(self.MF[fkey],self.K[fkey]):
-                mat[fkey] += kron(mm, kk).todense() * prefac
 
-        if plus_diag==True:
-            for f in flist:
-                mat[(f,f)] += np.diag(psi.energy[f])
+        try:
+            # will return Hamiltonian matrix
+
+            Mtens = self.MF
+
+            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                    mat[fkey] += kron(mm, kk).todense() * self.prefac
+
+            if plus_diag==True:
+                for f in flist:
+                    mat[(f,f)] += np.diag(psi.energy[f])
+
+        except AttributeError:
+            # will return matrix elements of ix Cartesian component of tensor
+
+            try:
+                x = self.mcart[ix]
+            except IndexError:
+                raise IndexError(f"Cartesian component index '{ix}' is out of range for tensor '{self.name}' " \
+                        + f"\nlist of components with indices for tensor '{self.name}': " \
+                        + f"{[val for val in enumerate(self.mcart)]} ") from None
+
+            Mtens = self.M
+
+            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                    mat[fkey] += kron(mm[ix,:,:], kk).todense()
 
         return np.block([[mat[(f1,f2)] for f2 in flist] for f1 in flist])
 
