@@ -31,6 +31,6 @@ setup(
     package_data        = {"richmol":["symtoplib/symtoplib*","symtoplib/wigxjpf-1.5/lib/libwigxjpf_shared*"]},
     scripts             = [],
     install_requires    = ["hypothesis", "mendeleev"],
-    long_description    = read("README"),
+    long_description    = read("README.md"),
 )
 
