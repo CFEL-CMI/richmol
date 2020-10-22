@@ -197,14 +197,17 @@ where the rotational wavefunction is expressed as
 where :math:`J` is the total angular momentum quantum number, :math:`M` is the projection of the total angular momentum onto laboratory-fixed :math:`Z`-axis
 :math:`K` is the absolute value of the projection of the total angular momentum onto molecule-fixed :math:`z`-axis and :math:`\tau` is the basis function parity. The vibrational basis functions
 are solutions to field-free Schrodinger equation at :math:`J=0` and are generally denoted as :math:`|v\rangle`.
-Here :math:`|J,K,M,\tau\rangle` is the symmetric-top basis function in the parity-operator representation, which is unitarily related to bare symmetric-top function by the relation
+Here :math:`|J,K,M,\tau\rangle` is the symmetric-top basis function in the parity-operator representation, which is related by a unitary transformation to bare symmetric-top functions as follows
 
 
 .. math::
 
     |J,K,M,\tau\rangle=d_{K, \tau}|J,K,M\rangle + d_{-K, \tau}|J,-K,M\rangle
 
-with coefficients :math:`d_{K, \tau} = \frac{1}{\sqrt{2}}` and :math:`d_{-K, \tau} = \frac{(-1)^{\tau}}{\sqrt{2}}`, such that the rotational parity is given by :math:`(-1)^{\tau}`.
+with coefficients :math:`d_{K, \tau} = \frac{1}{\sqrt{2}}` and :math:`d_{-K, \tau} = \frac{(-1)^{\tau}}{\sqrt{2}}`, such that the rotational parity is given by :math:`(-1)^{\tau}`. The bare symmetric-top functions
+are defined as :math:`|J,K,M\rangle = \left(\frac{2J+1}{8\pi^2}\right)^{\frac{1}{2}}D^{(J)*}_{MK}(\phi,\theta,\chi)`, where :math:`\phi,\theta,\chi` are three Euler angles given ZYZ' convention relating the molecule-fixed frame
+with laboratory-fixed frame.
+
 
 In general we shall denote laboratory-frame cartesian tensor of rank :math:`\Omega` with :math:`T^{(\Omega,LF)}_A`, where :math:`A=(i_1,i_2,...,i_{\Omega})` is the tensor's covariant multi-index,
 such that, for example, the laboratory-frame electronic polarisability is tensor of rank-2: :math:`\alpha_{ij} \equiv T^{(\Omega=2,LF)}_{i_1,i_2}`. Then the matrix elements of the interaction Hamiltonian can be written as
@@ -317,9 +320,10 @@ In elements :math:`\langle v | T^{(\Omega,MF)}_{A'} | v' \rangle_Q` the integrat
 The molecule-fixed cartesian elements of molecule-field interaction tensors :math:`T^{(\Omega,MF)}_{A'}` are functions of internal coordinates and are routinely evaluated by fitting a predefined functional form
 to a set of point-calculations at various geometries of the system.
 
+.. note::
 
-The elements of the :math:`\textit{K-tensor}` carry information about the molecule-fixed properties of the rotational-vibrational wavefunctions involved in the transition, whereas
-the :math:`\textit{M-tensor}` refers to laboratory-fixed properties.
+  The elements of the :math:`\textit{K-tensor}` carry information about the molecule-fixed properties of the rotational-vibrational wavefunctions involved in the transition, whereas
+  the :math:`\textit{M-tensor}` refers to laboratory-fixed properties. Both tensors are stored in richmol-format files <molecule_name>_<tensor_name>_j<J>_j<J'>.rchm.
 
 Time-dependent Schrödinger equation
 ===================================
