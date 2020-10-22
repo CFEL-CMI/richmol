@@ -192,11 +192,19 @@ where the rotational wavefunction is expressed as
 
 .. math::
 
-    |\Psi_{J,M,h} \rangle = \sum_{\tau = 0,1} \sum_{K= \tau }^J c_{J,K,\tau } |J,K,M,\tau \rangle
+    |\Psi_{J,M,h} \rangle = \sum_{v}\sum_{\tau = 0,1} \sum_{K= \tau }^J c^{(Jh)}_{vK\tau} |v\rangle |J,K,M,\tau \rangle
 
 where :math:`J` is the total angular momentum quantum number, :math:`M` is the projection of the total angular momentum onto laboratory-fixed :math:`Z`-axis
-:math:`K` is the absolute value of the projection of the total angular momentum onto molecule-fixed :math:`z`-axis and :math:`\tau` is the basis function parity.
-Here :math:`|J,K,M,\tau\rangle` is the symmetric-top basis function.
+:math:`K` is the absolute value of the projection of the total angular momentum onto molecule-fixed :math:`z`-axis and :math:`\tau` is the basis function parity. The vibrational basis functions
+are solutions to field-free Schrodinger equation at :math:`J=0` and are generally denoted as :math:`|v\rangle`.
+Here :math:`|J,K,M,\tau\rangle` is the symmetric-top basis function in the parity-operator representation, which is unitarily related to bare symmetric-top function by the relation
+
+
+.. math::
+
+    |J,K,M,\tau\rangle=d_{K, \tau}|J,K,M\rangle + d_{-K, \tau}|J,-K,M\rangle
+
+with coefficients :math:`d_{K, \tau} = \frac{1}{\sqrt{2}}` and :math:`d_{-K, \tau} = \frac{(-1)^{\tau}}{\sqrt{2}}`, such that the rotational parity is given by :math:`(-1)^{\tau}`.
 
 In general we shall denote laboratory-frame cartesian tensor of rank :math:`\Omega` with :math:`T^{(\Omega,LF)}_A`, where :math:`A=(i_1,i_2,...,i_{\Omega})` is the tensor's covariant multi-index,
 such that, for example, the laboratory-frame electronic polarisability is tensor of rank-2: :math:`\alpha_{ij} \equiv T^{(\Omega=2,LF)}_{i_1,i_2}`. Then the matrix elements of the interaction Hamiltonian can be written as
@@ -231,7 +239,18 @@ The cartesian-to-spherical transformation matrix :math:`\mathbf{U}^{(\Omega)\dag
       \mathbf{U}^{(\Omega)}_{\omega \sigma,A}= \sum_{\sigma_1 = -\omega_1} ^{\omega_1}\sum_{\sigma_2 = -\omega_2} ^{\omega_2}   \langle \omega_1 \sigma_1 \omega_2 \sigma_2 | \Omega \sigma \rangle \mathbf{U}^{(\Omega_1)}_{\omega_1\sigma_1,\tilde{A}_1} \mathbf{U}^{(\Omega_2)}_{\omega_2\sigma_2,\tilde{A}_2}
 
 where :math:`\mathbf{U}^{(\Omega_i)}_{\omega_i\sigma_i,\tilde{A}_i}, i=1,2` are lower-rank spherical tensor representation matrices and :math:`\langle \omega_1 \sigma_1 \omega_2 \sigma_2 | \Omega \sigma \rangle` is the Clebsch-Gordan coefficient.
-The combined ranks of composite representations  :math:`\Omega_1+\Omega_2` must equal the rank of the output representation :math:`\Omega`. Also the indices must satisfy the relation :math:`A= \tilde{A}_1 \otimes \tilde{A}_2`
+The combined ranks of composite representations  :math:`\Omega_1+\Omega_2` must equal the rank of the output representation :math:`\Omega`. Also the indices must satisfy the relation :math:`A= \tilde{A}_1 \bigcup \tilde{A}_2`.
+It is therefore sufficient only to know the lowest rank (rank-1) cartesian-to-spherical transformation matrix, which is given as
+
+
+.. math::
+
+      \mathbf{U}^{(1)} = \begin{bmatrix}
+                \frac{1}{\sqrt{2}} &-\frac{i}{\sqrt{2}}  & 0 \\
+                0 & 0  & 1 \\
+                -\frac{1}{\sqrt{2}} &-\frac{i}{\sqrt{2}}  & 0 \\
+            \end{bmatrix}
+
 
 
 Spherical tensor representation carries a number of advantages. First and foremost, the spherical-tensor objects have identical transformation properties to symmetric-top basis functions.
@@ -259,41 +278,48 @@ such that the laboratory-fixed and molecule-fixed cartesian tensor operators are
       T^{(\Omega,LF)}_A = \sum_{A'} W_{AA'}^{(\Omega)} T^{(\Omega,MF)}_{A'}
 
 where :math:`W_{AA'}^{(\Omega)} =  \sum_{\omega=0}^{\Omega} \sum_{\sigma = -\omega}^{\omega}  \sum_{\sigma' = -\omega}^{\omega} \mathbf{U}^{(\Omega)\dagger}_{\omega \sigma,A} D^{(\omega)*}_{\sigma \sigma'} \mathbf{U}^{(\Omega)}_{\omega \sigma',A'}`.
+The purpose of transforming the laboratory-fixed frame cartesian tensors to the molecule-fixed frame is two-fold: 1) the experimentally available data on electronic polarisabilities, dipole moments etc. is given in the molecular frame; 2) the rotational wavefunctions
+is a function of Euler angles which link laboratory and molecular frames - so that the integration over the Euler angles must invovle a molecule-fixed operator.
 
 
-The laboratory-fixed cartesian dipole moment and polarisability tensors  :math:`\mu_{i}` and :math:`\alpha_{ij}`, :math:`i,j=X,Y,Z`  are transformed into their spherical tensor forms as follows
+The cartesian tensor matrix elements can be now calculated
 
 .. math::
 
-       \boldsymbol{\alpha}^{(2)}_q = \sum_{A,B=X,Y,Z} \mathbf{U}^{(2)}_{q,AB} \boldsymbol{\alpha}_{AB}\\
-       \boldsymbol{\mu}^{(1)}_q = \sum_{A=X,Y,Z} \mathbf{U}^{(1)}_{q,A} \boldsymbol{\mu}_{A}
+    \langle \Psi_{J,M,h}| T^{(\Omega,LF)}_A|\Psi_{J',M',h'}\rangle =  \sum_{A'} \langle \Psi_{J,M,h}| W_{AA'}^{(\Omega)} T^{(\Omega,MF)}_{A'}|\Psi_{J',M',h'}\rangle =  \sum_{\omega=0}^{\Omega} M^{(JMJ'M')}_{\omega A} K^{(JhJ'h')}_{\omega}
+
+where the :math:`\textit{M-tensor}` is defined as
+
+.. math::
+
+    M^{(JMJ'M')}_{\omega A} = \sqrt{(2J+1)(2J'+1)}(-1)^M \sum_{\sigma=-\omega}^{\omega} \mathbf{U}^{(\Omega)\dagger}_{\omega \sigma,A} \begin{pmatrix}
+              J' & \omega  & J \\
+              M' & \sigma  & -M
+          \end{pmatrix}
+
+where :math:`\begin{pmatrix} J' & \omega  & J \\ M' & \sigma  & -M \end{pmatrix}` is the 3-j symbol. The :math:`\textit{K-tensor}` is defined as
+
+.. math::
+
+ K^{(JhJ'h')}_{\omega} =\sum_{v K \tau} \sum_{v' K' \tau'} c_{vK\tau}^{(Jh)*}c_{v'K'\tau'}^{(J'h')} \sum_{\sigma'=-\omega}^{\omega} F_{KK'\tau \tau' \omega \sigma'}^{(JJ')} \sum_{A'} \mathbf{U}^{(\Omega)}_{\omega \sigma',A'} \langle v | T^{(\Omega,MF)}_{A'} | v' \rangle_Q
 
 where
 
 .. math::
 
-      \mathbf{U}^{(1)} = \begin{bmatrix}
-                \frac{1}{\sqrt{2}} &-\frac{i}{\sqrt{2}}  & 0 \\
-                0 & 0  & 1 \\
-                -\frac{1}{\sqrt{2}} &-\frac{i}{\sqrt{2}}  & 0 \\
-            \end{bmatrix}
-
-Higher rank irreducible spherical tensor representations can be conveniently constructed from lower rank representations with the following formulas
-
-.. math::
-          \mathbf{T}^{(l)}_q = \sum_{q_1} \langle l_1 q_1 l_2 q_2 | l q \rangle \mathbf{T}^{(l_1)}_{q_1} \mathbf{T}^{(l_2)}_{q_2}
-
-where :math:`l_1+l_2 = l` and :math:`\langle l_1 q_1 l_2 q_2 | l q \rangle` is the Clebsch-Gordan coefficient. The irreducible spherical tensor representation for the rank-2 polarisability tensor
-can be therefore written as
-
-.. math::
-
-      \mathbf{U}^{(2)}_{q,i_1i_2} = \sum_{\sigma_1}  \langle 1 \sigma_1 1 q-\sigma_1 | 2 q \rangle \mathbf{U}^{(1)}_{\sigma_1,i_1} \mathbf{U}^{(1)}_{q-\sigma_1,i_2}
+  F_{KK'\tau \tau' \omega \sigma'}^{(JJ')} = \sum_{s,s'=0}^1 d_{(-1)^sK, \tau}d_{(-1)^{s'}K', \tau'}(-1)^K \begin{pmatrix}
+            J' & \omega  & J \\
+            (-1)^{s'}K' & \sigma'  & (-1)^{s+1}K
+        \end{pmatrix}
 
 
+In elements :math:`\langle v | T^{(\Omega,MF)}_{A'} | v' \rangle_Q` the integration is carried over all :math:`D` internal coordinates of the system, denoted with :math:`Q = (Q_1,Q_2,...,Q_D)`.
+The molecule-fixed cartesian elements of molecule-field interaction tensors :math:`T^{(\Omega,MF)}_{A'}` are functions of internal coordinates and are routinely evaluated by fitting a predefined functional form
+to a set of point-calculations at various geometries of the system.
 
-    The laboratory-fixed dipole moment :math:`\boldsymbol{\mu}` and :math:`\boldsymbol{\alpha}` must be transformed into the molecular-frame, in order to use the molecule-fixed
-    polarisability and dipole moment tensor elements which are obtained from experiment or can be calculated with electronic structure packages.
+
+The elements of the :math:`\textit{K-tensor}` carry information about the molecule-fixed properties of the rotational-vibrational wavefunctions involved in the transition, whereas
+the :math:`\textit{M-tensor}` refers to laboratory-fixed properties.
 
 Time-dependent Schrödinger equation
 ===================================
