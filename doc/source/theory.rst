@@ -173,26 +173,94 @@ Typical computational protocol using ``watie`` module
 
 Molecule-field interaction
 ==========================
-The molecule-field interaction is represented in the dipole approximation as
+Watie carries an option to calculate and store matrix elements of cartesian tensors in the laboratory-frame, which can be used in solving the time-dependent Schrodinger equation.
+When one is interested in simulating rigid molecule dynamics in external electric fields, the molecule-field interaction is most commonly written as
 
  .. math::
 
         \hat{H}_{int} = -\boldsymbol{\mu}\mathbf{E}-\frac{1}{2}\mathbf{E}^T\boldsymbol{\alpha}\mathbf{E}
 
 where :math:`\boldsymbol{\mu}` is the dipole moment operator, :math:`\boldsymbol{\alpha}` is the electronic polarisability operator (induced dipole moment) and :math:`\mathbf{E}` is time-dependent electric field vector.
-The laboratory-fixed dipole moment :math:`\boldsymbol{\mu}` and :math:`\boldsymbol{\alpha}` are transformed into the molecular-frame,
-to make use of the molecule-fixed polarisability and dipole moment tensor elements which are obtained from experiment or can be calculated with electronic structure packages.
-To do so, we first transform all laboratory-fixed Cartesian tensors into appropriate irreducible spherical tensor form.
-A general transformation of the Cartesian tensor :math:`\mathbf{T}^{(cart)}` of rank-l to its irreducible spherical tensor form :math:`\mathbf{T}^{(l)}_q` can be written as
+
+Matrix elements of the interaction Hamiltonian can be written as
 
 .. math::
 
-       \mathbf{T}^{(l)}_q = \sum_{i_1,i_2,...,i_l} \mathbf{U}^{(l)}_{q,i_1,i_2,...,i_l} \mathbf{T}^{(cart)}_{i_1,i_2,...,i_l}
+    \langle \Psi_{J,M,h}| \hat{H}_{int}|\Psi_{J',M',h'}\rangle
 
-where :math:`q=-l,-l+1,...,l-1,l` label the components of the irreducible spherical tensor operator.
+where the rotational wavefunction is expressed as
+
+.. math::
+
+    |\Psi_{J,M,h} \rangle = \sum_{\tau = 0,1} \sum_{K= \tau }^J c_{J,K,\tau } |J,K,M,\tau \rangle
+
+where :math:`J` is the total angular momentum quantum number, :math:`M` is the projection of the total angular momentum onto laboratory-fixed :math:`Z`-axis
+:math:`K` is the absolute value of the projection of the total angular momentum onto molecule-fixed :math:`z`-axis and :math:`\tau` is the basis function parity.
+Here :math:`|J,K,M,\tau\rangle` is the symmetric-top basis function.
+
+In general we shall denote laboratory-frame cartesian tensor of rank :math:`\Omega` with :math:`T^{(\Omega,LF)}_A`, where :math:`A=(i_1,i_2,...,i_{\Omega})` is the tensor's covariant multi-index,
+such that, for example, the laboratory-frame electronic polarisability is tensor of rank-2: :math:`\alpha_{ij} \equiv T^{(\Omega=2,LF)}_{i_1,i_2}`. Then the matrix elements of the interaction Hamiltonian can be written as
+
+.. math::
+
+    \langle \Psi_{J,M,h}| \hat{H}_{int}|\Psi_{J',M',h'}\rangle =  \sum_A \langle \Psi_{J,M,h}| T^{(\Omega,LF)}_A|\Psi_{J',M',h'}\rangle E_A
+
+where :math:`E_A = E_{i_1}\cdot E_{i_2}\cdot ... \cdot E_{i_{\Omega}}` denotes the time-dependent electric field tensor and tensor contraction is carrier out over all indices in the multi-index :math:`A`.
+
+.. note::
+
+  The laboratory-frame matrix elements of cartesian tensors :math:`\langle \Psi_{J,M,h}| T^{(\Omega,LF)}_A|\Psi_{J',M',h'}\rangle` can be calculated with watie's function me().
+
+
+Watie uses a convenient method for calculating the laboratory-frame matrix elements of cartesian tensors :math:`\langle \Psi_{J,M,h}| T^{(\Omega,LF)}_A|\Psi_{J',M',h'}\rangle` utilizing the
+properties of irreducible spherical tensor operators.
+
+In the first step the laboratory-frame cartesian tensor is transformed into the laboratory-frame irreducible spherical tensor form by the following linear transformation:
+
+.. math::
+
+      T^{(\Omega,LF)}_A = \sum_{\omega=0}^{\Omega} \sum_{\sigma = -\omega}^{\omega} \mathbf{U}^{(\Omega)\dagger}_{\omega \sigma,A}   T^{(\Omega,LF)}_{\omega \sigma}
+
+where is a collection of irreducible spherical tensor operators :math:`T^{(\Omega,LF)}_{\omega \sigma}` where :math:`\omega = 0,1,...,\Omega` and :math:`\sigma = -\omega,...,\omega`.
+Note that :math:`\sum_{\omega=0}^{\Omega} \sum_{\sigma = -\omega}^{\omega} = \Omega^2`, such that the number of elements in :math:`T^{(\Omega,LF)}_{\omega \sigma}` and :math:`T^{(\Omega,LF)}_A` is equal.
+The cartesian-to-spherical transformation matrix :math:`\mathbf{U}^{(\Omega)\dagger}_{\omega \sigma,A}` can be directly evaluated with the aid of spherical tensor composition formulas:
+
+
+.. math::
+
+      \mathbf{U}^{(\Omega)}_{\omega \sigma,A}= \sum_{\sigma_1 = -\omega_1} ^{\omega_1}\sum_{\sigma_2 = -\omega_2} ^{\omega_2}   \langle \omega_1 \sigma_1 \omega_2 \sigma_2 | \Omega \sigma \rangle \mathbf{U}^{(\Omega_1)}_{\omega_1\sigma_1,\tilde{A}_1} \mathbf{U}^{(\Omega_2)}_{\omega_2\sigma_2,\tilde{A}_2}
+
+where :math:`\mathbf{U}^{(\Omega_i)}_{\omega_i\sigma_i,\tilde{A}_i}, i=1,2` are lower-rank spherical tensor representation matrices and :math:`\langle \omega_1 \sigma_1 \omega_2 \sigma_2 | \Omega \sigma \rangle` is the Clebsch-Gordan coefficient.
+The combined ranks of composite representations  :math:`\Omega_1+\Omega_2` must equal the rank of the output representation :math:`\Omega`. Also the indices must satisfy the relation :math:`A= \tilde{A}_1 \otimes \tilde{A}_2`
+
+
 Spherical tensor representation carries a number of advantages. First and foremost, the spherical-tensor objects have identical transformation properties to symmetric-top basis functions.
 This leads to particularly elegant formulas for the matrix elements of spherical tensors in the symmetric-top basis. Secondly, the spherical tensor form allows one to directly
-derive selection rules in the symmetric-top basis, as they span identical representation.
+derive selection rules in the symmetric-top basis, as the tensors and the basis functions span identical representation.
+
+The laboratory-fixed fram spherical tensors :math:`T^{(\Omega,LF)}_{\omega \sigma}` are rotated to the molecule-fixed frame with the following transformation:
+
+.. math::
+
+    T^{(\Omega,LF)}_{\omega \sigma} = \sum_{\sigma'=-\omega}^{\omega} D^{(\omega)*}_{\sigma \sigma'} T^{(\Omega,MF)}_{\omega \sigma'}
+
+where :math:`D^{(\omega)*}_{\sigma \sigma'}` are elements of the Wigner-D matrix representation for the total angular momentum :math:`\omega`. In watie the Wigner-D matrices are parametrized with the
+Euler angles :math:`\theta,\phi,\chi` in the ZYZ' convention. Finally, the molecule-fixed spherical tensor form :math:`T^{(\Omega,MF)}_{\omega \sigma'}` can be transformed back to the cartesian form
+by means of the relation
+
+.. math::
+
+      T^{(\Omega,LF)}_{\omega \sigma}  = \sum_{A} \mathbf{U}^{(\Omega)}_{\omega \sigma,A} T^{(\Omega,LF)}_A
+
+such that the laboratory-fixed and molecule-fixed cartesian tensor operators are related by the following linear transformation
+
+.. math::
+
+      T^{(\Omega,LF)}_A = \sum_{A'} W_{AA'}^{(\Omega)} T^{(\Omega,MF)}_{A'}
+
+where :math:`W_{AA'}^{(\Omega)} =  \sum_{\omega=0}^{\Omega} \sum_{\sigma = -\omega}^{\omega}  \sum_{\sigma' = -\omega}^{\omega} \mathbf{U}^{(\Omega)\dagger}_{\omega \sigma,A} D^{(\omega)*}_{\sigma \sigma'} \mathbf{U}^{(\Omega)}_{\omega \sigma',A'}`.
+
+
 The laboratory-fixed cartesian dipole moment and polarisability tensors  :math:`\mu_{i}` and :math:`\alpha_{ij}`, :math:`i,j=X,Y,Z`  are transformed into their spherical tensor forms as follows
 
 .. math::
@@ -215,12 +283,17 @@ Higher rank irreducible spherical tensor representations can be conveniently con
 .. math::
           \mathbf{T}^{(l)}_q = \sum_{q_1} \langle l_1 q_1 l_2 q_2 | l q \rangle \mathbf{T}^{(l_1)}_{q_1} \mathbf{T}^{(l_2)}_{q_2}
 
-where :math:`l_1+l_2 = l` and :math:`\langle l_1 q_1 l_2 q_2 | l q \rangle` is the Clebsh-Gordan coefficient. The irreducible spherical tensor representation for the rank-2 polarisability tensor
+where :math:`l_1+l_2 = l` and :math:`\langle l_1 q_1 l_2 q_2 | l q \rangle` is the Clebsch-Gordan coefficient. The irreducible spherical tensor representation for the rank-2 polarisability tensor
 can be therefore written as
 
 .. math::
 
       \mathbf{U}^{(2)}_{q,i_1i_2} = \sum_{\sigma_1}  \langle 1 \sigma_1 1 q-\sigma_1 | 2 q \rangle \mathbf{U}^{(1)}_{\sigma_1,i_1} \mathbf{U}^{(1)}_{q-\sigma_1,i_2}
+
+
+
+    The laboratory-fixed dipole moment :math:`\boldsymbol{\mu}` and :math:`\boldsymbol{\alpha}` must be transformed into the molecular-frame, in order to use the molecule-fixed
+    polarisability and dipole moment tensor elements which are obtained from experiment or can be calculated with electronic structure packages.
 
 Time-dependent Schrödinger equation
 ===================================
