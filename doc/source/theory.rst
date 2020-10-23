@@ -327,3 +327,31 @@ to a set of point-calculations at various geometries of the system.
 
 Time-dependent Schrödinger equation
 ===================================
+
+
+The rotational-vibrational wavefunction :math:`|\Phi(t)\rangle` is propagated in time using the time-evolution operators
+
+.. math::
+
+  |\Phi(t)\rangle = U(t,t_0)|\Phi(t_0)\rangle
+
+with :math:`U(t_0,t_0)=1`, where split-operator method was used to approximate :math:`U(t,t_0)` as
+
+.. math::
+
+  U(t,t_0) = \exp\left[-i\frac{\Delta t}{2\hbar}\hat{H}_{mol}\right] \exp\left[-i\frac{\Delta t}{\hbar}\hat{H}_{int}\left(\frac{t+t_0}{2}\right)\right] \exp\left[-i\frac{\Delta t}{2\hbar}\hat{H}_{mol}\right] +\mathcal{O}\left((\Delta t)^3\right)
+
+where :math:`\Delta t = t-t_0` is the time-step, which is user-specified and must be sufficiently small for a given molecule-field interaction Hamiltonian. The time-dependent wavefunction is represented in the
+spectral basis of the molecular Hamiltonian :math:`\hat{H}_{mol}`:
+
+.. math::
+
+  |\Phi(t_0)\rangle = \sum_{J=J_{min}}^{J_{max}}\sum_{M=M_{min}}^{M_{max}}\sum_{h} C_{JMh}(t)|\Psi_{J,M,h}\rangle
+
+where :math:`J_{min},J_{max}` and :math:`M_{min},M_{max}` are specified by the user. Evaluation of exponents containing the molecular Hamiltonian is straightforward:
+
+.. math::
+
+  U(t,t_0) = \exp\left[-i\frac{\Delta t}{2\hbar}\hat{H}_{mol}\right] |\Phi(t_0)\rangle  = \sum_{J=J_{min}}^{J_{max}}\sum_{M=M_{min}}^{M_{max}}\sum_{h} C_{JMh}(t_0)\exp\left[-i\frac{\Delta t}{2\hbar}E_{J,h}\right]|\Psi_{J,M,h}\rangle
+
+as for the interaction Hamiltonian part of the split-time-evolution operator a Krylov subspace method is used
