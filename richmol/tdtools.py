@@ -87,6 +87,9 @@ class Psi():
         self.quanta = {}
         self.energy = {}
         self.dim = {}
+        self.f = []
+        self.m = []
+        self.istate = []
         for f in self.flist:
             self.quanta[f] = []
             enr = []
@@ -97,6 +100,9 @@ class Psi():
                     istate = state['istate']
                     self.quanta[f].append([m,istate])
                     enr.append(state['enr'])
+                    self.f.append(f)
+                    self.m.append(m)
+                    self.istate.append(istate)
                 self.energy[f] = np.array(enr, dtype=np.float64)
             self.dim[f] = len(self.quanta[f])
             assert (self.dim[f] == self.dim_m[f] * self.dim_istate[f]), \

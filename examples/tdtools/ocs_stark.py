@@ -1,6 +1,7 @@
 from richmol.tdtools import Psi, Etensor
 import numpy as np
 from scipy import sparse
+import sys
 
 #####################################################
 # Example of building the total Hamiltonian matrix
@@ -49,15 +50,30 @@ if __name__ == "__main__":
 
     # compute and diagonalize Hamiltonian using the above function
     hmat = hmatrix(H, psi)
-    diag, _ = np.linalg.eigh(hmat)
+    diag, vec = np.linalg.eigh(hmat)
 
     # compute and diagonalize Hamiltonian using the in-built method
     hmat2 = H.matrix(psi, plus_diag=True)
-    diag2, _ = np.linalg.eigh(hmat2)
+    diag2, vec2 = np.linalg.eigh(hmat2)
 
     # print and compare energies
     for e,e2 in zip(diag,diag2):
         print(e,abs(e-e2))
 
+    # print energies and assignments
+    for i,e in enumerate(diag2):
+        v = vec2[:,i]
+        ind = (-abs(v)**2).argsort()[0] # index of largest coefficient
+        c2 = abs(v[ind])**2
+        f = psi.f[ind]
+        m = psi.m[ind]
+        istate = psi.istate[ind]
+        quanta = psi.states[f]['qstr'][istate]
+        print(i, e, c2, '[', f, m, quanta, ']')
+
     # compute matrix elements of dipole in the field-free basis
     dipole_me = [dipole.matrix(psi, ix=ix) for ix in range(dipole.ncart)]
+
+    # transform dipole matrix elements to eigenbasis
+
+    # dipole_me = np.dot(np.conjugate(vec2), np.dot(dipole_me, vec2))
