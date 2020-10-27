@@ -1,5 +1,5 @@
       subroutine H2O_poten(npoints, r1, r2, xcos, v)
-     & bind(c, name='poten')
+     & bind(c, name='water_poten')
       use iso_c_binding
       integer(c_int), value :: npoints
       real(c_double) :: v(npoints), r1(npoints), r2(npoints)
@@ -64,12 +64,12 @@
 
       S1 = (Y1 + Y3)/2.0d0
       S2 =  Y2
-      S3 = (Y1 - Y3)/2.0d0 
+      S3 = (Y1 - Y3)/2.0d0
 
       if (Q1.gt.4.0 .and. Q2.gt.4.0 .and. THETA .gt.2.25 ) then
       THETANEW  = 2.25
       else
-      THETANEW = THETA 
+      THETANEW = THETA
       end if
 
        CALL PESleq6(VQ,Q1,Q2,THETA)
@@ -86,7 +86,7 @@
       v1=(xmaso18*xmaso16*(v16-v18)/(xmaso18-xmaso16))/xmaso16+
      *(2*xmash*(xmaso18*v18-xmaso16*v16)/(2*(xmaso18-xmaso16)))/xmash
 
-       CALL rel(Vr,Q1,Q2,THETA)	
+       CALL rel(Vr,Q1,Q2,THETA)
        CALL cvps(Vcvps,Q1,Q2,THETA)
 
       att1=Q1*0.5291772d0
@@ -100,13 +100,13 @@
 !
 ! vp   is the extrapolated ICMRCI basic potential
 ! vr   is the relativistic (MVD1?) incremental potential
-! vbr  is the Breit increment 
+! vbr  is the Breit increment
 ! vd   is the MVD2 increment
 ! v1   is the BODC increment
 ! vq   is the QED increment
 
       end
-      
+
       SUBROUTINE BODC16(V,R1,R2,THETA)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DIMENSION FT(69), cv(69)
@@ -386,7 +386,7 @@ c   derivatives for each order (1-4) and upper terms for others.
       FT(93)=Y3**4*Y1*Y2**3
       FT(94)=Y3**4*Y1**3*Y2
       FT(95)=Y1**3*Y2**3*Y3**2
-      
+
       FT(96)=Y2**9
       FT(97)=Y2**9*Y1*Y3**4
       FT(98)=Y2**9*Y1**5
@@ -402,17 +402,17 @@ c   derivatives for each order (1-4) and upper terms for others.
       FT(106)=Y2**12
       FT(107)=Y2**12*Y1**2
       FT(108)=Y2**12*Y3**2
-      
+
       FT(109)=Y2**13
       FT(110)=Y2**13*Y1
-      
+
       FT(111)=Y2**14
 
       FT(112)=Y2**8*Y1**6
       FT(113)=Y2**8*Y3**6
       FT(114)=Y2**8*Y1**4*Y3**2
       FT(115)=Y2**8*Y3**4*Y1**2
-      
+
       FT(116)=Y2**7*Y1**7
       FT(117)=Y2**7*Y1**5*Y3**2
 
@@ -540,33 +540,33 @@ C     SCALE AND SHIFT THE ZERO
  40   continue
       RETURN
       END
-      
+
       SUBROUTINE BREITB3lin(VR,X,Y,Z)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 
       DATA SCALE/1.0D-6/
-c This subroutine contains corrections to the water NBO PES due to the BREIT 
+c This subroutine contains corrections to the water NBO PES due to the BREIT
 c term.
-c [see for istance HM Quiney et al Chem. Phys. Lett. 290 (1998) 473  , 
+c [see for istance HM Quiney et al Chem. Phys. Lett. 290 (1998) 473  ,
 c Bethe and Salpheter, "Quantum mechanics of one and two-electron atoms"]
-c The corrections have been computed on a grid based on the 325 point grid 
+c The corrections have been computed on a grid based on the 325 point grid
 c from P&S (see J. chem. phys., 106 (1997) 4618).
 c Moreover, a few extra points have been added , as well as a cut in the radial
 c coordinates (lines 1-2),  in order to account for high bending modes.
 c The final grid used contains 293 points.
-c Then the points have been fitted with a polynomial in X,Y and Z, using a 
+c Then the points have been fitted with a polynomial in X,Y and Z, using a
 c Mathematica script.
-c The basis set used for the electronic calculations is the set called 'B' 
+c The basis set used for the electronic calculations is the set called 'B'
 c  provided by  H.M. Quiney (see Chem. Phys. Lett. ).
 c
-c Those corrections have been computed by Paolo 
+c Those corrections have been computed by Paolo
 c email:  paolo@theory.phys.ucl.ac.uk  .
 
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 c  The inputs are in u.a., and X,Y are the distances of the H atoms from
-c  the oxygen, and Z is the angle HOH in radiants. The final result is in 
-c  Hartree. 
+c  the oxygen, and Z is the angle HOH in radiants. The final result is in
+c  Hartree.
 
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -615,7 +615,7 @@ c   derivatives for each order (1-4) and upper terms for others
      y zm**6+8.08923849773384*zm**7-10.68490632273025*zm**8
 
          VR=V1+V2
- 
+
 C      SCALE AND SHIFT THE ZERO
       VR=VR*scale
 
@@ -624,18 +624,18 @@ C      SCALE AND SHIFT THE ZERO
 
         SUBROUTINE PESd2x(VR,x,y,z)
         IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-   
-c This subroutine contains corrections to the water NBO PES due to the Darwin 
-c 2 electrons term. Those corrections have been computed by Gyorgy 
+
+c This subroutine contains corrections to the water NBO PES due to the Darwin
+c 2 electrons term. Those corrections have been computed by Gyorgy
 c tarczay@para.chem.elte.hu
 c Those corrections are computed on the P&S grid of 325 points.
-c  (see J. chem. phys., 106 (1997) 4618), to which a few x points have been 
+c  (see J. chem. phys., 106 (1997) 4618), to which a few x points have been
 c added in irder to account to high bending modes. The final grid containd 341
 c  points.
 
 c  The input are in u.a., and X,Y are the distances of the H atoms from
-c  the oxygen, and Z is the angle HOH in radiants. The final result is in 
-c  Hartree.  
+c  the oxygen, and Z is the angle HOH in radiants. The final result is in
+c  Hartree.
 
       Seq=1.8240445d0
       pi = dacos(-1.0d0)
@@ -791,7 +791,7 @@ c     all masses are in au.
 c
       dimension c5z(245),cbasis(245),ccore(245),
      $          crest(245),idx(245,3),fmat(15,3),cmass(9),idxm(9,3)
-c      common/potrot/fact1,fact2,c1,s1,icoord,xm(2),xmx,iperm   
+c      common/potrot/fact1,fact2,c1,s1,icoord,xm(2),xmx,iperm
 c $$$      common/potmcm/xm(2)
 c
 c     expansion indicies
@@ -1342,7 +1342,7 @@ c
        reoh=reoh/0.529177249d0
        b1=b1*0.529177249d0*0.529177249d0
        do 3 i=1,245
-        c5z(i)=c5z(i)*4.556335d-6 
+        c5z(i)=c5z(i)*4.556335d-6
     3  continue
        do 67 i=1,9
         cmass(i)=cmass(i)*4.556335d-6
@@ -1397,7 +1397,7 @@ c
      $      +voh1+voh2+vhh
 
       return
-      end 
+      end
 
       subroutine poten(v,r1,r2,th)
 
@@ -1420,7 +1420,7 @@ c
       x0=2.5d0
       ut2=20.d0
       x02=2.5d0
-        
+
       thetae=thetae*.314159265358979312d01*.00555555555555555555d0
 
       xs1=(r1+r2)*0.5d0-reoh
@@ -1696,4 +1696,3 @@ c
        v=v0+vp+voh1+voh2+vhh
 
       end subroutine poten
-

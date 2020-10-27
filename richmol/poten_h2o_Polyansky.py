@@ -15,13 +15,12 @@ def poten(coords):
     npoints = coords.shape[0]
     npoints_c = c_int(npoints)
     v = np.asfortranarray(np.zeros(npoints, dtype=np.float64))
-    dll.poten.argtypes = [ \
+    dll.water_poten.argtypes = [ \
             c_int,
             np.ctypeslib.ndpointer(np.float64, ndim=1, flags='F'), \
             np.ctypeslib.ndpointer(np.float64, ndim=1, flags='F'), \
             np.ctypeslib.ndpointer(np.float64, ndim=1, flags='F'), \
             np.ctypeslib.ndpointer(np.float64, ndim=1, flags='F') ]
-    dll.poten.restype = None
-    dll.poten(npoints_c, r1, r2, np.cos(alpha), v)
+    dll.water_poten.restype = None
+    dll.water_poten(npoints_c, r1, r2, np.cos(alpha), v)
     return v
-

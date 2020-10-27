@@ -6,18 +6,18 @@ UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
 
 ######## Intel Fortran, MAC OS ##########
-FOR = ifort
-FFLAGS = -O3 -qopenmp
-F77LAGS = -O3
-LAPACK =  -mkl=parallel
-SOLIB_FLAGS = -dynamiclib
+#FOR = ifort
+#FFLAGS = -O3 -qopenmp
+#F77LAGS = -O3
+#LAPACK =  -mkl=parallel
+#SOLIB_FLAGS = -dynamiclib
 
 ######## GFORTRAN, MAC OS ##########
-#FOR = gfortran
-#FFLAGS = -O3 -fopenmp -ffree-line-length-0
-#F77LAGS = -O3
-#LAPACK =  -lblas -llapack
-#SOLIB_FLAGS = -dynamiclib
+FOR = gfortran
+FFLAGS = -O3 -fopenmp -ffree-line-length-0
+F77LAGS = -O3
+LAPACK =  -lblas -llapack
+SOLIB_FLAGS = -dynamiclib
 
 else ifeq ($(UNAME), Linux)
 
@@ -32,7 +32,7 @@ else
 $(error Unknown platform)
 endif
 
-LIB = 
+LIB =
 
 
 # Polyansky potential for water molecule, with parameters embedded inthe source code
