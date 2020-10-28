@@ -354,4 +354,15 @@ where :math:`J_{min},J_{max}` and :math:`M_{min},M_{max}` are specified by the u
 
   U(t,t_0) = \exp\left[-i\frac{\Delta t}{2\hbar}\hat{H}_{mol}\right] |\Phi(t_0)\rangle  = \sum_{J=J_{min}}^{J_{max}}\sum_{M=M_{min}}^{M_{max}}\sum_{h} C_{JMh}(t_0)\exp\left[-i\frac{\Delta t}{2\hbar}E_{J,h}\right]|\Psi_{J,M,h}\rangle
 
-as for the interaction Hamiltonian part of the split-time-evolution operator a Krylov subspace method is used
+The matrix representation of the interaction Hamiltonian part in the split-time-evolution operator is calculated with a Krylov subspace method.
+
+.. math::
+
+  \langle \Psi_{J',M',h'}|\exp\left[-i\frac{\Delta t}{\hbar}\hat{H}_{int}\left(\frac{t+t_0}{2}\right)\right]|\Psi_{J,M,h}\rangle\approx
+  \mathbf{A}_p\mathbf{Z}_p^*e^{-i\mathbf{D}_ph}\mathbf{Z}_p\mathbf{A}_p^*
+
+where :math:`\mathbf{A}_p` is the projection matrix from the full field-free basis :math:`|\Psi_{J,M,h}\rangle` onto the Krylov sub-space of size
+:math:`p`.  :math:`e^{-i\mathbf{D}_ph}` and  :math:`\mathbf{Z}_p`  are the diagonal matrix of eigenvalues of the interaction Hamiltonian exponents
+and the diagonalizing transformation, respectively. The scheme of the Krylov method is displayed in the figure below: 
+
+.. image:: krylov.pdf
