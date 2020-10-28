@@ -171,24 +171,10 @@ Typical computational protocol using ``watie`` module
     of rotational Hamiltonian, using :func:`SymtopBasis.rotate`.
 
 
-Molecule-field interaction
-==========================
-Watie carries an option to calculate and store matrix elements of cartesian tensors in the laboratory-frame, which can be used in solving the time-dependent Schrodinger equation.
-When one is interested in simulating rigid molecule dynamics in external electric fields, the molecule-field interaction is most commonly written as
+Rotational-vibrbational wave function
+=====================================
 
- .. math::
-
-        \hat{H}_{int} = -\boldsymbol{\mu}\mathbf{E}-\frac{1}{2}\mathbf{E}^T\boldsymbol{\alpha}\mathbf{E}
-
-where :math:`\boldsymbol{\mu}` is the dipole moment operator, :math:`\boldsymbol{\alpha}` is the electronic polarisability operator (induced dipole moment) and :math:`\mathbf{E}` is time-dependent electric field vector.
-
-Matrix elements of the interaction Hamiltonian can be written as
-
-.. math::
-
-    \langle \Psi_{J,M,h}| \hat{H}_{int}|\Psi_{J',M',h'}\rangle
-
-where the rotational wavefunction is expressed as
+In Richmol the rotational-virbational wavefunction is represented as as sum-of-products of rotational and vibrbational basis functions
 
 .. math::
 
@@ -209,14 +195,37 @@ are defined as :math:`|J,K,M\rangle = \left(\frac{2J+1}{8\pi^2}\right)^{\frac{1}
 with laboratory-fixed frame.
 
 
+
+Molecule-field interaction
+==========================
+
 In general we shall denote laboratory-frame cartesian tensor of rank :math:`\Omega` with :math:`T^{(\Omega,LF)}_A`, where :math:`A=(i_1,i_2,...,i_{\Omega})` is the tensor's covariant multi-index,
-such that, for example, the laboratory-frame electronic polarisability is tensor of rank-2: :math:`\alpha_{ij} \equiv T^{(\Omega=2,LF)}_{i_1,i_2}`. Then the matrix elements of the interaction Hamiltonian can be written as
+such that, for example, the laboratory-frame electronic polarisability is tensor of rank-2: :math:`\alpha_{ij} \equiv T^{(\Omega=2,LF)}_{i_1,i_2}`.
+A general form of the the interaction Hamiltonian matrix elements can be written as
 
 .. math::
 
-    \langle \Psi_{J,M,h}| \hat{H}_{int}|\Psi_{J',M',h'}\rangle =  \sum_A \langle \Psi_{J,M,h}| T^{(\Omega,LF)}_A|\Psi_{J',M',h'}\rangle E_A
+    \langle \Psi_{J,M,h}| \hat{H}_{int}|\Psi_{J',M',h'}\rangle = \sum_{\xi} v_{\xi}  \sum_A \langle \Psi_{J,M,h}| T^{(\Omega_{\xi},LF)}_{A_{\xi}} |\Psi_{J',M',h'}\rangle E_{A_{\xi}}
 
-where :math:`E_A = E_{i_1}\cdot E_{i_2}\cdot ... \cdot E_{i_{\Omega}}` denotes the time-dependent electric field tensor and tensor contraction is carrier out over all indices in the multi-index :math:`A`.
+where :math:`E_A = E_{i_1}\cdot E_{i_2}\cdot ... \cdot E_{i_{\Omega_{\xi}}}` denotes the time-dependent electric field tensor
+and tensor contraction is carrier out over all indices in the multi-index :math:`A`. :math:`\xi` labels interaction terms of
+rank-:math:`\Omega_{\xi}`, such as
+dipole, polarisability and hyperpolarisailities and :math:`v_{\xi}` are prefactors standing before the interaction terms:
+:math:`v_{1}=-1, v_{2}=-\frac{1}{2}, v_{3}=-\frac{1}{6}` etc.
+
+.. note::
+
+  For example Watie carries an option to calculate and store matrix elements of cartesian tensors in the laboratory-frame,
+  which can be used in solving the time-dependent Schrodinger equation.
+  When one is interested in simulating
+  rigid molecule dynamics in external electric fields, the molecule-field interaction is most commonly written as
+
+  .. math::
+
+        \hat{H}_{int} = -\boldsymbol{\mu}\mathbf{E}-\frac{1}{2}\mathbf{E}^T\boldsymbol{\alpha}\mathbf{E}
+
+  where :math:`\boldsymbol{\mu}` is the dipole moment operator, :math:`\boldsymbol{\alpha}` is the electronic polarisability operator (induced dipole moment) and :math:`\mathbf{E}` is time-dependent electric field vector.
+
 
 .. note::
 
@@ -325,6 +334,20 @@ to a set of point-calculations at various geometries of the system.
   The elements of the :math:`\textit{K-tensor}` carry information about the molecule-fixed properties of the rotational-vibrational wavefunctions involved in the transition, whereas
   the :math:`\textit{M-tensor}` refers to laboratory-fixed properties. Both tensors are stored in richmol-format files <molecule_name>_<tensor_name>_j<J>_j<J'>.rchm.
 
+Finally the matrix elements of the general field-matter interaction Hamiltonian ca be written in a compact form as
+
+
+.. math::
+
+  \langle \Psi_{J,M,h}| \hat{H}_{int}(t)|\Psi_{J',M',h'}\rangle = \sum_{\xi} v_{\xi} \sum_{\omega=0}^{\Omega_{\xi}} K^{(JhJ'h')}_{\omega,\xi}
+  \tilde{M}^{(JMJ'M')}_{\omega,\xi}(t)
+
+where
+
+.. math::
+
+  \tilde{M}^{(JMJ'M')}_{\omega,\xi}(t) = \sum_{A_{\xi}} M^{(JMJ'M')}_{\omega A_{\xi},\xi}(t) E_{A_{\xi}}
+
 Time-dependent Schrödinger equation
 ===================================
 
@@ -363,6 +386,26 @@ The matrix representation of the interaction Hamiltonian part in the split-time-
 
 where :math:`\mathbf{A}_p` is the projection matrix from the full field-free basis :math:`|\Psi_{J,M,h}\rangle` onto the Krylov sub-space of size
 :math:`p`.  :math:`e^{-i\mathbf{D}_ph}` and  :math:`\mathbf{Z}_p`  are the diagonal matrix of eigenvalues of the interaction Hamiltonian exponents
-and the diagonalizing transformation, respectively. The scheme of the Krylov method is displayed in the figure below: 
+and the diagonalizing transformation, respectively. The scheme of the Krylov method is displayed in the figure below:
 
 .. image:: krylov.pdf
+
+
+The matrix-vector products (MVP) of the interaction Hamiltonian with the time-dependent coefficients vector :math:`C_{JMh}(t)` is used
+to construct the Krylov sub-space basis. In Richmol, these MVPs (denoted with :math:`\mathbf{Hc}` in the figure above)
+
+
+ .. math::
+
+  y_{J,M,h}(t) = \sum_{J',M',h'} \langle \Psi_{J,M,h} | \hat{H}_{int}(t))| \Psi_{J',M',h'}\rangle \cdot
+  C_{J',M',h'}(t))
+
+are calculated sequentially in the following way
+
+.. math::
+
+ y^{(1)}_{J,M,h,J',M',\xi}(t) = \sum_{h'}  K^{(JhJ'h')}_{\omega,\xi} C_{J',M',h'}(t)\\
+
+
+
+   y_{J,M,h}(t) = \sum_{J',M',\xi} v_{\xi} y^{(1)}_{J,M,h,J',M',\xi}(t) \tilde{M}^{(JMJ'M')}_{\omega,\xi}(t)
