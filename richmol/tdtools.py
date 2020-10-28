@@ -16,7 +16,7 @@ Psi() and Etensor() classes, respectively.
 """
 
 import numpy as np
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import csr_matrix, coo_matrix, kron
 from scipy import linalg as la
 import re
 import sys, time
@@ -96,6 +96,9 @@ class Psi():
         self.quanta = {}
         self.energy = {}
         self.dim = {}
+        self.f = []
+        self.m = []
+        self.istate = []
         for f in self.flist:
             self.quanta[f] = []
             enr = []
@@ -106,6 +109,9 @@ class Psi():
                     istate = state['istate']
                     self.quanta[f].append([m,istate])
                     enr.append(state['enr'])
+                    self.f.append(f)
+                    self.m.append(m)
+                    self.istate.append(istate)
                 self.energy[f] = np.array(enr, dtype=np.float64)
             self.dim[f] = len(self.quanta[f])
             assert (self.dim[f] == self.dim_m[f] * self.dim_istate[f]), \
@@ -687,6 +693,57 @@ class Etensor():
         psi_new = copy.deepcopy(psi)
         psi_new.coefs = coefs_new
         return psi_new
+
+
+    def matrix(self, psi, ix=1, plus_diag=True):
+        """Returns matrix representation of tensor operator or Hamiltonian (i.e. tensor times field)
+        in the field-free basis 'psi'. For matrix elements of Hamiltonian, adds a field-free diagonal
+        part when required.
+
+        Args:
+            psi (Psi()): Field-free basis set.
+            ix (int): Tensor's Cartesian component index for which the matrix elements are computed.
+            plus_diag (bool): if True, the field free energies will be added to the diagonal
+                of Hamiltonian matrix.
+
+        Returns:
+            Matrix representation of tensor or Hamiltonian in the field-free basis as numpy array.
+        """
+        flist = psi.flist
+        mat = {(f1,f2) : np.zeros( (len(psi.quanta[f1]), len(psi.quanta[f2])), dtype=np.complex128 ) \
+                for f1 in flist for f2 in flist}
+
+        try:
+            # will return Hamiltonian matrix
+
+            Mtens = self.MF
+
+            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                    mat[fkey] += kron(mm, kk).todense() * self.prefac
+
+            if plus_diag==True:
+                for f in flist:
+                    mat[(f,f)] += np.diag(psi.energy[f])
+
+        except AttributeError:
+            # will return matrix elements of ix Cartesian component of tensor
+
+            try:
+                x = self.mcart[ix]
+            except IndexError:
+                raise IndexError(f"Cartesian component index '{ix}' is out of range for tensor '{self.name}' " \
+                        + f"\nlist of components with indices for tensor '{self.name}': " \
+                        + f"{[val for val in enumerate(self.mcart)]} ") from None
+
+            Mtens = self.M
+
+            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                    mat[fkey] += kron(mm[ix,:,:], kk).todense()
+
+        return np.block([[mat[(f1,f2)] for f2 in flist] for f1 in flist])
+
 
 
 def read_states(filename, **kwargs):

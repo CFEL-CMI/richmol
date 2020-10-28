@@ -4,8 +4,10 @@ from richmol.watie import RigidMolecule, symmetrize, SymtopBasis, \
 import numpy as np
 import sys
 
-# Example of a calculation of rotational energies of camphor molecule
+####################################################################
+# Example of calculation of rotational energies of camphor molecule
 # using Watson Hamiltonian in A-reduction
+####################################################################
 
 camphor = RigidMolecule()
 
@@ -145,7 +147,7 @@ for J in range(Jmax+1):
                     "  ".join(s+"=%s"%q for s,q, in zip(("| J","k","tau","abs(c)^2")*nprim, bas2.assign[istate])) )
 
 
-# # check if energies computed using different ways of setting up the Hamiltonian and basis agree with each other
+# check if energies computed using different ways of setting up the Hamiltonian and basis agree with each other
 
 tol = 1e-12
 print(all(abs(x-y)<tol for x,y in zip(sorted(enr_all),sorted(enr_all_d2))) )

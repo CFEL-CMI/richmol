@@ -3,12 +3,14 @@ from richmol.watie import RigidMolecule, symmetrize, SymtopBasis, \
 import numpy as np
 import sys
 
-# Example of a calculation of rotational energies of camphor molecule
+################################################################################
+# Example of calculation of rotational energies of camphor molecule
 # using different ways of building the Hamiltonian and using molecular symmetry
+################################################################################
 
 camphor = RigidMolecule()
 
-# S-Camphor structure from Supersonic expansion FTMW spectra, Kisiel, et al., PCCP 5, 820 (2003)
+# S-Camphor structure from the Supersonic expansion FTMW spectra, Kisiel, et al., PCCP 5, 820 (2003)
 camphor.XYZ = ("angstrom", \
         "O",     -2.547204,    0.187936,   -0.213755, \
         "C",     -1.382858,   -0.147379,   -0.229486, \
@@ -38,22 +40,23 @@ camphor.XYZ = ("angstrom", \
         "H",      1.455250,    0.830868,   -2.487875, \
         "H",     -0.267696,    1.035608,   -2.160680)
 
-# dipole moment and polarizability (in atomic units) computed using B3LYP/def2-TZVPP at experimental geometry
+# dipole moment and polarizability (in atomic units)
+# computed using B3LYP/def2-TZVPP at experimental geometry
 camphor.tensor = ("dipole moment", [1.21615, -0.30746, 0.01140])
 camphor.tensor = ("polarizability", [[115.80434, -0.58739, 0.03276], \
                                      [-0.58739, 112.28245, 1.36146], \
                                      [0.03276, 1.36146, 108.47809]] )
 
-# change molecule-fixed embedding to PAS frame
+# change molecule-fixed embedding to the PAS
 camphor.frame = "pas"
 
 # we can print polarizability and dipole moment in new frame
 print("polarizability:\n", camphor.tensor["polarizability"])
 print("dipole moment:\n", camphor.tensor["dipole moment"])
-# print inertia tensor (to see it is diagonal in the PAS frame)
+# print inertia tensor (to see if it is diagonal in the PAS)
 print("inertia tensor:\n", camphor.imom())
 
-# compute rotational energies for J = 0..40
+# compute rotational energies for J = 0..20
 
 Jmax = 20
 Bx, By, Bz = camphor.B
