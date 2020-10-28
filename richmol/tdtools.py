@@ -24,12 +24,15 @@ import os
 import itertools
 import inspect
 import copy
+import scipy.sparse
 
 
 au_to_coulmet_ = {1: 8.47835326e-30,      # to convert electric electric dipole from au to C*m
                   2: 1.6487772754e-41,    #   polarizability from au to C^2*m^2*J^-1
                   3: 3.206361449e-53,     #   hyperpolarizability from au to C^3*m^3*J^-2
                   4: 6.23538054e-65 }     #   second hyperpolarizability from au to C^4*m^4*J^-3
+
+au_to_coulmetmet_ = {1: 4.4865515246e-40} # to convert electric quadrupole from au to C*m*m
 
 joule_to_cm_ = 5.03411701e+22  # to convert energy from Joule to cm^-1
 lightspeed_ = 299792458e0      # in m/s
@@ -56,12 +59,18 @@ class Psi():
                 mmax = min([kwargs['mmax'],fmax])
                 if mmax<kwargs['mmax']:
                     print(f"Psi: mmax is set to {mmax} which is maximum F in states file {fname}")
+                if -mmax>fmin:
+                    print(f"Psi: mmax is set to {mmax} and has a bigger absolute value than \
+                          fmin which is set to {fmin}")
             else:
                 mmax = fmax
             if 'mmin' in kwargs:
                 mmin = max([kwargs['mmin'],-fmax])
                 if mmin>kwargs['mmin']:
                     print(f"Psi: mmin is set to {mmin} which is minus maximum F in states file {fname}")
+                if mmin>fmin:
+                    print(f"Psi: mmin is set to {mmin} and has a bigger absolute value than \
+                          fmin which is set to {fmin}")
             else:
                 mmin = -fmax
             if 'dm' in kwargs:
@@ -77,7 +86,7 @@ class Psi():
 
         # generate basis: combinations of M and field-free state quanta for each F
 
-        self.flist = list(self.states.keys())
+        self.flist = [f for f in self.states.keys() if f>=min(map(abs, self.mlist))]
 
         self.quanta_m = {f:[m for m in self.mlist if abs(m)<=f] for f in self.flist}
         self.quanta_istate = {f:[state['istate'] for state in self.states[f]] for f in self.flist}
@@ -215,7 +224,6 @@ class Etensor():
             self.prefac *= conv
 
         # read Richmol matrix elements for all combinations of bra and ket F quanta spanned by basis
-
         for f1 in psi.flist:
             for f2 in psi.flist:
 
