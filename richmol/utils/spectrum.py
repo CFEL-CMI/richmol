@@ -88,6 +88,11 @@ def dipole_intens_field(states_fname, matelem_fname, temperature, **kwargs):
     else:
         partfunc = 1.0
 
+    if "ints_tol" in kwargs:
+        ints_tol = kwargs["ints_tol"]
+    else:
+        ints_tol = 1e-34
+
     intens_cm_molecule = 8.0e-36*np.pi**3/(3.0*planck*vellgt)
     boltz_beta = planck * vellgt / (boltz * temperature)
 
@@ -113,10 +118,17 @@ def dipole_intens_field(states_fname, matelem_fname, temperature, **kwargs):
     freq = np.array([ abs( states['enr'].take(rowcol[0]) - states['enr'].take(rowcol[1]) ) \
                       for rowcol in nonzero_ind ])
 
+    qstr = [ ( states['qstr'].take(rowcol[0]), states['qstr'].take(rowcol[1]) ) \
+              if states['enr'].take(rowcol[0]) < states['enr'].take(rowcol[1]) \
+              else ( states['qstr'].take(rowcol[1]), states['qstr'].take(rowcol[0]) ) \
+              for rowcol in nonzero_ind ]
+
     boltz_fac = np.exp(-(elow-zpe) * boltz_beta) / partfunc
 
     intens = ls.data * boltz_fac * freq * (1.0-np.exp(-abs(freq)*boltz_beta)) * intens_cm_molecule
 
+    print(" ".join("%s"%q[0] + "%s"%q[1] + "%16.8f"%nu + "%16.8e"%ints + "\n" \
+            for q,nu,ints in zip(qstr,freq,intens) if ints>=ints_tol ) )
 
 
 if __name__ == "__main__":
