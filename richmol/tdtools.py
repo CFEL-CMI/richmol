@@ -60,7 +60,7 @@ class Psi():
                 if mmax<kwargs['mmax']:
                     print(f"Psi: mmax is set to {mmax} which is maximum F in states file {fname}")
                 if -mmax>fmin:
-                    print(f"Psi: mmax is set to {mmax} and has a bigger absolute value than \
+                    print(f"Psi: mmax is set to {mmax} and has a larger absolute value than \
                           fmin which is set to {fmin}")
             else:
                 mmax = fmax
@@ -69,7 +69,7 @@ class Psi():
                 if mmin>kwargs['mmin']:
                     print(f"Psi: mmin is set to {mmin} which is minus maximum F in states file {fname}")
                 if mmin>fmin:
-                    print(f"Psi: mmin is set to {mmin} and has a bigger absolute value than \
+                    print(f"Psi: mmin is set to {mmin} and has a larger value than \
                           fmin which is set to {fmin}")
             else:
                 mmin = -fmax
