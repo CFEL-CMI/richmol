@@ -258,9 +258,18 @@ class Etensor():
 
                 # read file
 
-                name, ncart, nomega, mcart, mtype, mtens, ktens, tr = \
+                name, ncart, nomega, mcart, mtype, mtens, kvec, ik1, ik2, tr = \
                         read_tens(fname, f1, f2, psi.map_id_to_istate)
 
+                # transform k-tensor into a sparse CSR matrix
+                ktens = []
+                for iomega in range(nomega):
+                    kmat = coo_matrix( (kvec[iomega][:], (ik1[iomega],ik2[iomega])), \
+                                       shape=(len(psi.states[f1]['istate']), \
+                                              len(psi.states[f2]['istate'])), dtype=np.float64 )
+                    ktens.append( kmat.tocsr() )
+
+                # compute rank of tensor
                 try:
                     rank = {3**rank:rank for rank in range(6)}[ncart]
                 except KeyError:
@@ -899,8 +908,6 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
     icart = None
     icmplx = None
     maxdeg = 0
-    nstates1 = 0
-    nstates2 = 0
 
     for line in fl:
         strline = line.rstrip('\n')
@@ -936,9 +943,9 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
         if strline=="K-tensor":
             read_m = False
             read_k = True
-            list_kval = [[] for i in range(nomega)]
-            list_istate1 = [[] for i in range(nomega)]
-            list_istate2 = [[] for i in range(nomega)]
+            kvec = [[] for i in range(nomega)]
+            ik1 = [[] for i in range(nomega)]
+            ik2 = [[] for i in range(nomega)]
             iline+=1
             continue
 
@@ -974,12 +981,10 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
                 continue
             ind_omega = [i for i in range(nomega) if abs(kval[i])>me_tol]
             for iomega in ind_omega:
-                list_istate1[iomega].append(istate1)
-                list_istate2[iomega].append(istate2)
-                list_kval[iomega].append(kval[iomega])
+                ik1[iomega].append(istate1)
+                ik2[iomega].append(istate2)
+                kvec[iomega].append(kval[iomega])
             maxdeg = max([maxdeg,ideg1,ideg2])
-            nstates1 = max([nstates1,istate1])
-            nstates2 = max([nstates2,istate2])
 
         iline +=1
     fl.close()
@@ -987,13 +992,7 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
     if eof is False:
         raise RuntimeError(f"Matrix-elements file '{filename}' has bogus footer = '{strline}'")
 
-    ktensor = []
-    for iomega in range(nomega):
-        kmat = coo_matrix( (list_kval[iomega][:], (list_istate1[iomega],list_istate2[iomega])), \
-                           shape=(nstates1+1,nstates2+1), dtype=np.float64 )
-        ktensor.append( kmat.tocsr() )
-
-    return name, ncart, nomega, mcart, mtype, mtensor, ktensor, transp
+    return name, ncart, nomega, mcart, mtype, mtensor, kvec, ik1, ik2, transp
 
 
 def retrieve_name(var):
