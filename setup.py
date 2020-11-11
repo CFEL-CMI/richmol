@@ -6,12 +6,30 @@ import subprocess
 class Build(build):
     def run(self):
         build.run(self)
-        # compile symtoplib in watie
+        # compile symtoplib
         command = "cd richmol/symtoplib"
         command += " && make clean && make"
         print("\nBuild symtoplib:",command)
         process = subprocess.Popen(command, shell=True)
         process.wait()
+        # compile wigxjpf
+        command = "cd richmol/wigxjpf-1.5"
+        command += " && make clean && make shared"
+        print("\nBuild wigxjpf-1.5:",command)
+        process = subprocess.Popen(command, shell=True)
+        process.wait()
+        # compile blas
+        #command = "cd richmol/BLAS-3.8.0"
+        #command += " && make clean && make"
+        #print("\nBuild blas-3.8.0:",command)
+        #process = subprocess.Popen(command, shell=True)
+        #process.wait()
+        # compile lapack
+        #command = "cd richmol/lapack-3.9.0"
+        #command += " && make clean && make"
+        #print("\nBuild lapack-3.9.0:",command)
+        #process = subprocess.Popen(command, shell=True)
+        #process.wait()
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
@@ -28,7 +46,7 @@ setup(
     license             = "GPL",
     packages            = ["richmol"],
     cmdclass            = {'build': Build},
-    package_data        = {"richmol":["symtoplib/symtoplib*","symtoplib/wigxjpf-1.5/lib/libwigxjpf_shared*"]},
+    package_data        = {"richmol":["symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
     scripts             = [],
     install_requires    = ["hypothesis", "mendeleev"],
     long_description    = read("README.md"),

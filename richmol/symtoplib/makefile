@@ -36,8 +36,10 @@ FFLAGS = -O3 -fopenmp -fPIC -ffree-line-length-0
 F77LAGS = -O3
 #CPPFLAGS = -D_WIGD_FOURIER_
 #CPPFLAGS = -D_WIGD_FOURIER_BIGJ_
-LAPACK =  ../lapack-3.9.0/liblapack.a
-BLAS = ../BLAS-3.8.0/blas_LINUX.a
+#LAPACK =  ../lapack-3.9.0/liblapack.a
+#BLAS = ../BLAS-3.8.0/blas_LINUX.a
+LAPACK = -llapack
+BLAS = -lblas
 SOLIB_FLAGS = -shared
 
 else
@@ -68,4 +70,3 @@ wigner_d.o: wigner_dmat2/wigner_d.f90
 
 clean:
 	$(RM) $(OBJ) *.mod *.so *.dylib
-	cd wigxjpf-1.5 && $(MAKE) clean

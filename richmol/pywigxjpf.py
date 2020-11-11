@@ -45,8 +45,7 @@ import ctypes as ct
 import os
 
 # Load the library as _libwigxjpf.
-# _path = os.path.join(os.path.dirname(__file__), 'wigxjpf-1.5/lib')
-_path = os.path.join(os.path.dirname(__file__), 'symtoplib/wigxjpf-1.5/lib')
+_path = os.path.join(os.path.dirname(__file__), 'wigxjpf-1.5/lib')
 _libwigxjpf = nm.ctypeslib.load_library('libwigxjpf_shared', _path)
 
 # Define argument and result types

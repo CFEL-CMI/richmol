@@ -8,7 +8,8 @@ TOPSRCDIR = .
 include $(TOPSRCDIR)/make.inc
 
 .PHONY: all
-all: lapack_install lib blas_testing lapack_testing
+#all: lapack_install lib blas_testing lapack_testing
+all: lapack_install lib
 
 .PHONY: lib
 lib: lapacklib tmglib
