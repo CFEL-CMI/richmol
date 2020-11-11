@@ -235,7 +235,7 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
             * exp( one_imag * k * grid(3,ipoint) ) &
             * exp( one_imag * m * grid(1,ipoint) )
 #endif
-        val(ipoint,m,k,j) = res * fac
+        val(ipoint,k,j) = res * fac
       enddo ! ipoint
     enddo ! k
 
@@ -262,7 +262,7 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
         fname = 'symtop_func_j'//trim(adjustl(sj))//'_k'//trim(adjustl(sk))//'_m'//trim(adjustl(sm))
         open(iounit,form='formatted',position='rewind',action='write',file=fname)
         do ipoint=1, npoints
-          write(iounit,'(3(1x,es16.8),3x,2(1x,es16.8))') grid(1:3,ipoint), val(ipoint,m,k,j)
+          write(iounit,'(3(1x,es16.8),3x,2(1x,es16.8))') grid(1:3,ipoint), val(ipoint,k,j)
         enddo
         close(iounit)
       enddo
