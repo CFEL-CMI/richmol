@@ -165,7 +165,7 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
   real(c_double), intent(out) :: val_r(npoints,-Jmax:Jmax,Jmin:Jmax), &
                                  val_i(npoints,-Jmax:Jmax,Jmin:Jmax)
   
-  integer(ik) :: info, j, k, ipoint, iounit
+  integer(ik) :: info, j, k, ipoint, iounit, m_
   real(rk) :: fac
   real(rk), allocatable :: wd_matrix(:,:,:), diffwd_matrix(:,:)
   complex(rk) :: one_imag, res, val(npoints,-Jmax:Jmax,Jmin:Jmax)
@@ -174,6 +174,7 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
   
   !write(out, '(a)') 'symtop_3d_grid: compute symmetric-top functions on a 3D grid'
 
+  m_ = m
   one_imag = cmplx(0.0_rk,1.0_rk)
   
   !write(out, '(a,1x,i4,1x,i8)') 'symtop_3d_grid: Jmax, npoints =', Jmax, npoints
@@ -225,15 +226,15 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
 #if defined(_WIGD_FOURIER_)
         res = dffs( j*2, m*2, k*2, grid(2,ipoint) ) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m * grid(1,ipoint) )
+            * exp( one_imag * m_ * grid(1,ipoint) )
 #elif defined(_WIGD_FOURIER_BIGJ_)
         res = wd_matrix(ipoint,j+m+1,j+k+1) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m * grid(1,ipoint) )
+            * exp( one_imag * m_ * grid(1,ipoint) )
 #else
         res = djmk_small(real(j,rk), real(m,rk), real(k,rk), grid(2,ipoint)) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m * grid(1,ipoint) )
+            * exp( one_imag * m_ * grid(1,ipoint) )
 #endif
         val(ipoint,k,j) = res * fac
       enddo ! ipoint
@@ -258,7 +259,7 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
       write(sj,*) j
       do k=-j, j
         write(sk,*) k
-        write(sm,*) m
+        write(sm,*) m_
         fname = 'symtop_func_j'//trim(adjustl(sj))//'_k'//trim(adjustl(sk))//'_m'//trim(adjustl(sm))
         open(iounit,form='formatted',position='rewind',action='write',file=fname)
         do ipoint=1, npoints
