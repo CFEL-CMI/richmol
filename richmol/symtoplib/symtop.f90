@@ -2,7 +2,6 @@ module symtop
 
   use accuracy
   use iso_c_binding
-  use fwigxjpf
   use dffs_m
   use wigner_d
   implicit none
