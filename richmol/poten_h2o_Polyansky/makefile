@@ -18,6 +18,7 @@ FFLAGS = -O3 -fopenmp -ffree-line-length-0
 F77LAGS = -O3
 LAPACK =  -lblas -llapack
 SOLIB_FLAGS = -dynamiclib
+EXT = ".dylib"
 
 else ifeq ($(UNAME), Linux)
 
@@ -34,7 +35,7 @@ FFLAGS = -O3 -fopenmp -fPIC -ffree-line-length-0
 F77LAGS = -O3
 LAPACK =  -lblas -llapack
 SOLIB_FLAGS = -shared
-
+EXT = ".so"
 
 else
 $(error Unknown platform)
@@ -46,7 +47,7 @@ LIB = $(LAPACK)
 # Polyansky potential for water molecule, with parameters embedded inthe source code
 # see http://rsta.royalsocietypublishing.org/content/376/2115/20170149
 rsta20170149supp1.so: rsta20170149supp1.o
-	$(FOR) $(SOLIB_FLAGS) rsta20170149supp1.o $(LIB) -o rsta20170149supp1.so
+	$(FOR) $(SOLIB_FLAGS) rsta20170149supp1.o $(LIB) -o rsta20170149supp1$(EXT)
 rsta20170149supp1.o: rsta20170149supp1.f
 	$(FOR) -c -cpp rsta20170149supp1.f $(FFLAGS)
 clean:
