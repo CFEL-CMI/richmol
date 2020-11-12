@@ -17,7 +17,7 @@ class XY2_ralpha(Molecule):
 
     @Molecule.autograd
     @Molecule.com
-    @Molecule.bisector('zyx')
+    #@Molecule.bisector('zyx')
     def internal_to_cartesian(self, coords, **kwargs):
         xyz = np.array([[[ 0.0, 0.0, 0.0], \
                         [ r1 * np.sin(alpha/2), 0.0, r1 * np.cos(alpha/2)], \
