@@ -27,16 +27,26 @@ def hofunc(n,q,alpha,Hr):
     """Return a value of the n-th Harmonic Oscillator eigenfunction at grid point q."""
     #alpha(float): inverse natural length unit
     # Normalization constant and energy for vibrational state v
-    norm = lambda v: 1./np.sqrt(np.sqrt(np.pi)*2**n*factorial(n))
+    norm = lambda n: 1./np.sqrt(np.sqrt(np.pi)*2**n*factorial(n))
 
     return norm(n) * Hr[n](alpha * q) * np.exp(- alpha * alpha * q * q / 2.)
+
+def ddhofunc(n,q,alpha,Hr):
+    """Return a value of second derivatibe of the n-th Harmonic Oscillator eigenfunction at grid point q."""
+    #alpha(float): inverse natural length unit
+    # Normalization constant and energy for vibrational state v
+    norm = lambda n: 1./np.sqrt(np.sqrt(np.pi)*2**n*factorial(n))
+
+    return (alpha**2 * q**2 - alpha*(2*n+1)) * norm(n) * Hr[n](alpha * q) * np.exp(- alpha * alpha * q * q / 2.)
 
 
 def quad_weight_func(q,alpha):
     """Return inverse of the Gauss-Hermite weight function"""
     return np.exp( alpha * alpha * q * q )
 
-
+def Gdiag(q):
+     """Return a value of the G-matrix for coordinate 1 at grid point q."""
+     return -0.5
 
 def po_hermite( Nbas, Nquad, PO_grid, NPO_bas):
     """Calculate collocation matrix for potential-optimized (PO) 1D basis functions associated with stretching coordinates (Hermite)
@@ -85,7 +95,7 @@ def po_hermite( Nbas, Nquad, PO_grid, NPO_bas):
 
 
     print("*** Integrating the PES part ***")
-    PES_temp = lambda x: x ** 2 #temporary PES - needs to be replaced by the real PES from molecule.py
+    PES_temp = lambda x: 0.5 * x ** 2 + 1/6. * x ** 4 #temporary PES - needs to be replaced by the real PES from molecule.py
     
     #PES on the grid
     #plt.plot(x,PES_temp(x))
@@ -93,22 +103,25 @@ def po_hermite( Nbas, Nquad, PO_grid, NPO_bas):
     
     #Example HO basis function
     #print(hofunc(1,x,alpha,Hr))
-    #plt.plot(x,hofunc(10,x,alpha,Hr))
-    #plt.show()
+    plt.plot(PO_grid,hofunc(2,PO_grid,alpha,Hr))
+    plt.show()
 
     scheme = quadpy.e1r2.gauss_hermite(Nquad)
-    Vmat = np.zeros((Nbas,Nbas), dtype=float)
     #scheme.show()
+
+    Vmat = np.zeros((Nbas,Nbas), dtype=float)
+
+
     for ni in range(Nbas):
         for nf in range(ni,Nbas):
             Vmat[ni,nf] = scheme.integrate(lambda q:  quad_weight_func(q,alpha) * hofunc(ni,q,alpha,Hr) * hofunc(nf,q,alpha,Hr) * PES_temp(q))
             Vmat[nf,ni] = Vmat[ni,nf] #test
     
-    print('\n'.join([''.join(['{:10.5}'.format(item) for item in row]) for row in Vmat]))
-    #print(Vmat)
+    #print('\n'.join([''.join(['{:10.5}'.format(item) for item in row]) for row in Vmat]))
 
 
     print("*** Integrating the KEO part ***")
+    Kmat = np.zeros((Nbas,Nbas), dtype=float)
     for ni in range(Nbas):
         for nf in range(ni,Nbas):
             Kmat[ni,nf] = scheme.integrate(lambda q:  quad_weight_func(q,alpha) * hofunc(ni,q,alpha,Hr) * ddhofunc(nf,q,alpha,Hr) * Gdiag(q))
@@ -116,21 +129,30 @@ def po_hermite( Nbas, Nquad, PO_grid, NPO_bas):
     
 
     Hmat = Vmat + Kmat
-
+    print('\n'.join([''.join(['{:10.5}'.format(item) for item in row]) for row in Hmat]))
     print("*** Diagonalizing the 1D Hamiltonian ***")
 
-    eval, vec = np.linalg.eigh(Hmat)
+    eval, vec = np.linalg.eigh(Hmat,UPLO='U')
 
-    print(eval)
-    print(vec)
+    #verify orthonormality
+    #print(np.dot(vec[:,1],vec[:,2]))
+    #print(np.dot(vec[:,1],vec[:,1]))
 
     print("*** Constructing collocation matrix in PO basis ***")
-    #bmat  = np.dot(vec[:],hofunc(:,PO_grid,alpha,Hr))
+
+    for n in range(NPO_bas):
+        for k in range(NPO_grid):
+            for iho in range(Nbas):
+                bmat[k,n]  += vec[iho,n] * hofunc(iho,PO_grid[k],alpha,Hr)
+
+    plt.plot(PO_grid,bmat[:,2])
+    plt.show()
+    #print(bmat)
     return bmat
 
 
 
-NPO_grid = 100
+NPO_grid = 200
 Nbas = 10
 Nquad = 10
 NPO_bas = 10
