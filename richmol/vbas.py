@@ -1,7 +1,12 @@
 import numpy as np
 from mol_xy2 import XY2_ralpha
 import poten_h2s_Tyuterev
+import poten_h2o_Polyansky
 from numpy.polynomial.legendre import leggauss, legval, legder
+
+
+singular_tol = 1e-12 # tolerance for considering matrix singular
+symmetric_tol = 1e-12 # tolerance for considering matrix symmetric
 
 
 class PrimBas:
@@ -12,21 +17,22 @@ class PrimBas:
         """Removes quadrature points with a low weight (w < zero_weight_thresh)
         that fall outside of the coordinate ranges
         """
-        good_points_out = (r<ranges[0]) & (r>ranges[1]) & (w>zero_weight_thresh)
-        print(r, ranges)
-        if len(w[good_points_out])>0:
-            raise ValueError(f"Some quadrature points with significant weight fall " \
-                +f"outside of the coordinate ranges = {ranges} \n (r,w) = " \
-                +f"{[(rr,ww) for rr,ww in zip(r[good_points_out], w[good_points_out])]}") from None
+        points_out1 = (r<ranges[0]) & (w>zero_weight_thresh)
+        points_out2 = (r>ranges[1]) & (w>zero_weight_thresh)
+        if len(w[points_out1])>0 or len(w[points_out2])>0:
+            maxw = max([np.max(w[points_out1]), np.max(w[points_out2])])
+            raise ValueError(f"Some quadrature points with significant weight (max = {maxw}) " \
+                +f"fall outside of the coordinate ranges = {ranges}") from None
 
-        good_points_in = (r>=ranges[0]) & (r<=ranges[1])
-        return x[good_points_in], w[good_points_in], r[good_points_in]
+        points_in = (r>=ranges[0]) & (r<=ranges[1])
+        return x[points_in], w[points_in], r[points_in]
 
 
 class LegCos(PrimBas):
     """ One-dimensional basis of Legendre(cos) orthogonal polynomials """
 
-    def __init__(self, molec, ref_coords, icoord, no_points, vmax, ranges, verbose=False, zero_weight_thresh=1e-16):
+    def __init__(self, molec, ref_coords, icoord, no_points, vmax, ranges, \
+                 verbose=False, zero_weight_thresh=1e-16):
         """Generates basis of one-dimensional Legendre(cos) orthogonal polynomials
 
         Args:
@@ -41,6 +47,9 @@ class LegCos(PrimBas):
             verbose (bool): Set to 'True' if you want to print out some intermediate data.
             zero_weight_thresh (tol): Threshold for the quadrature weight below which
                 the corresponding quadrature point can be neglected.
+
+        Returns:
+            don't know yet
         """
         # quadratures
         x, w = leggauss(no_points)
@@ -63,8 +72,8 @@ class LegCos(PrimBas):
             print("Gauss-Legendre(cos) quadrature\n" + "%23s"%"x" + "%18s"%"w" \
                 + "%18s"%"r" + "%18s"%"keo" + "%18s"%"poten")
             for i in range(len(r)):
-                print(" %4i"%i + "  %16.8f"%x[i] + "  %16.8e"%w[i] + "  %16.8f"%r[i] \
-                    + "  %16.8f"%gmat[i] + "  %16.8f"%poten[i])
+                print(" %4i"%i + "  %16.8f"%x[i] + "  %16.8e"%w[i] \
+                    + "  %16.8f"%r[i] + "  %16.8f"%gmat[i] + "  %16.8f"%poten[i])
 
         # basis functions and derivatives
 
@@ -88,10 +97,51 @@ class LegCos(PrimBas):
         #   which gives dr -> dx * 1/sin(r)
         jacob = 1.0/np.sin(r)
 
+        # overlap matrix
+        ovlp = np.zeros((vmax+1, vmax+1), dtype=np.float64)
+        for v1 in range(vmax+1):
+            for v2 in range(vmax+1):
+                ovlp[v1,v2] = np.sum(np.conjugate(psi[:,v1]) * psi[:,v2] * w[:] * jacob[:])
+
+        # check if overlap matrix is symmetric
+        if np.allclose(ovlp, ovlp.T, atol=symmetric_tol) == False:
+            raise RuntimeError(f"Overlap matrix is not symmetric (tol = {symmetric_tol})")
+
+        # inverse square root of overlap matrix
+        val, vec = np.linalg.eigh(ovlp)
+        if np.any(np.abs(val) < singular_tol):
+            raise RuntimeError(f"Overlap matrix is singular (tol = {singular_tol}") from None
+        d = np.diag(1.0/np.sqrt(val))
+        sqrt_inv = np.dot(vec, np.dot(d, vec.T))
+
+        # orthonormalize basis functions
+        psi = np.dot(psi, sqrt_inv.T)
+        dpsi = np.dot(dpsi, sqrt_inv.T)
+
+        # Hamiltonian matrix
+        hmat = np.zeros((vmax+1, vmax+1), dtype=np.float64)
+        for v1 in range(vmax+1):
+            for v2 in range(vmax+1):
+                fint = 0.5 * gmat * np.conjugate(dpsi[:,v1]) * dpsi[:,v2] \
+                     + poten * np.conjugate(psi[:,v1]) * psi[:,v2]
+                hmat[v1,v2] = np.sum(fint * w * jacob)
+
+        # check if Hamiltonian is hermitian
+        if np.allclose(hmat, np.conjugate(hmat.T), atol=symmetric_tol) == False:
+            raise RuntimeError(f"Hamiltonian matrix is not hermitian (tol = {symmetric_tol})")
+
+        # diagonalize Hamiltonian
+        eigval, eigvec = np.linalg.eigh(hmat)
+
+        # transform basis
+        psi = np.dot(psi, eigvec.T)
+        dpsi = np.dot(dpsi, eigvec.T)
+        print(eigval-eigval[0])
+
 
 if __name__=="__main__":
 
-    # H2S, using valence-bond coordinates and Tuyterev potential
+    # H2S, using valence-bond coordinates and Tyuterev potential
     h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
 
     # equilibrium/reference coordinates
@@ -101,4 +151,4 @@ if __name__=="__main__":
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
 
-    angBas = LegCos(h2s, ref_coords, 2, 100, 20, [0, np.pi/2], verbose=False)
+    angBas = LegCos(h2s, ref_coords, 2, 100, 30, [0, np.pi], verbose=True)
