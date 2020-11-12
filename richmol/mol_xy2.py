@@ -2,7 +2,6 @@ from molecule import Molecule
 import autograd.numpy as np
 import poten_h2o_Polyansky
 import poten_h2s_Tyuterev
-import numpy as np
 import sys
 import matplotlib.pyplot as plt
 #import poten_from_tf
