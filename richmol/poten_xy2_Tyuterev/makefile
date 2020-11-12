@@ -11,6 +11,7 @@ FFLAGS = -O3 -fopenmp -ffree-line-length-0
 F77LAGS = -O3
 LAPACK =  -lblas -llapack
 SOLIB_FLAGS = -dynamiclib
+EXT = ".dylib"
 
 else ifeq ($(UNAME), Linux)
 
@@ -20,6 +21,7 @@ FFLAGS = -O3 -fopenmp -fPIC -ffree-line-length-0
 F77LAGS = -O3
 LAPACK =  -lblas -llapack
 SOLIB_FLAGS = -shared
+EXT = ".so"
 
 else
 $(error Unknown platform)
@@ -28,7 +30,7 @@ endif
 LIB = $(LAPACK)
 
 poten_xy2_tyuterev.so: poten_xy2_tyuterev.o
-	$(FOR) $(SOLIB_FLAGS) poten_xy2_tyuterev.o $(LIB) -o poten_xy2_tyuterev.so
+	 $(FOR) $(SOLIB_FLAGS) poten_xy2_tyuterev.o $(LIB) -o poten_xy2_tyuterev$(EXT)
 poten_xy2_tyuterev.o: poten_xy2_tyuterev.f90
 	$(FOR) -c -cpp poten_xy2_tyuterev.f90 $(FFLAGS)
 clean:
