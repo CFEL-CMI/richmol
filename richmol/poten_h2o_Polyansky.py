@@ -3,7 +3,7 @@ see http://rsta.royalsocietypublishing.org/content/376/2115/20170149
 """
 import numpy as np
 import os.path
-from ctypes import CDLL, c_int, RTLD_GLOBAL
+from ctypes import c_int
 
 dll_path = os.path.join(os.path.dirname(__file__), 'poten_h2o_Polyansky')
 dll = np.ctypeslib.load_library('rsta20170149supp1', dll_path)

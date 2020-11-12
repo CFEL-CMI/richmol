@@ -1,7 +1,8 @@
 from molecule import Molecule
 import autograd.numpy as np
 import poten_h2o_Polyansky
-import poten_from_tf
+import poten_h2s_Tyuterev
+#import poten_from_tf
 
 class XY2_ralpha(Molecule):
     """ XY2-type molecule (e.g., H2O, H2S) / valence-bond internal cooridnates """
@@ -24,10 +25,11 @@ class XY2_ralpha(Molecule):
 
 if __name__=="__main__":
 
-    mol = XY2_ralpha(masses=[12,1,1], poten=poten_h2o_Polyansky.poten)
+    mol = XY2_ralpha(masses=[12,1,1], poten=poten_h2s_Tyuterev.poten)
     #coords1 = np.array([[1,1,0.5],[1,1,0.5],[1,1,0.5],[1,1,0.5],[1,1,0.5],[1,1,0.5]],dtype=np.float64)
     coords1 = np.array([[0.9586,0.9586,104.48],[0.9586,0.9586,104.48]],dtype=np.float64)
 
     G = mol.G(coords1)
-    #V = mol.V(coords1)
-    V = poten_from_tf.Potential('potens_tensorflow/PyrroleWater_NN.h5', coords1)
+    V = mol.V(coords1)
+    print(V)
+    #V = poten_from_tf.Potential('potens_tensorflow/PyrroleWater_NN.h5', coords1)

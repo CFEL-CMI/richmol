@@ -49,3 +49,5 @@ rsta20170149supp1.so: rsta20170149supp1.o
 	$(FOR) $(SOLIB_FLAGS) rsta20170149supp1.o $(LIB) -o rsta20170149supp1.so
 rsta20170149supp1.o: rsta20170149supp1.f
 	$(FOR) -c -cpp rsta20170149supp1.f $(FFLAGS)
+clean:
+	$(RM) *.mod *.o *.so *.dylib
