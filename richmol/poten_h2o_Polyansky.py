@@ -5,8 +5,8 @@ import numpy as np
 import os.path
 from ctypes import CDLL, c_int, RTLD_GLOBAL
 
-dll_name = os.path.dirname(os.path.abspath(__file__)) + '/poten_h2o_Polyansky/rsta20170149supp1.so'
-dll = CDLL(dll_name, mode=RTLD_GLOBAL)
+dll_path = os.path.join(os.path.dirname(__file__), 'poten_h2o_Polyansky')
+dll = np.ctypeslib.load_library('rsta20170149supp1', dll_path)
 
 def poten(coords):
     r1 = np.asfortranarray(coords[:,0])
@@ -23,4 +23,6 @@ def poten(coords):
             np.ctypeslib.ndpointer(np.float64, ndim=1, flags='F') ]
     dll.water_poten.restype = None
     dll.water_poten(npoints_c, r1, r2, np.cos(alpha), v)
-    return v
+    # the output value 'v' is in Hartree, convert it to cm^-1
+    cm = 219474.624
+    return v*cm
