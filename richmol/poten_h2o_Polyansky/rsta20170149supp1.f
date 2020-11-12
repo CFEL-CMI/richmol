@@ -1,5 +1,5 @@
       subroutine H2O_poten(npoints, r1, r2, xcos, v)
-     & bind(c, name='poten')
+     & bind(c, name='water_poten')
       use iso_c_binding
       integer(c_int), value :: npoints
       real(c_double) :: v(npoints), r1(npoints), r2(npoints)
@@ -1696,4 +1696,3 @@ c
        v=v0+vp+voh1+voh2+vhh
 
       end subroutine poten
-
