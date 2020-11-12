@@ -9,6 +9,12 @@ dll_path = os.path.join(os.path.dirname(__file__), 'poten_h2o_Polyansky')
 dll = np.ctypeslib.load_library('rsta20170149supp1', dll_path)
 
 def poten(coords):
+    """
+    Attrs:
+    r1: distance O-H1 in bohr
+    r2: distance O-H2 in bohr
+    theta: angle in radians 
+    """
     r1 = np.asfortranarray(coords[:,0])
     r2 = np.asfortranarray(coords[:,1])
     alpha = np.asfortranarray(coords[:,2])
