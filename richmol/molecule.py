@@ -2,6 +2,7 @@ import autograd.numpy as np
 from autograd import elementwise_grad, jacobian
 import functools
 import sys
+import constants
 
 
 class Molecule():
@@ -84,6 +85,18 @@ class Molecule():
         return inner_function
 
 
+    def G_invcm(method):
+        """ Changes units of G-matrix to cm^{-1} """
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            gmat = method(self, *args, **kwargs)
+            to_invcm = constants.planck * constants.avogno * 1.0e+16 \
+                     / (4.0 * np.pi * np.pi * constants.vellgt)
+            return gmat * to_invcm
+        return wrapper
+
+
+    @G_invcm
     def G(self, coords):
         """G-matrix using Autograd derivatives
 
