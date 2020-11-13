@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
 
@@ -211,7 +212,7 @@ class Hermite(PrimBas):
             coefs[v] = 1.0
             pol = hermval(self.x, coefs)
             dpol = hermval(self.x, hermder(coefs, m=1))
-            scale_fac = 1.0/np.sqrt(2.0**v*np.math.factorial(v))/sqsqpi
+            scale_fac = 1.0/np.sqrt(2.0**v*math.factorial(v))/sqsqpi
             self.psi[:,v] = pol * scale_fac
             self.dpsi[:,v] = (dpol - pol * self.x) * scale_fac * xmap
 
@@ -237,7 +238,7 @@ if __name__=="__main__":
     V = h2s.V(np.array([ref_coords]))
 
     angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
-    strBas = Hermite(h2s, ref_coords, 0, 100, 30, [0.6, 10], verbose=True)
+    strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
 
     # reference Numerov bending energies for H2S from TROVE
     trove_bend_enr = [0.00000000, 1209.51837915, 2413.11694104, 3610.38836754, 4800.89613073, \
