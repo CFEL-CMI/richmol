@@ -48,7 +48,7 @@ setup(
     cmdclass            = {'build': Build},
     package_data        = {"richmol":["symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
     scripts             = [],
-    install_requires    = ["hypothesis", "mendeleev"],
+    install_requires    = ["hypothesis", "mendeleev", "Tasmanian"],
     long_description    = read("README.md"),
 )
 
