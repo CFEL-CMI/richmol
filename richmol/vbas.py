@@ -79,6 +79,8 @@ class PrimBas:
                      + poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2]
                 hmat[v1,v2] = np.sum(fint * self.w * self.jacob) + self.uv[v1,v2]
 
+  
+
         # check if Hamiltonian is hermitian
         if np.allclose(hmat, np.conjugate(hmat.T), atol=symmetric_tol) == False:
             raise RuntimeError(f"Hamiltonian matrix is not hermitian (tol = {symmetric_tol})")
