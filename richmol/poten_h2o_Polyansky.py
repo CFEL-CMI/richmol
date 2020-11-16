@@ -11,10 +11,12 @@ dll = np.ctypeslib.load_library('rsta20170149supp1', dll_path)
 def poten(coords):
     """
     Attrs:
-    r1: distance O-H1 in bohr
-    r2: distance O-H2 in bohr
-    theta: angle in radians 
+    r1: distance O-H1 in angstrom
+    r2: distance O-H2 in angstrom
+    theta: angle in radians
     """
+    bohr = 1.8897259886
+    coords[:,0:2] = coords [:,0:2]*bohr
     r1 = np.asfortranarray(coords[:,0])
     r2 = np.asfortranarray(coords[:,1])
     alpha = np.asfortranarray(coords[:,2])
