@@ -409,3 +409,35 @@ are calculated sequentially in the following way
 
 
    y_{J,M,h}(t) = \sum_{J',M',\xi} v_{\xi} y^{(1)}_{J,M,h,J',M',\xi}(t) \tilde{M}^{(JMJ'M')}_{\omega,\xi}(t)
+
+Potential-Optimized vibrational basis sets
+==========================================
+Potential-optimized (PO) vibrational basis functions used in Richmol are solutions to appropritate 1-D Schrodinger equations.
+
+In a basic calculation the vibrational basis consists of the Harmonic oscillator functions for stretching coordinates and Legendre polynomials for bending coordinates.
+Savings in basis set size can be achieved when the 1D basis functions better reflect the true PES shape. For this reason the vibrational basis functions are chosen as solutions to the Schrodinger
+equation with only one active internal coordinate:
+
+ .. math::
+
+  \hat{H}^{(1D,i)}(q_i) =  \hat{K}(q_i) + \hat{V}(q_i) ;\ i=1,2,...,D
+
+where :math:`\hat{V}(q_1) :=  \hat{V}(q_1^{ref},...,q_i,...,q_D^{ref})` are 1D-cuts of the full PES along the i-th coordinate, such that
+the remaining :math:`D-1` coordinates are set to constant reference values. Similarly, :math:`\hat{K}(q_i)` is the kinetic energy operator
+obtained from the full D-dimensional KEO by setting all but the i-th coordinate to their reference values. The PO functions are calculated variationally
+through expansion in a primitive basis set:
+
+
+.. math::
+
+  \tilde{\phi}^{(i)}_h(q_i) = \sum_{n=0}^{Nbas-1} d^{(h)}_n \phi_n(q_i) ;\ i=1,2,...,D
+
+and the corresponding 1D Schrodinger equation can be written as:
+
+ .. math::
+
+  \hat{H}^{(1D,i)}(q_i) \tilde{\phi}^{(i)}_h(q_i) = E_h^{(1D,i)} \tilde{\phi}^{(i)}_h(q_i) ;\ i=1,2,...,D
+
+The primitive basis functions :math:`\phi_n(q_i)` are chosen for each internal coordinate individually. For example, for internal coordinates
+associated with the stretching motion, the primitive vibrational basis used are the Harmonic oscillator  or Morse oscillator wavefunctions.
+For internal coordiantes describbing the bending motion Legendre polynomials are used as the primitive basis. 
