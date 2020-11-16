@@ -2,6 +2,7 @@ import numpy as np
 import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
+import Tasmanian
 
 
 singular_tol = 1e-12 # tolerance for considering matrix singular
@@ -226,6 +227,7 @@ if __name__=="__main__":
     from mol_xy2 import XY2_ralpha
     import poten_h2s_Tyuterev
     import poten_h2o_Polyansky
+    import sys
 
     # H2S, using valence-bond coordinates and Tyuterev potential
     h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
@@ -236,6 +238,9 @@ if __name__=="__main__":
     # test KEO and potential
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
+
+    bas = Clenshaw_Curtis(h2s, ref_coords, 2, 100, 100, [0, np.pi], verbose=True)
+    sys.exit()
 
     angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
     strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
