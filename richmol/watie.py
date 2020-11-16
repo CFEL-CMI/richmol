@@ -1614,7 +1614,7 @@ class SymtopSymmetry():
         fsymtop.symtop_3d_grid(npoints_c, jmin_c, jmax_c, grid, symtop_grid_r, symtop_grid_i)
 
         self.coefs = symtop_grid_r.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1)) \
-                   + symtop_grid_i.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1))*1j
+                   - symtop_grid_i.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1))*1j
 
         # Wigner D-functions [D_{m,k}^{(j)}]^* from symmetric-top functions |j,k,m>
         for j in range(jmin,jmax+1):
