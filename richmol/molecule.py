@@ -1,5 +1,5 @@
 import autograd.numpy as np
-from autograd import elementwise_grad, jacobian
+from autograd import elementwise_grad, jacobian, grad
 import functools
 import sys
 import constants
@@ -172,3 +172,69 @@ class Molecule():
             poten (array (no_points)): Potential energy on grid.
         """
         return self.fpot(coords)
+
+    def PP(self, coords):
+        """Pseudo potential using Autograd derivatives
+
+        Args:
+            coords (array (no_points, no_coords)): Values of internal coordinates on grid,
+                no_coords is the number of internal coordinates,
+                no_points is the number of grid points.
+
+        Returns:
+            pseudo_poten (array (no_points,)): the pseudo potential on each point of the grid
+
+        Side notes:
+        This should still be vectorized for the coordinate choice
+        multiply by hbar?
+    """
+
+
+        def _determinant(coord):
+            """
+            Computes the determinant of the G matrix at a certain point
+            """
+            # consider only the rovibrational part of G
+            G = self.G(coord)[:, 0:n_internal_coords+3, 0:n_internal_coords+3]
+            det = np.linalg.det(G)
+            return det
+
+        def _func(coordinate):
+            """
+            Computes: G/|G| . grad(|G|)
+            """
+            det = _determinant(coordinate)
+            # compute gradient of the determinant
+            grada_val = grada(coordinate).transpose()
+            # vibrational part of G
+            G = self.G(coordinate)[:, 0:n_internal_coords, 0:n_internal_coords]
+            m = G/det
+            return np.dot(m[0,:,:],  grada_val)[:,0]
+
+        pseudo_poten = []
+        n_internal_coords = np.shape(coords)[1]
+        n_grid = np.shape(coords)[0]
+
+        for icoord in range(n_grid):
+            coordinate = coords[icoord, :].reshape(-1,1).transpose()
+            """
+            Compute first term of the PP
+            """
+            # compute gradient of the determinant
+            grada = grad(_determinant)
+            grada_val = grada(coordinate).transpose()
+            # vibrational G/ det^2
+            G = self.G(coordinate)[:, 0:n_internal_coords, 0:n_internal_coords]
+            det = _determinant(coordinate)
+            m = G/det**(2)
+            part1 = np.dot(np.dot(m[0,:,:], grada_val).transpose(), grada_val)
+
+            """
+            Compute second term of the PP
+            """
+            grada_3 = jacobian(_func)
+            grada_3_eval = grada_3(coordinate).reshape((n_internal_coords, n_internal_coords))
+            part2 = 4*np.sum(np.diagonal(grada_3_eval))
+            pseudo_poten.append((1/32)*(part1-part2)[0,0])
+
+        return np.array(pseudo_poten)
