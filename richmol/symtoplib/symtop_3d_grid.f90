@@ -165,52 +165,39 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
   real(c_double), intent(out) :: val_r(npoints,-Jmax:Jmax,Jmin:Jmax), &
                                  val_i(npoints,-Jmax:Jmax,Jmin:Jmax)
   
-  integer(ik) :: info, j, k, ipoint, iounit, m_
+  integer(ik) :: info, j, k, ipoint, iounit
   real(rk) :: fac
   real(rk), allocatable :: wd_matrix(:,:,:), diffwd_matrix(:,:)
   complex(rk) :: one_imag, res, val(npoints,-Jmax:Jmax,Jmin:Jmax)
   character(cl) :: sj, sk, sm, fname
   logical :: iftest
   
-  !write(out, '(a)') 'symtop_3d_grid: compute symmetric-top functions on a 3D grid'
-
-  m_ = m
   one_imag = cmplx(0.0_rk,1.0_rk)
-  
-  !write(out, '(a,1x,i4,1x,i8)') 'symtop_3d_grid: Jmax, npoints =', Jmax, npoints
   
   ! initialize some data required for computing Wigner D-matrix
   
 #if defined(_WIGD_FOURIER_)
 
-  !write(out, '(a)') 'symtop_3d_grid: use dffs_m module for Wigner D-matrix'
   call dffs_read_coef(Jmax*2)
 
 #elif defined(_WIGD_FOURIER_BIGJ_)
 
-  !write(out, '(a)') 'symtop_3d_grid: use wigner_d module for Wigner D-matrix'
-  ! allocate matrices for computing Wigner small-d matrices using module wigner_dmat2/wigner_d.f90
   allocate(wd_matrix(npoints,2*Jmax+1,2*Jmax+1), diffwd_matrix(2*Jmax+1,2*Jmax+1), stat=info)
   if (info/=0) then
     write(out, '(/a/a,10(1x,i6))') &
-      'symtop_3d_grid error: failed to allocate wd_matrix(npoints,2*Jmax+1,2*Jmax+1), &
+      'symtop_3d_grid_m error: failed to allocate wd_matrix(npoints,2*Jmax+1,2*Jmax+1), &
       diffwd_matrix(2*Jmax+1,2*Jmax+1)', 'npoints, Jmax =', npoints, Jmax
     stop
   endif
 
-#else
-
-  !write(out, '(a)') 'symtop_3d_grid: use slow djmk_small routine to compute Wigner D-matrix'
-
 #endif
   
-  ! start computing values of symmetric-top functions on grid for all values of J=0..Jmax
+  ! start computing values of symmetric-top functions on grid for all values of J=Jmin..Jmax
 
   val = 0
 
   do j=Jmin, Jmax
-  
-    !write(out, '(a,1x,i4)') 'symtop_3d_grid: J =', j
+
   
     fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
 
@@ -226,15 +213,15 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
 #if defined(_WIGD_FOURIER_)
         res = dffs( j*2, m*2, k*2, grid(2,ipoint) ) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m_ * grid(1,ipoint) )
+            * exp( one_imag * m * grid(1,ipoint) )
 #elif defined(_WIGD_FOURIER_BIGJ_)
         res = wd_matrix(ipoint,j+m+1,j+k+1) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m_ * grid(1,ipoint) )
+            * exp( one_imag * m * grid(1,ipoint) )
 #else
         res = djmk_small(real(j,rk), real(m,rk), real(k,rk), grid(2,ipoint)) &
             * exp( one_imag * k * grid(3,ipoint) ) &
-            * exp( one_imag * m_ * grid(1,ipoint) )
+            * exp( one_imag * m * grid(1,ipoint) )
 #endif
         val(ipoint,k,j) = res * fac
       enddo ! ipoint
@@ -248,27 +235,6 @@ subroutine symtop_3d_grid_m(npoints, Jmin, Jmax, m, grid, val_r, val_i) bind(c, 
 
   val_r = real(val, kind=rk)
   val_i = aimag(val)
-
-  !write(out, '(a)') 'symtop_3d_grid: done'
-  
-  ! for testing, print values of primitive functions into ASCII files
-  
-  iftest = .false.
-  if (iftest) then
-    do j=0, Jmax
-      write(sj,*) j
-      do k=-j, j
-        write(sk,*) k
-        write(sm,*) m_
-        fname = 'symtop_func_j'//trim(adjustl(sj))//'_k'//trim(adjustl(sk))//'_m'//trim(adjustl(sm))
-        open(iounit,form='formatted',position='rewind',action='write',file=fname)
-        do ipoint=1, npoints
-          write(iounit,'(3(1x,es16.8),3x,2(1x,es16.8))') grid(1:3,ipoint), val(ipoint,k,j)
-        enddo
-        close(iounit)
-      enddo
-    enddo
-  endif
 
 end subroutine symtop_3d_grid_m
 

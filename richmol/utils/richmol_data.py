@@ -1,37 +1,62 @@
-""" Set of tools to work with Richmol database files """
+""" Tools to work with Richmol database files """
 import numpy as np
-import sys
+import gzip
 
 
 def read_coefs(filename, coef_thresh=1.0e-16):
     """ Reads Richmol coefficients file """
-    states = []
-    fl = open(filename, "r")
+    if filename.endswith('.gz'):
+        fl = gzip.open(filename, "r")
+    else:
+        fl = open(filename, "r")
+    max_nelem = 0
+    nstates = 0
     for line in fl:
         w = line.split()
-        jrot = int(w[0])
+        max_nelem = max([int(w[5]), max_nelem])
+        nstates+=1
+
+    dt = [('J', 'i4'), ('id', 'i8'), ('ideg', 'i4'), ('sym', 'U10'), ('enr', 'f8'), \
+          ('n', 'i8'), ('c', np.complex128, [max_nelem]), ('v', 'i8', [max_nelem]), \
+          ('k', 'i4', [max_nelem])]
+    coefs = np.zeros(nstates, dtype=dt)
+
+    fl.seek(0)
+    istate = 0
+    for line in fl:
+        w = line.split()
+        J = int(w[0])
         id = int(w[1])
-        ideg = int(w[2])
-        enr = np.float64(w[3])
-        nelem = int(w[4])
-        coef = []
-        vib = []
-        krot = []
+        sym = w[2]
+        ideg = int(w[3])
+        enr = np.float64(w[4])
+        nelem = int(w[5])
+        coefs['J'][istate] = J
+        coefs['id'][istate] = id
+        coefs['sym'][istate] = sym
+        coefs['ideg'][istate] = ideg
+        coefs['enr'][istate] = enr
+        n = 0
         for ielem in range(nelem):
-            c = np.float64(w[5+ielem*4])
-            im = int(w[6+ielem*4])
+            c = np.float64(w[6+ielem*4])
+            im = int(w[7+ielem*4])
             if abs(c)**2<=coef_thresh: continue
-            coef.append(c*{0:1,1:1j}[im])
-            vib.append(int(w[7+ielem*4]))
-            krot.append(int(w[8+ielem*4]))
-        states.append({"j":jrot,"id":id,"ideg":ideg,"coef":coef,"v":vib,"k":krot,"enr":enr})
+            coefs['c'][istate,n] = c*{0:1,1:1j}[im]
+            coefs['v'][istate,n] = int(w[8+ielem*4])
+            coefs['k'][istate,n] = int(w[9+ielem*4])
+            n+=1
+        coefs['n'][istate] = n
+        istate+=1
     fl.close()
-    return states
+    return coefs
 
 
 def read_vibme(filename):
     """ Reads Richmol file with vibrational matrix elements """
-    fl = open(filename, "r")
+    if filename.endswith('.gz'):
+        fl = gzip.open(filename, "r")
+    else:
+        fl = open(filename, "r")
     dim = 0
     for line in fl:
         w = line.split()
@@ -47,7 +72,6 @@ def read_vibme(filename):
         w = line.split()
         i = int(w[0])
         j = int(w[1])
-        vibme[:,i,j] = [np.float64(ww) for ww in w[2:]]
+        vibme[:,i-1,j-1] = [np.float64(ww) for ww in w[2:]]
     fl.close()
     return vibme
-
