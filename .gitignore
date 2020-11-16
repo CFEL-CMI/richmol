@@ -129,7 +129,6 @@ dmypy.json
 .pyre/
 
 # Fortran and lib files
-*.f90
 *.o
 *.mod
 *.so
