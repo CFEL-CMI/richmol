@@ -240,9 +240,11 @@ if __name__=="__main__":
     # test KEO and potential
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
-
-    bas = Clenshaw_Curtis(h2s, ref_coords, 2, 100, 100, [0, np.pi], verbose=True)
+    for i in range(9):
+        print("".join(" %14.10f"%gg for gg in G[0,i,:]))
     sys.exit()
+
+    #bas = Clenshaw_Curtis(h2s, ref_coords, 2, 100, 100, [0, np.pi], verbose=True)
 
     angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
     strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
