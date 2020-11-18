@@ -245,6 +245,9 @@ if __name__=="__main__":
     # test KEO and potential
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
+    for i in range(9):
+        print("".join(" %14.10f"%gg for gg in G[0,i,:]))
+    sys.exit()
 
     #bas = Clenshaw_Curtis(h2s, ref_coords, 2, 100, 100, [0, np.pi], verbose=True)
 
