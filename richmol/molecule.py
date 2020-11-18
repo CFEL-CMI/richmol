@@ -185,6 +185,10 @@ class Molecule():
         return self.fpot(coords)
 
     def PP(self, coords):
+
+        n_grid_points = np.shape(coords)[0]
+        n_coords = np.shape(coords)[1]
+
         """Pseudo potential using Autograd derivatives
 
         Args:
@@ -199,14 +203,40 @@ class Molecule():
         This should still be vectorized for the coordinate choice
         multiply by hbar?
     """
+        def _determinant(coordinate):
+            G  = self.G(coordinate)[0,0:n_coords+3,0:n_coords+3]
+            # There is a big difference in including translations or not
+            det = np.linalg.det(G)
+            return det
 
+        def _func(coordinate):
+            G  = self.G(coordinate)[0,0:n_coords,0:n_coords]
+            Det = _determinant(coordinate)
+            dDet = grad(_determinant)
+            dDet_val = dDet(coordinate)
+            f = np.dot(G, dDet_val.transpose())/Det
+            return f
+        n_grid_points = np.shape(coords)[0]
+        n_coords = np.shape(coords)[1]
+        pseudos = []
 
+        for icoord in range(n_grid_points):
+            coordinate = coords[icoord,:].reshape(1,-1)
+            G = self.G(coordinate)[0,0:n_coords,0:n_coords]
+            Det = _determinant(coordinate)
+            dDet = grad(_determinant)
+            dDet_val = dDet(coordinate)
+            pseudo1 = np.dot(np.dot(dDet_val, G), dDet_val.transpose())/Det**2
 
+            pseudo2 = 0.0
+            f = _func(coordinate)
+            grad_2 = jacobian(_func)
 
+            grad_2_val = grad_2(coordinate)
+            pseudo_2 = 4*np.sum(np.diagonal(grad_2_val))
 
+            pseudo = (pseudo1 - pseudo_2)/32
+            pseudos.append(pseudo)
+        #return np.array(pseudo_poten)
 
-
-
-
-
-        return np.array(pseudo_poten)
+        return np.array(pseudos)[:,0,0]
