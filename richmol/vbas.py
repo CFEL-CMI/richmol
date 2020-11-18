@@ -2,7 +2,7 @@ import numpy as np
 import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
-import Tasmanian
+#import Tasmanian
 
 
 singular_tol = 1e-12 # tolerance for considering matrix singular
@@ -42,14 +42,17 @@ class PrimBas:
         coords[:,icoord] = self.r[:]
         gmat = molec.G(coords)[:,icoord,icoord]
         poten = molec.V(coords)
+        p_poten = molec.PP(coords)
+
+        print(ref_coords)
 
         # print values on quadrature grid
         if verbose==True:
             print("Operators on 1D quadrature grid\n" + "%23s"%"x" + "%18s"%"w" \
-                + "%18s"%"r" + "%18s"%"keo" + "%18s"%"poten")
+                + "%18s"%"r" + "%18s"%"keo" + "%18s"%"poten" + "%18s"%"pseudo poten")
             for i in range(len(self.r)):
                 print(" %4i"%i + "  %16.8f"%self.x[i] + "  %16.8e"%self.w[i] \
-                    + "  %16.8f"%self.r[i] + "  %16.8f"%gmat[i] + "  %16.8f"%poten[i])
+                    + "  %16.8f"%self.r[i] + "  %16.8f"%gmat[i] + "  %16.8f"%poten[i]+ "  %16.8f"%p_poten[i])
 
         # overlap matrix
         ovlp = np.zeros((self.vmax, self.vmax), dtype=np.float64)
@@ -78,10 +81,12 @@ class PrimBas:
         for v1 in range(self.vmax):
             for v2 in range(self.vmax):
                 fint = 0.5 * gmat * np.conjugate(self.dpsi[:,v1]) * self.dpsi[:,v2] \
-                     + poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2]
+                     + poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2] \
+                     + p_poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2]
+
                 hmat[v1,v2] = np.sum(fint * self.w * self.jacob) + self.uv[v1,v2]
 
-  
+
 
         # check if Hamiltonian is hermitian
         if np.allclose(hmat, np.conjugate(hmat.T), atol=symmetric_tol) == False:
