@@ -96,7 +96,7 @@ class Molecule():
         return wrapper
 
 
-    @G_invcm
+    #@G_invcm
     def G(self, coords):
         """G-matrix using Autograd derivatives
 
@@ -136,16 +136,18 @@ class Molecule():
         xyz = np.array([[ self.internal_to_cartesian(coords, atom = iatom, alpha = igamma) \
                           for igamma in range(3) ] for iatom in range(natoms) ]) # shape = (iatom, igamma, ipoint)
 
-        #trot = np.reshape(np.transpose(np.dot(eps, xyz), (2,0,3,1)), (natoms3, npoints, 3)) # shape = (iatom*ialpha, ipoint, icoord)
+        trot = np.reshape(np.transpose(np.dot(eps, xyz), (2,0,3,1)), (natoms3, npoints, 3)) # shape = (iatom*ialpha, ipoint, icoord)
+
         # slower but more transparent implementation of rotational t-vector
-        trot = np.zeros((natoms3, npoints, 3), dtype=np.float64)
-        ialpha = 0
-        for iatom in range(natoms):
-            for ix in range(3):
-                trot[ialpha,:,0] = np.dot(eps[ix,0,:], xyz[iatom,:,:])
-                trot[ialpha,:,1] = np.dot(eps[ix,1,:], xyz[iatom,:,:])
-                trot[ialpha,:,2] = np.dot(eps[ix,2,:], xyz[iatom,:,:])
-                ialpha+=1
+        #trot = np.zeros((natoms3, npoints, 3), dtype=np.float64)
+        #ialpha = 0
+        #for iatom in range(natoms):
+        #    for ix in range(3):
+        #        trot[ialpha,:,0] = np.dot(eps[ix,0,:], xyz[iatom,:,:])
+        #        trot[ialpha,:,1] = np.dot(eps[ix,1,:], xyz[iatom,:,:])
+        #        trot[ialpha,:,2] = np.dot(eps[ix,2,:], xyz[iatom,:,:])
+        #        ialpha+=1
+
         # translational part
 
         ttra_ = np.reshape(np.array([np.eye(3, dtype=np.float64) for iatom in range(natoms)]), (natoms3, 3))
