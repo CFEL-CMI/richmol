@@ -2,6 +2,7 @@ import numpy as np
 import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
+from numpy.polynomial.laguerre import laggauss
 #import Tasmanian
 
 
@@ -227,7 +228,14 @@ class Hermite(PrimBas):
         # generate potential-optimized basis
         self.PObas(molec, ref_coords, icoord, verbose)
 
+class Morse(PrimBas):
 
+    def __init__(self, molec, ref_coords, icoord, no_points, vmax, ranges, \
+                 verbose=False, zero_weight_thresh=1e-20, fdf_h=0.001):
+
+
+    x, w = leggauss(no_points)
+    
 
 if __name__=="__main__":
 
