@@ -42,7 +42,7 @@ class PrimBas:
         coords[:,icoord] = self.r[:]
         gmat = molec.G(coords)[:,icoord,icoord]
         poten = molec.V(coords)
-        #p_poten = molec.PP(coords)
+#        p_poten = molec.PP(coords)
 
         print(ref_coords)
 
@@ -82,7 +82,7 @@ class PrimBas:
             for v2 in range(self.vmax):
                 fint = 0.5 * gmat * np.conjugate(self.dpsi[:,v1]) * self.dpsi[:,v2] \
                      + poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2] \
-                     #+ p_poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2]
+#                     + p_poten * np.conjugate(self.psi[:,v1]) * self.psi[:,v2]
 
                 hmat[v1,v2] = np.sum(fint * self.w * self.jacob) + self.uv[v1,v2]
 

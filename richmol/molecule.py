@@ -204,7 +204,7 @@ class Molecule():
         multiply by hbar?
     """
         def _determinant(coordinate):
-            G  = self.G(coordinate)[0,0:n_coords+3,0:n_coords+3]
+            G  = self.G(coordinate)[0,0:n_coords+6,0:n_coords+6]
             # There is a big difference in including translations or not
             det = np.linalg.det(G)
             return det
@@ -236,6 +236,7 @@ class Molecule():
             pseudo_2 = 4*np.sum(np.diagonal(grad_2_val))
 
             pseudo = (pseudo1 - pseudo_2)/32
+            print(pseudo)
             pseudos.append(pseudo)
         #return np.array(pseudo_poten)
 

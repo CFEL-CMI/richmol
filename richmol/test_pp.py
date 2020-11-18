@@ -30,8 +30,9 @@ class XY2_ralpha(Molecule):
 
 if __name__=="__main__":
 
-    h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
-    coords = np.array([[1.3359,1.3359,1.61034],[1.3359,1.3359,1.61034]],dtype=np.float64)
+    #h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
+    h2s = XY2_ralpha(masses=[31.9721, 1.00783, 1.00783], poten=poten_h2s_Tyuterev.poten)
+    coords = np.array([[1.3359,1.3359,1.61034]],dtype=np.float64)
     npt = 1
     #G = h2s.G(coords)
     # test pseudo-potential
