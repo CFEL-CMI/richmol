@@ -6,7 +6,7 @@ import sys
 import matplotlib.pyplot as plt
 #import poten_from_tf
 import scipy.misc as mc
-from autograd import elementwise_grad
+from autograd import elementwise_grad, jacobian
 from autograd import grad
 
 class XY2_ralpha(Molecule):
@@ -35,5 +35,24 @@ if __name__=="__main__":
     npt = 1
     G = h2s.G(coords)
     # test pseudo-potential
-    delta = h2s.PP(coords)
-    print(delta)
+    #delta = h2s.PP(coords)
+
+    def A(x,y):
+        return np.array((x**1)*(y**2))
+    x = np.array([1,2,3,4])
+    y = np.array([2])
+    print(A(x,y))
+    #grada = elementwise_grad(A,0)
+    #dA_dX = grada(x,y)
+
+    def B(x,y):
+        grada = elementwise_grad(A,0)
+        dA_dX = grada(x,y)
+        return dA_dX
+    print(B(x,y))
+    #sys.exit()
+    #grada2 = jacobian(B,1)
+    grada2 = elementwise_grad(B,1)
+
+    dA_dX_dY = grada2(x,y)
+    print(dA_dX_dY)

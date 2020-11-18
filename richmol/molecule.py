@@ -92,6 +92,7 @@ class Molecule():
             gmat = method(self, *args, **kwargs)
             to_invcm = constants.planck * constants.avogno * 1.0e+16 \
                      / (4.0 * np.pi * np.pi * constants.vellgt)
+
             return gmat * to_invcm
         return wrapper
 
@@ -136,7 +137,7 @@ class Molecule():
         xyz = np.array([[ self.internal_to_cartesian(coords, atom = iatom, alpha = igamma) \
                           for igamma in range(3) ] for iatom in range(natoms) ]) # shape = (iatom, igamma, ipoint)
 
-        trot = np.reshape(np.transpose(np.dot(eps, xyz), (2,0,3,1)), (natoms3, npoints, 3)) # shape = (iatom*ialpha, ipoint, icoord)
+        trot = np.reshape(np.transpose(np.dot(eps, xyz), (0,2,3,1)), (natoms3, npoints, 3)) # shape = (iatom*ialpha, ipoint, icoord)
 
         # translational part
 
@@ -188,7 +189,8 @@ class Molecule():
         This should still be vectorized for the coordinate choice
         multiply by hbar?
     """
-
+        to_invcm = constants.planck * constants.avogno * 1.0e+16 \
+                 / (4.0 * np.pi * np.pi * constants.vellgt)
 
         def _determinant(coord):
             """
@@ -196,6 +198,7 @@ class Molecule():
             """
             # consider only the rovibrational part of G
             G = self.G(coord)[:, 0:n_internal_coords+3, 0:n_internal_coords+3]
+            #G /= to_invcm
             det = np.linalg.det(G)
             return det
 
@@ -208,8 +211,14 @@ class Molecule():
             grada_val = grada(coordinate).transpose()
             # vibrational part of G
             G = self.G(coordinate)[:, 0:n_internal_coords, 0:n_internal_coords]
+            #G /= to_invcm
             m = G/det
+            # method 1
             return np.dot(m[0,:,:],  grada_val)[:,0]
+            #method 2
+            #print(np.shape(np.multiply(m, grada_val)[0,:,:]))
+
+            #return np.multiply(m, grada_val)[0,:,:]
 
         pseudo_poten = []
         n_internal_coords = np.shape(coords)[1]
@@ -217,24 +226,54 @@ class Molecule():
 
         for icoord in range(n_grid):
             coordinate = coords[icoord, :].reshape(-1,1).transpose()
-            """
-            Compute first term of the PP
-            """
+
+            #Compute first term of the PP
             # compute gradient of the determinant
             grada = grad(_determinant)
             grada_val = grada(coordinate).transpose()
             # vibrational G/ det^2
             G = self.G(coordinate)[:, 0:n_internal_coords, 0:n_internal_coords]
+            #G /= to_invcm
             det = _determinant(coordinate)
             m = G/det**(2)
+            #method 1
             part1 = np.dot(np.dot(m[0,:,:], grada_val).transpose(), grada_val)
+            print(f"part1 using method 1 is: {part1}")
+            #method 2:
+            #part1 = np.dot(np.multiply(np.diagonal(m[0,:,:]), grada_val[:,0]),  grada_val)
 
-            """
-            Compute second term of the PP
-            """
+
+        #    Compute second term of the PP
+
             grada_3 = jacobian(_func)
             grada_3_eval = grada_3(coordinate).reshape((n_internal_coords, n_internal_coords))
             part2 = 4*np.sum(np.diagonal(grada_3_eval))
-            pseudo_poten.append((1/32)*(part1-part2)[0,0])
 
+            #method 2
+            #grada_3_eval = grada_3(coordinate).reshape((n_internal_coords, n_internal_coords, n_internal_coords))
+            #part2 = 4*np.sum(np.diagonal(np.diagonal(grada_3_eval)))
+
+            U = (1/32)*(part1-part2)
+
+            print(U)
+            #to_invcm = constants.planck * constants.avogno * 1.0e+16 \
+            #         / (4.0 * np.pi * np.pi * constants.vellgt)
+            #pseudo_poten.append(U/(to_invcm))
+            pseudo_poten.append(U)
+
+            """
+        for icoord in range(1):
+            coordinate = coords[icoord, :].reshape(-1,1).transpose()
+            det = _determinant(coordinate)
+            G = self.G(coordinate)[:, 0:n_internal_coords, 0:n_internal_coords][0,:,:]
+            grada = grad(_determinant)
+            grada_val = grada(coordinate).transpose()
+            print(np.shape(grada_val))
+            part1 = 0.0
+            for k in range(n_internal_coords):
+                for l in range(n_internal_coords):
+                    part1 += (G[k,l]/det**(2))*grada_val[k,0]*grada_val[l,0]
+            print(f"part 1 using method 2 is: {part1}")
+            sys.exit()
+            """
         return np.array(pseudo_poten)
