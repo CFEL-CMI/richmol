@@ -41,11 +41,11 @@ class PObas:
         omega = secderiv# second derivative of PES at reference geometry = mu * omega **2
 
         print("*** Constructing G-matrix at equlilibrium geometry ***") 
-        gmat = molec.G(np.array([ref_coords]))[0,icoord,icoord] #G(r1,r1,gamma) = G(0,0,0) = mu^-1
-        print("Harmonic frequency = " +  str(np.sqrt(secderiv/gmat)))
+        gmateq = molec.G(np.array([ref_coords]))[0,icoord,icoord] #G(r1,r1,gamma) = G(0,0,0) = mu^-1
+        print("Harmonic frequency = " +  str(np.sqrt(secderiv/gmateq)))
       
         print("*** Constructing scaled coordinates ***")
-        alpha= np.sqrt(np.sqrt(2.0*np.abs(omega)/np.abs(gmat)))
+        alpha= np.sqrt(np.sqrt(2.0*np.abs(omega)/np.abs(gmateq)))
         r = q / alpha + ref_coords[icoord]
         coords = np.array(np.broadcast_to(ref_coords, (len(r),len(ref_coords))))
         coords[:,icoord] = r[:]
@@ -72,6 +72,29 @@ class PObas:
 
         print("*** Constructing the G matrix ***")
         gmat = molec.G(coords)[:,icoord,icoord]
+
+        print("*** Constructing first derivative of the G matrix ***")
+        gmatder = np.zeros((len(r),3),dtype=float)
+
+        dh = 1e-4 #step for calculating second derivative of G-matrix. [1e-3:1e-9] range is acceptable.
+        # five-point stencil for first derivative
+        stencil_steps = np.array([2.0*dh, 1.0*dh, -1.0*dh, -2.0*dh], dtype=np.float64)
+        stencil_coeffs = np.array([-1.0,8.0,-8.0,+1.0], dtype=np.float64)/(12.0*dh)
+        stencil_grid = np.array(np.broadcast_to(ref_coords, (len(stencil_steps),len(ref_coords))))
+        #print(stencil_grid)
+        for k in range(len(r)):
+            stencil_grid[:,self.icoord] = [r[k]+dr for dr in  stencil_steps]
+           # print(stencil_grid)
+            gmatstencil = molec.G(stencil_grid)[:,icoord,icoord]
+            gmatder[k,icoord] = np.dot(gmatstencil, stencil_coeffs)
+                
+       # print("Gmat-prime:")
+        #print(gmatder)
+
+            
+       # plt.plot(r,gmatder[:])
+       # plt.show()
+       # exit()
 
         for ni in range(self.Nbas):
             for nf in range(ni,self.Nbas):
@@ -104,7 +127,7 @@ class PObas:
             for nf in range(ni,self.Nbas):
                 foverlap =  w[:] *  self.hofunc(ni,q[:]) * self.hofunc(nf,q[:])
                 Smat[ni,nf] = np.sum(foverlap) 
-                #Smat[nf,ni] = Smat[ni,nf] 
+                Smat[nf,ni] = Smat[ni,nf] 
 
         #print("Overlap matrix")
         #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in Smat]))
@@ -119,10 +142,10 @@ class PObas:
         #self.print_coeffs(vec,2)
 
         #plot wavefunctions
-        for n in range(2):
-            plt.plot(POgrid,self.hofunc(n,POgrid[:]) * np.exp(-0.5 * POgrid[:]**2))
-            plt.plot(POgrid,-bmat[:,n])
-        plt.show()
+        #for n in range(2):
+        #    plt.plot(POgrid,self.hofunc(n,POgrid[:]) * np.exp(-0.5 * POgrid[:]**2))
+        #    plt.plot(POgrid,-bmat[:,n])
+        #plt.show()
         return bmat
 
 class HObas(PObas):
