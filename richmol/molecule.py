@@ -97,7 +97,7 @@ class Molecule():
         return wrapper
 
 
-    #@G_invcm
+    @G_invcm
     def G(self, coords):
         """G-matrix using Autograd derivatives
 
