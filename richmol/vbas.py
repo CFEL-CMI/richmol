@@ -2,7 +2,8 @@ import numpy as np
 import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
-from numpy.polynomial.laguerre import laggauss
+from numpy.polynomial.laguerre import laggauss, lagval, lagder
+import matplotlib.pyplot as plt
 #import Tasmanian
 
 
@@ -186,7 +187,6 @@ class Hermite(PrimBas):
         # quadrature abscissas -> coordinate values
 
         gmat = molec.G(np.array([ref_coords]))[0,icoord,icoord]
-
         # use finite-differences (7-point) to compute frequency
         fdf_steps = np.array([3*fdf_h, 2*fdf_h, fdf_h, 0.0, -fdf_h, -2*fdf_h, -3*fdf_h], dtype=np.float64)
         fdf_coefs = np.array([2.0, -27.0, 270.0, -490.0, 270.0, -27.0, 2.0], dtype=np.float64)
@@ -195,7 +195,6 @@ class Hermite(PrimBas):
         coords[:,icoord] = [ref_coords[icoord]+st for st in fdf_steps]
         poten = molec.V(coords)
         freq = np.dot(poten, fdf_coefs)/(fdf_denom*fdf_h*fdf_h)
-
         # mapping between r and x
         xmap = np.sqrt(np.sqrt( 2.0*np.abs(freq)/np.abs(gmat) ))
         r = x / xmap + ref_coords[icoord]
@@ -233,9 +232,56 @@ class Morse(PrimBas):
     def __init__(self, molec, ref_coords, icoord, no_points, vmax, ranges, \
                  verbose=False, zero_weight_thresh=1e-20, fdf_h=0.001):
 
+    # quadrature points
+        x, w = laggauss(no_points)
+        # compute reduced mass from the G-matrix (valled mu in Emil's book)
+        gmat = molec.G(np.array([ref_coords]))[0,icoord,icoord]
+        # Discosiation energy
+        De = 30000.0
+        # Well width
+        a = 2.5
+        # computing constants depending on these Values
+        w0 = a*np.sqrt(2*De/gmat)
+        beta = w0*np.sqrt(gmat/(2*De))
+        A = 4*De/beta
+        alpha = np.floor(A) # it's sooooo big
 
-    x, w = leggauss(no_points)
-    
+        # mapping from x-> r:
+        r = -np.log(x/A)/beta + ref_coords[icoord]
+        self.x = x
+        self.r = r
+        self.w = w
+        self.jacobian = -beta*A*np.exp(-beta*(self.r-ref_coords[icoord]))
+        self.vmax = vmax + 1
+        self.x = x
+        self.psi = np.zeros((len(self.x), self.vmax), dtype=np.float64)
+        self.dpsi = np.zeros((len(self.x), self.vmax), dtype=np.float64)
+        coeffs = np.zeros((self.vmax,))
+        coords = np.array(np.broadcast_to(ref_coords, (len(self.x),len(ref_coords))))
+        coords[:,2] = np.linspace(0.2, 20, len(self.x))
+        def _lag(x, i):
+            """
+            return laguerre series of coefficient i at point x
+            """
+            print(lagval(self.x, coeffs)**alpha)
+            return np.sqrt(beta)*(lagval(self.x, coeffs)**alpha)*(self.x**((alpha+1)/2))*(np.exp(-self.x/2))
+        def _dlag(x, i):
+            dh = 0.001
+            dh_steps = [2*dh, dh, -dh, -2*dh]
+            dh_coeffs = [-1,8,-1,1]
+            dpsi = np.zeros(np.shape(self.vmax))
+            for step, coeff in zip(dh_steps, dh_coeffs):
+                dpsi = dpsi + coeff*(_lag(x+step, i))
+            return dpsi/(12*dh)
+
+        for i in range(self.vmax):
+            coeffs[:] = 0
+            coeffs[i] = 1
+            # scale_factor
+            self.psi[:, i] = _lag(self.x,i)
+            self.dpsi[:,i] = _dlag(self.x, i)
+        print(self.psi)
+        print("code ran successfully")
 
 if __name__=="__main__":
 
@@ -249,11 +295,18 @@ if __name__=="__main__":
 
     # equilibrium/reference coordinates
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
+    coord1 = np.linspace(0.9, 5, 100)
+    coord2 = np.repeat(1.3359007, 100)
+    coord3 = np.repeat(92.265883/180.0*np.pi, 100)
+    coords = np.stack((coord1, coord2, coord3)).transpose()
+    V = h2s.V(coords)
+    #De = 30000
+    #a = 2.5
+    #Morse = De*(1-np.exp(-a*(coord1 - 1.3359007)))**2
 
     # test KEO and potential
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
-
 
     """
     for i in range(9):
@@ -262,8 +315,9 @@ if __name__=="__main__":
 """
     #bas = Clenshaw_Curtis(h2s, ref_coords, 2, 100, 100, [0, np.pi], verbose=True)
 
-    angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
-    strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
+    #angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
+    #strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
+    MorseBas = Morse(h2s, ref_coords, 0, 100, 60, [0.6, 30], verbose=True)
 
     # reference Numerov bending energies for H2S from TROVE
     trove_bend_enr = [0.00000000, 1209.51837915, 2413.11694104, 3610.38836754, 4800.89613073, \
@@ -275,7 +329,7 @@ if __name__=="__main__":
     # reference Numerov stretching energies for H2S from TROVE
     trove_str_enr = [0.00000000, 2631.91316250, 5168.60694305, 7610.21707943, 9956.62949349, \
                      12207.53640553,14362.48285216,16420.90544929,18382.16446603,20245.56943697, \
-                     22010.39748652,23675.90513652,25241.42657687,26708.10237789,28092.75163810, \
+                     22010.39748652,23675.90513652,25241.426576827,26708.10237789,28092.75163810, \
                      29462.97307758,30918.23065498,32507.23053835,34229.22373259,36072.32685441, \
                      38026.38406259]
 
