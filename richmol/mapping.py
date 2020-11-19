@@ -3,35 +3,45 @@ from matplotlib import pyplot as plt
 from scipy.special import binom
 
 class indexmap:
-    def __init__(self,b,pruntype):
+    def __init__(self,b,pruntype,dim):
         self.pruntype = pruntype #type of pruning
         self.b = b #pruning parameter
-    
+        self.dim = dim #number of dimensions. For now it is 3
+
     def get_basis_size(self):
-            return binom(self.b + 1, 3)
+            return  int(binom(self.b + 3, 3)) #(self.b+1) * (self.b +2 ) /2
+
+    def get_pruning_func(self):
+        "generate pruning function"
+        alpha1 = 1
+        alpha2 = 1
+        alpha3 = 1
+        return alpha1,alpha2,alpha3
+            
+
 
     def gen_map(self):
-        maparray = np.zeros((self.get_basis_size(),4))
-
-        for i1 in range(b):
-            for i2 in range(b):
-                for i3 in range(b):
-                    maparray[i,i1] = i1
-                    maparray[i,i2] = i2
-                    maparray[i,i3] = i3
+        print(self.get_basis_size())
+        maparray = np.zeros((int(self.get_basis_size()),4),dtype=int)
+        alpha1,alpha2,alpha3 = self.get_pruning_func()
+        i = 0 
+        for i1 in range(self.b):
+            for i2 in range(self.b):
+                for i3 in range(self.b):
+                    print(str(i1)+' '+str(i2)+' '+str(i3))
+                    if  i1 * alpha1 + i2 * alpha2 + i3 * alpha3 <= self.b:
+                        maparray[i,0] = i1
+                        maparray[i,1] = i2
+                        maparray[i,2] = i3
+                        maparray[i,3] = i+1
+                        i+=1
 
         return maparray 
 
 
 if __name__=="__main__":
 
-    from mol_xy2 import XY2_ralpha
-    import poten_h2s_Tyuterev
 
-    # equilibrium/reference coordinates
-    ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
 
-    # H2S, using valence-bond coordinates and Tyuterev potential
-    h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
-
-  
+    simpleMap = indexmap(3,'simple',3)
+    print(simpleMap.gen_map())
