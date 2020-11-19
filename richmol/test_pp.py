@@ -9,6 +9,7 @@ import scipy.misc as mc
 from autograd import elementwise_grad, jacobian
 from autograd import grad
 
+
 class XY2_ralpha(Molecule):
     """ XY2-type molecule (e.g., H2O, H2S) / valence-bond internal cooridnates """
 
@@ -32,9 +33,13 @@ if __name__=="__main__":
 
     #h2s = XY2_ralpha(masses=[31.97207070, 1.00782505, 1.00782505], poten=poten_h2s_Tyuterev.poten)
     h2s = XY2_ralpha(masses=[31.9721, 1.00783, 1.00783], poten=poten_h2s_Tyuterev.poten)
-    coords = np.array([[1.3359,1.3359,1.61034]],dtype=np.float64)
+    coords = np.array([[1.3359,1.3359,1.61034], [1.3359,1.3359,1.61034]],dtype=np.float64)
     npt = 1
     #G = h2s.G(coords)
+
+    #test derivative:
+    dG = h2s.G_d(coords)
+    sys.exit()
     # test pseudo-potential
     delta = h2s.PP(coords)
     print(delta)

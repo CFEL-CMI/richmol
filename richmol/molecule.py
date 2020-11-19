@@ -240,3 +240,29 @@ class Molecule():
         #return np.array(pseudo_poten)
 
         return np.array(pseudos)[:,0,0]
+
+    def G_d(self, coords):
+
+        n_grid_points = np.shape(coords)[0]
+        n_coords = np.shape(coords)[1]
+
+        def _G(coordinate):
+            G = self.G(coordinate)
+            return G
+
+        # try vectorizing over the grid points
+        """
+        dG = jacobian(_G)
+        dG_val = dG(coords)
+        print(np.shape(dG_val))
+        dG_val.reshape((n_grid_points, n_coords+6,n_coords+6, 3))
+        """
+        dG_vals = []
+
+        for ipoint in range(n_grid_points):
+            coordinate = coords[ipoint,:].reshape(1,-1)
+            dG = jacobian(_G)
+            dG_val = dG(coordinate).reshape((n_coords+6,n_coords+6, 3))
+            dG_vals.append(dG_val)
+        print(np.shape(np.array(dG_vals)))
+        return dG_vals
