@@ -163,7 +163,7 @@ class Molecule():
         # g-small matrix
 
         sqm = np.array([np.sqrt(self.masses[iatom]) for iatom in range(natoms) for ialpha in range(3)])
-        tvec *= sqm[:, np.newaxis, np.newaxis]
+        tvec = tvec * sqm[:, np.newaxis, np.newaxis]
         gsmall = np.einsum('ijk,ijl->jkl', tvec, tvec)
         return gsmall
 
@@ -263,13 +263,13 @@ class Molecule():
 
     def dG(self, coords):
         ncoords = coords.shape[1]
-        g_grad = elementwise_grad(self.G)
-        grad = np.array([[ g_grad(coords, i = i, j = j) for i in range(ncoords)] \
-                          for j in range(ncoords) ])
-        grad = np.transpose(grad, (2,0,1,3)) # shape = (ipoint, i, j, icoord)
-        #Gmat = self.G(coords)
-        #return -np.einsum('pij,pjkn->pikn', np.einsum('pij,pjk->pik', Gmat, Gmat), grad)
-        return grad
+        g_grad = elementwise_grad(self.g)
+        grad = np.array([[ g_grad(coords, i = i, j = j) for i in range(9)] \
+                          for j in range(9) ]) # shape = (i, j, ipoint, icoord)
+        Gmat = self.G(coords)
+        Gmat = np.einsum('ijk,ikl->ijl', Gmat, Gmat)
+        print(grad.shape, Gmat.shape)
+        return -np.einsum('ijk,klin->ijln', Gmat, grad)
 
 
     def G_d(self, coords):
