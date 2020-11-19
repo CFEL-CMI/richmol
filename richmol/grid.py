@@ -2,8 +2,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 class Grid:
-    def __init__(self):
-        pass
+    def __init__(self,Hlevel,quadtype):
+        self.Hlevel = Hlevel
+        self.quadtype = quadtype
     
    
 
