@@ -97,7 +97,7 @@ class Molecule():
         return wrapper
 
 
-    #@G_invcm
+    @G_invcm
     def G(self, coords):
         """G-matrix using Autograd derivatives
 
@@ -169,7 +169,6 @@ class Molecule():
 
         gmat = np.linalg.inv(gsmall)
         return gmat
-
 
     def V(self, coords):
         """Potential energy surface

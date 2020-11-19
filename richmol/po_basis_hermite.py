@@ -6,11 +6,11 @@ from matplotlib import pyplot as plt
 class PObas:
     def __init__(self):
         pass
-    
+
     def print_coeffs(self,vec,n):
         print(' '.join(["  %8.4f"%item for item in vec[:,n]]))
 
-    def gen_po_bas(self, molec, ref_coords, POgrid, icoord): #molec, ref_coords, 
+    def gen_po_bas(self, molec, ref_coords, POgrid, icoord): #molec, ref_coords,
         """Generate potential-optimized basis set from primitive basis"""
 
         print("========= Potential-Optimized basis functions ========="+'\n')
@@ -27,7 +27,7 @@ class PObas:
 
         #define quadrature rule
         q, w = self.gen_quad()
-  
+
         print("*** Constructing 5-point stencil to get harmonic frequency of the PES ***")
         dh = 1e-4 #step for calculating second derivative of PES. [1e-3:1e-9] range is acceptable.
         # five-point stencil to get harmonic frequency of the PES
@@ -40,10 +40,10 @@ class PObas:
         secderiv = np.dot(pes_eq, stencil_coeffs)
         omega = secderiv# second derivative of PES at reference geometry = mu * omega **2
 
-        print("*** Constructing G-matrix at equlilibrium geometry ***") 
+        print("*** Constructing G-matrix at equlilibrium geometry ***")
         gmat = molec.G(np.array([ref_coords]))[0,icoord,icoord] #G(r1,r1,gamma) = G(0,0,0) = mu^-1
         print("Harmonic frequency = " +  str(np.sqrt(secderiv/gmat)))
-      
+
         print("*** Constructing scaled coordinates ***")
         alpha= np.sqrt(np.sqrt(2.0*np.abs(omega)/np.abs(gmat)))
         r = q / alpha + ref_coords[icoord]
@@ -57,11 +57,11 @@ class PObas:
         #print("***  Plot of PES on quadrature grid ***")
         #plt.plot(r,pes[:])
         #plt.show()
-        
+
         for ni in range(self.Nbas):
             for nf in range(ni,self.Nbas):
-                fpot = w[:] *  self.hofunc(ni,q[:]) * self.hofunc(nf,q[:]) * pes[:] 
-                Vmat[ni,nf] = np.sum(fpot) 
+                fpot = w[:] *  self.hofunc(ni,q[:]) * self.hofunc(nf,q[:]) * pes[:]
+                Vmat[ni,nf] = np.sum(fpot)
                 #Vmat[nf,ni] = Vmat[ni,nf] #for test
        # print("Potential matrix")
        # print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in Vmat]))
@@ -75,7 +75,7 @@ class PObas:
 
         for ni in range(self.Nbas):
             for nf in range(ni,self.Nbas):
-                fkeo = -0.5 * w[:] *  self.hofunc(ni,q[:]) * self.ddhofunc(nf,q[:]) * gmat[:] 
+                fkeo = -0.5 * w[:] *  self.hofunc(ni,q[:]) * self.ddhofunc(nf,q[:]) * gmat[:]
                 Kmat[ni,nf] = np.sum(fkeo)  * alpha**2
                 #Kmat[nf,ni] = Kmat[ni,nf] # for test
         #print("KEO matrix")
@@ -88,7 +88,7 @@ class PObas:
             print(" %4i"%i + "  %16.8f"%q[i] + "  %16.8e"%w[i] \
             + "  %16.8f"%r[i] + "  %16.8f"%gmat[i] + "  %16.8f"%pes[i])
 
-        
+
         print("*** Constructing the Hamiltonian matrix ***")
         Hmat = Vmat + Kmat
         #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in Hmat]))
@@ -103,12 +103,12 @@ class PObas:
         for ni in range(self.Nbas):
             for nf in range(ni,self.Nbas):
                 foverlap =  w[:] *  self.hofunc(ni,q[:]) * self.hofunc(nf,q[:])
-                Smat[ni,nf] = np.sum(foverlap) 
-                #Smat[nf,ni] = Smat[ni,nf] 
+                Smat[ni,nf] = np.sum(foverlap)
+                #Smat[nf,ni] = Smat[ni,nf]
 
         #print("Overlap matrix")
         #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in Smat]))
-        
+
         print("*** Constructing the collocation matrix in the PO basis ***")
         for n in range(self.NPObas):
             for k in range(NPOpts):
@@ -137,7 +137,7 @@ class HObas(PObas):
     def __init__(self,Nbas,Nquad,NPObas,POgrid,ref_coords):
         """
         Args:
-           
+
             Nbas (int): number of primitive Harmonic Oscillator basis functions used to represent the PO basis functions
             Nquad (int): number of quadrature points in Gauss-Hermite integration over the primitive basis (Harmonic Oscillator)
             NPObas (int): size of the PO basis
@@ -145,13 +145,13 @@ class HObas(PObas):
 
             molec (Molecule): Information about the molecule, KEO and PES.
             ref_coords (array (no_coords=3)): Reference values of all internal coordinates.
-     
+
         Returns:
             bmat (array (NPOpts, NPObas)): collocation matrix for the PO basis functions (values of PO basis functions on the provided grid)
 
         Requires:
-            1) G-matrix 
-            2) Potential energy surface (PES) 
+            1) G-matrix
+            2) Potential energy surface (PES)
             3) second derivative of PES to get natural length units (in angstroms)
         """
         self.Nbas = Nbas
@@ -173,7 +173,7 @@ class HObas(PObas):
         else:
             # Normalization constant for state n
             norm = lambda n: 1./np.sqrt(np.sqrt(np.pi)*2**n*factorial(n))
-            return norm(n) * eval_hermite(n,q) 
+            return norm(n) * eval_hermite(n,q)
 
     def dhofunc(self,n,q):
         """Return the value of the first derivatibe of the n-th Harmonic Oscillator eigenfunction at grid point q (angstroms)."""
@@ -218,7 +218,7 @@ if __name__=="__main__":
     # generate grid for PO functions
     print("Turning point of the Nbas Harmonic Oscillator function = " + str(get_turning_points(Nbas) ))
     POgrid = np.linspace(-2.0 * get_turning_points(Nbas) , 2.0 * get_turning_points(Nbas) , NPO_grid)
-   
+
     strBas = HObas(Nbas,Nquad,NPObas,POgrid,ref_coords)
     bmat  = strBas.gen_po_bas(h2s,ref_coords,POgrid,0)
 
