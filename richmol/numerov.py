@@ -33,7 +33,7 @@ class Numerov1D():
     """
 
     def __init__(self, molec, ref_coord, icoord, npoints, vmax, ranges, \
-                 verbose=False, npoints_stencil=5):
+                 verbose=False, npoints_stencil=11):
         """ Generates basis of one-dimensional Numerov-Cooley functions """
         # coordinate values on grid
 
@@ -44,8 +44,9 @@ class Numerov1D():
         coords = np.array(np.broadcast_to(ref_coords, (len(self.r), len(ref_coords))))
         coords[:, icoord] = self.r[:]
         gmat = molec.G(coords)[:, icoord, icoord]
-        #dgmat = molec.dG(coords)[]
-        dgmat = np.zeros(len(self.r))
+        dgmat = molec.dG(coords)[:, icoord, icoord, icoord]
+        #dgmat = molec.dG(coords, icoord, icoord)[:, icoord]
+        #dgmat = np.zeros(len(self.r))
         poten = molec.V(coords)
         #pseudo = molec.PP(coords)
         pseudo = np.zeros(len(self.r))
@@ -134,7 +135,7 @@ if __name__ == "__main__":
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
 
     #strBas = Numerov1D(h2s, ref_coords, 0, 2000, 30, [0.86, 3.0], verbose=False)
-    angBas = Numerov1D(h2s, ref_coords, 2, 2000, 30, [50*np.pi/180.0, 150.0*np.pi/180.0], verbose=True)
+    angBas = Numerov1D(h2s, ref_coords, 2, 100, 30, [50*np.pi/180.0, 150.0*np.pi/180.0], verbose=True)
 
     # reference Numerov bending energies for H2S from TROVE
     trove_bend_enr = [0.00000000, 1209.51837915, 2413.11694104, 3610.38836754, 4800.89613073, \

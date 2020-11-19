@@ -37,6 +37,30 @@ class Molecule():
         return wrapper_autograd
 
 
+    def g_elementwise(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            gmat = method(self, *args, **kwargs)
+            full = False
+            try:
+                i = kwargs['i']
+            except KeyError:
+                full = True
+            try:
+                j = kwargs['j']
+            except KeyError:
+                full = True
+            if full == True:
+                res = gmat
+            else:
+                try:
+                    res = gmat[:,i,j]
+                except IndexError:
+                    raise IndexError(f"g-matrix element ({i},{j}) is out of bounds") from None
+            return res
+        return wrapper
+
+
     def com(method):
         """ Shifts Cartesian coordinates to centre of mass """
         @functools.wraps(method)
@@ -86,32 +110,19 @@ class Molecule():
 
 
     def G_invcm(method):
-        """ Changes units of G-matrix to cm^{-1} """
+        """ Changes units of kinetic energy operators to cm^{-1} """
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
-            gmat = method(self, *args, **kwargs)
+            res = method(self, *args, **kwargs)
             to_invcm = constants.planck * constants.avogno * 1.0e+16 \
                      / (4.0 * np.pi * np.pi * constants.vellgt)
 
-            return gmat * to_invcm
+            return res * to_invcm
         return wrapper
 
 
-    @G_invcm
-    def G(self, coords):
-        """G-matrix using Autograd derivatives
-
-        Args:
-            coords (array (no_points, no_coords)): Values of internal coordinates on grid,
-                no_coords is the number of internal coordinates,
-                no_points is the number of grid points.
-
-        Returns:
-            gmat (array (no_points, no_coords+6, no_coords+6)): Elements of G-matrix on grid,
-                coordinate index in range(no_coords), range(no_coords,no_coords+3), and
-                range(no_coords+3,no_coords+6) corresponds to internal vibrational, three rotational,
-                and three translational coordinates, respectively.
-        """
+    @g_elementwise
+    def g(self, coords, **kwargs):
         natoms =  self.natoms
         natoms3 = natoms * 3
         try:
@@ -139,16 +150,6 @@ class Molecule():
 
         trot = np.reshape(np.transpose(np.dot(eps, xyz), (2,0,3,1)), (natoms3, npoints, 3)) # shape = (iatom*ialpha, ipoint, icoord)
 
-        # slower but more transparent implementation of rotational t-vector
-        #trot = np.zeros((natoms3, npoints, 3), dtype=np.float64)
-        #ialpha = 0
-        #for iatom in range(natoms):
-        #    for ix in range(3):
-        #        trot[ialpha,:,0] = np.dot(eps[ix,0,:], xyz[iatom,:,:])
-        #        trot[ialpha,:,1] = np.dot(eps[ix,1,:], xyz[iatom,:,:])
-        #        trot[ialpha,:,2] = np.dot(eps[ix,2,:], xyz[iatom,:,:])
-        #        ialpha+=1
-
         # translational part
 
         ttra_ = np.reshape(np.array([np.eye(3, dtype=np.float64) for iatom in range(natoms)]), (natoms3, 3))
@@ -164,11 +165,30 @@ class Molecule():
         sqm = np.array([np.sqrt(self.masses[iatom]) for iatom in range(natoms) for ialpha in range(3)])
         tvec *= sqm[:, np.newaxis, np.newaxis]
         gsmall = np.einsum('ijk,ijl->jkl', tvec, tvec)
+        return gsmall
+
+
+    @G_invcm
+    @g_elementwise
+    def G(self, coords, **kwargs):
+        """G-matrix using Autograd derivatives
+
+        Args:
+            coords (array (no_points, no_coords)): Values of internal coordinates on grid,
+                no_coords is the number of internal coordinates,
+                no_points is the number of grid points.
+
+        Returns:
+            gmat (array (no_points, no_coords+6, no_coords+6)): Elements of G-matrix on grid,
+                coordinate index in range(no_coords), range(no_coords,no_coords+3), and
+                range(no_coords+3,no_coords+6) corresponds to internal vibrational, three rotational,
+                and three translational coordinates, respectively.
+        """
 
         # inverse of g-small = G-big
-
-        gmat = np.linalg.inv(gsmall)
+        gmat = np.linalg.inv(self.g(coords))
         return gmat
+
 
     def V(self, coords):
         """Potential energy surface
@@ -241,6 +261,17 @@ class Molecule():
 
         return np.array(pseudos)[:,0,0]
 
+    def dG(self, coords):
+        ncoords = coords.shape[1]
+        g_grad = elementwise_grad(self.G)
+        grad = np.array([[ g_grad(coords, i = i, j = j) for i in range(ncoords)] \
+                          for j in range(ncoords) ])
+        grad = np.transpose(grad, (2,0,1,3)) # shape = (ipoint, i, j, icoord)
+        #Gmat = self.G(coords)
+        #return -np.einsum('pij,pjkn->pikn', np.einsum('pij,pjk->pik', Gmat, Gmat), grad)
+        return grad
+
+
     def G_d(self, coords):
 
         n_grid_points = np.shape(coords)[0]
@@ -265,4 +296,5 @@ class Molecule():
             dG_val = dG(coordinate).reshape((n_coords+6,n_coords+6, 3))
             dG_vals.append(dG_val)
         print(np.shape(np.array(dG_vals)))
+
         return dG_vals
