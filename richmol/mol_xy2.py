@@ -1,5 +1,5 @@
 from molecule import Molecule
-import autograd.numpy as np
+import jax.numpy as np
 import poten_h2o_Polyansky
 import poten_h2s_Tyuterev
 import sys
@@ -7,20 +7,20 @@ import matplotlib.pyplot as plt
 #import poten_from_tf
 import scipy.misc as mc
 
+
 class XY2_ralpha(Molecule):
     """ XY2-type molecule (e.g., H2O, H2S) / valence-bond internal cooridnates """
 
     def __init__(self, *args, **kwargs):
         Molecule.__init__(self, *args, **kwargs)
 
-
-    @Molecule.autograd
     @Molecule.com
     @Molecule.bisector('zyx')
-    def internal_to_cartesian(self, coords, **kwargs):
-        xyz = np.array([[[ 0.0, 0.0, 0.0], \
+    def internal_to_cartesian(self, coords):
+        r1, r2, alpha = coords
+        xyz = np.array([[0.0, 0.0, 0.0], \
                         [ r1 * np.sin(alpha/2), 0.0, r1 * np.cos(alpha/2)], \
-                        [ -r2 * np.sin(alpha/2), 0.0, r2 * np.cos(alpha/2)]] for r1,r2,alpha in coords], \
+                        [-r2 * np.sin(alpha/2), 0.0, r2 * np.cos(alpha/2)]], \
                         dtype=np.float64)
         return xyz
 
