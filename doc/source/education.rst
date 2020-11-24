@@ -7,3 +7,8 @@ We aim at increase students' exposure to scientific programming to help students
 molecular physcis through computation.
 
 `... Add excercises from Modern Moleculer Physcis course in UHH`
+
+.. toctree::
+   :maxdepth: 2
+
+   notebooks/ocs_stark.ipynb
