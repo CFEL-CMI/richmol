@@ -9,6 +9,6 @@ molecular physcis through computation.
 `... Add excercises from Modern Moleculer Physcis course in UHH`
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    notebooks/ocs_stark.ipynb
