@@ -201,7 +201,7 @@ class Hermite(PrimBas):
         xmap = np.sqrt(np.sqrt( 2.0*np.abs(freq)/np.abs(gmat) ))
         r = x / xmap + ref_coords[icoord]
         if verbose==True:
-            print(f"Mapping x <--> r calculated for Gauss-Hermite quadrature: {xmap}, (mu={gmat}, omega={freq})")
+            print(f"Mapping x <--> r calculated for Gauss-Hermite quadrature: {xmap}, (mu={G}, omega={freq})")
 
         # delete points that fall outside the coordinate ranges
         self.x, self.w, self.r = self.check_outliers(x, w, r, ranges, zero_weight_thresh)
