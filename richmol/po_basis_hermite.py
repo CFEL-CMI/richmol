@@ -2,6 +2,7 @@ import numpy as np
 from numpy.polynomial.hermite import hermgauss
 from scipy.special import factorial,eval_hermite
 from matplotlib import pyplot as plt
+import sys
 
 class PObas:
     def __init__(self):
@@ -46,6 +47,8 @@ class PObas:
 
         print("*** Constructing scaled coordinates ***")
         alpha= np.sqrt(np.sqrt(2.0*np.abs(omega)/np.abs(gmateq)))
+        print(f"alpha is: {alpha}")
+        sys.exit()
         r = q / alpha + ref_coords[icoord]
         coords = np.array(np.broadcast_to(ref_coords, (len(r),len(ref_coords))))
         coords[:,icoord] = r[:]

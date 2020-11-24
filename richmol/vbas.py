@@ -4,6 +4,8 @@ from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
 from numpy.polynomial.laguerre import laggauss, lagval, lagder
 import matplotlib.pyplot as plt
+from scipy.special import genlaguerre, eval_genlaguerre, roots_genlaguerre
+import constants
 #import Tasmanian
 
 
@@ -220,10 +222,11 @@ class Hermite(PrimBas):
             coefs[v] = 1.0
             pol = hermval(self.x, coefs)
             dpol = hermval(self.x, hermder(coefs, m=1))
+            print(pol)
             scale_fac = 1.0/np.sqrt(2.0**v*math.factorial(v))/sqsqpi
             self.psi[:,v] = pol * scale_fac
             self.dpsi[:,v] = (dpol - pol * self.x) * scale_fac * xmap
-
+        sys.exit()
         # generate potential-optimized basis
         self.PObas(molec, ref_coords, icoord, verbose)
 
@@ -233,7 +236,6 @@ class Morse(PrimBas):
                  verbose=False, zero_weight_thresh=1e-20, fdf_h=0.001):
 
     # quadrature points
-        x, w = laggauss(no_points)
         # compute reduced mass from the G-matrix (valled mu in Emil's book)
         gmat = molec.G(np.array([ref_coords]))[0,icoord,icoord]
         # Discosiation energy
@@ -244,28 +246,38 @@ class Morse(PrimBas):
         w0 = a*np.sqrt(2*De/gmat)
         beta = w0*np.sqrt(gmat/(2*De))
         A = 4*De/beta
-        alpha = np.floor(A) # it's sooooo big
+        #alpha = np.floor(A) # it's sooooo big
+        #alpha = 10.573983424374838
+        alpha = 0.2
+        l = 2*De/(w0) -0.5
+
+        x, w = laggauss(no_points)
+        #x, w = roots_genlaguerre(no_points, alpha)
 
         # mapping from x-> r:
         r = -np.log(x/A)/beta + ref_coords[icoord]
+        """
         self.x = x
         self.r = r
         self.w = w
-        self.jacobian = -beta*A*np.exp(-beta*(self.r-ref_coords[icoord]))
+        """
+        self.x, self.w, self.r = self.check_outliers(x, w, r, ranges, zero_weight_thresh)
+        self.jacob = -beta*A*np.exp(-beta*(self.r-ref_coords[icoord]))
         self.vmax = vmax + 1
-        self.x = x
         self.psi = np.zeros((len(self.x), self.vmax), dtype=np.float64)
         self.dpsi = np.zeros((len(self.x), self.vmax), dtype=np.float64)
+
         coeffs = np.zeros((self.vmax,))
         coords = np.array(np.broadcast_to(ref_coords, (len(self.x),len(ref_coords))))
         coords[:,2] = np.linspace(0.2, 20, len(self.x))
+        self.uv = np.zeros((self.vmax,self.vmax), dtype=np.float64)
         def _lag(x, i):
             """
             return laguerre series of coefficient i at point x
             """
-            print(lagval(self.x, coeffs)**alpha)
-            return np.sqrt(beta)*(lagval(self.x, coeffs)**alpha)*(self.x**((alpha+1)/2))*(np.exp(-self.x/2))
-        def _dlag(x, i):
+            #*(self.x**((alpha+1)/2))*(np.exp(-self.x/2))
+            return np.sqrt(beta)*(eval_genlaguerre(i, alpha, self.x))
+        def _dlag(x, coeffs):
             dh = 0.001
             dh_steps = [2*dh, dh, -dh, -2*dh]
             dh_coeffs = [-1,8,-1,1]
@@ -277,12 +289,18 @@ class Morse(PrimBas):
         for i in range(self.vmax):
             coeffs[:] = 0
             coeffs[i] = 1
+
+            print(f"degree: {i}")
+            print(f"lag val: {eval_genlaguerre(i, alpha, self.x)}")
+            #input("Press Enter to continue...")
             # scale_factor
             self.psi[:, i] = _lag(self.x,i)
             self.dpsi[:,i] = _dlag(self.x, i)
         print(self.psi)
-        print("code ran successfully")
 
+        print("code ran successfully")
+        sys.exit()
+        self.PObas(molec, ref_coords, icoord, verbose)
 if __name__=="__main__":
 
     from mol_xy2 import XY2_ralpha
@@ -303,7 +321,6 @@ if __name__=="__main__":
     #De = 30000
     #a = 2.5
     #Morse = De*(1-np.exp(-a*(coord1 - 1.3359007)))**2
-
     # test KEO and potential
     G = h2s.G(np.array([ref_coords]))
     V = h2s.V(np.array([ref_coords]))
@@ -317,8 +334,8 @@ if __name__=="__main__":
 
     #angBas = LegCos(h2s, ref_coords, 2, 100, 60, [0, np.pi], verbose=True)
     #strBas = Hermite(h2s, ref_coords, 0, 200, 60, [0.6, 30], verbose=True)
-    MorseBas = Morse(h2s, ref_coords, 0, 100, 60, [0.6, 30], verbose=True)
-
+    MorseBas = Morse(h2s, ref_coords, 0, 80, 60, [0.6, 30], verbose=True)
+    sys.exit()
     # reference Numerov bending energies for H2S from TROVE
     trove_bend_enr = [0.00000000, 1209.51837915, 2413.11694104, 3610.38836754, 4800.89613073, \
                       5984.17417895, 7159.74903030, 8327.19623484, 9486.23461816,10636.84908026, \
