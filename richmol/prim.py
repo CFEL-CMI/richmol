@@ -3,9 +3,10 @@ import numpy as np
 import math
 from numpy.polynomial.legendre import leggauss, legval, legder
 from numpy.polynomial.hermite import hermgauss, hermval, hermder
-from numpy.polynomial.laguerre import laggauss, lagval, lagder
-
-
+import scipy.special as ss
+#import scipy.special.eval_genlaguerre
+#import scipy.special.roots_genlaguerre as laggauss
+import sys
 singular_tol = 1e-10 # tolerance for considering matrix singular
 symmetric_tol = 1e-10 # tolerance for considering matrix symmetric
 
@@ -441,6 +442,55 @@ def numerov(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
     eigval, eigvec = np.linalg.eigh(hmat)
 
     return r, eigval[:vmax + 1] - eigval[0], eigvec[:, vmax + 1]
+
+def laguerre(icoord, ref_coords, npoints, vmax, ranges, poten, gmat,
+    pseudo=None, fgmat=None, verbose=False, zero_weight_thresh=1e-20, fdf_h=0.001):
+
+    # compute reduced mass
+    mu = gmat(ref_coords)[icoord, icoord]
+    # Discosiation energy
+    De = 30000.0
+    # Well width
+    a = 2.5
+    # computing constants depending on these Values
+    w0 = a*np.sqrt(2*De/mu)
+    beta = w0*np.sqrt(mu/(2*De))
+    A = 4*De/beta
+    #alpha = np.floor(A) # it's sooooo big
+    alpha = 1
+    Q, w = hermgauss(npoints)
+    # correction factor to make the integrand suitable
+    fac = np.exp(Q**2)
+    Q = Q-ref_coords[icoord]
+    x = np.exp(-beta*(Q))
+
+    psi = np.zeros((npoints, vmax), dtype=np.float64) #basis function
+    dpsi = np.zeros((npoints, vmax), dtype=np.float64) #derivatives of basis functions
+
+    def _lag(coords, degree):
+        val = np.sqrt(beta)*(ss.eval_genlaguerre(degree, alpha, coords))*(coords**((alpha+1)/2))*(np.exp(-coords/2))*fac
+        # normalize value:
+        val /= (coords**alpha)*ss.factorial(degree)
+        return val
+
+    def _dlag(coords,degree):
+        dh = 0.001
+        dh_steps = [2*dh, dh, -dh, -2*dh]
+        dh_coeffs = [-1,8,-1,1]
+        dpsi = np.zeros(np.shape(vmax))
+        for step, coeff in zip(dh_steps, dh_coeffs):
+            dpsi = dpsi + coeff*(_lag(coords+step, i))
+        return dpsi/(12*dh)
+
+    for i in range(vmax):
+
+        psi[:,i] = _lag(x, i)
+        dpsi[:,i] = _dlag(x,i)
+        print(dpsi[:,i])
+        input("press enter to continue")
+
+    
+
 
 
 def fdf_stencil(npoints):

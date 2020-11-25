@@ -2,7 +2,7 @@ from keo_jax import com, bisector
 import keo_jax
 import jax.numpy as np
 import poten_h2s_Tyuterev
-from prim import numerov, legcos, herm
+from prim import numerov, legcos, herm, laguerre
 
 
 @com
@@ -28,6 +28,9 @@ if __name__ == "__main__":
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
 
     # test Numerov basis
+    laguerre(0, ref_coords, 50, 30, [0.5, 10.0], \
+                                poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
+                                verbose=True)
     _, num_enr_str, _ = numerov(0, ref_coords, 1000, 30, [0.86, 3.0], \
                                 poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
                                 pseudo=keo_jax.pseudo, dgmat=keo_jax.dGmat, verbose=True)
