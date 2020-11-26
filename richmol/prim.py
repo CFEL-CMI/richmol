@@ -10,7 +10,7 @@ import sys
 singular_tol = 1e-10 # tolerance for considering matrix singular
 symmetric_tol = 1e-10 # tolerance for considering matrix symmetric
 
-
+import matplotlib.pyplot as plt
 def legcos(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
            pseudo=None, dgmat=None, verbose=False, zero_weight_thresh=1e-20):
     """Generates one-dimensional basis of potential-optimized Legendre(cos)
@@ -455,22 +455,30 @@ def laguerre(icoord, ref_coords, npoints, vmax, ranges, poten, gmat,
     # computing constants depending on these Values
     w0 = a*np.sqrt(2*De/mu)
     beta = w0*np.sqrt(mu/(2*De))
+    scale = np.sqrt(np.sqrt(2.0*np.abs(w0)*mu))
     A = 4*De/beta
-    #alpha = np.floor(A) # it's sooooo big
+    alpha = np.floor(A) # it's sooooo big
     alpha = 1
-    Q, w = hermgauss(npoints)
+    Qo, w = hermgauss(npoints)
+    Qo /= scale + 5
     # correction factor to make the integrand suitable
-    fac = np.exp(Q**2)
-    Q = Q-ref_coords[icoord]
-    x = np.exp(-beta*(Q))
+    Qn = Qo/scale + ref_coords[icoord]
+    #grid_points = Q-Q0
+    print(ref_coords[icoord])
+    Q = np.linspace(0.5,5, 100)
+    morse = (De)*((1-np.exp(-a*(Q-ref_coords[icoord])))**2)
+    fac = np.exp(Qn**2)
+
+    x = A*np.exp(-beta*(Qo))
 
     psi = np.zeros((npoints, vmax), dtype=np.float64) #basis function
     dpsi = np.zeros((npoints, vmax), dtype=np.float64) #derivatives of basis functions
 
     def _lag(coords, degree):
-        val = np.sqrt(beta)*(ss.eval_genlaguerre(degree, alpha, coords))*(coords**((alpha+1)/2))*(np.exp(-coords/2))*fac
+        val = np.sqrt(beta)*(ss.eval_genlaguerre(degree, alpha, coords))*(coords**((alpha+1)/2))*(np.exp(-coords/2))
+        #val = np.sqrt(beta)*(ss.eval_genlaguerre(degree, alpha, coords))*(coords**((alpha+1)/2))*(np.exp(-coords/2))*fac
         # normalize value:
-        val /= (coords**alpha)*ss.factorial(degree)
+        #val /= (coords**alpha)*ss.factorial(degree)
         return val
 
     def _dlag(coords,degree):
@@ -482,14 +490,20 @@ def laguerre(icoord, ref_coords, npoints, vmax, ranges, poten, gmat,
             dpsi = dpsi + coeff*(_lag(coords+step, i))
         return dpsi/(12*dh)
 
-    for i in range(vmax):
+    for i in range(20):
+        print(Qo)
+        #t = np.linspace(2, 8, 300)
+        #tn = A*np.exp(-beta*(t))
 
         psi[:,i] = _lag(x, i)
+        #val = _lag(t,i)
+        #plt.plot(t, _lag(tn, i))
         dpsi[:,i] = _dlag(x,i)
-        print(dpsi[:,i])
+        print(psi[:,i])
         input("press enter to continue")
+    plt.show()
+    sys.exit()
 
-    
 
 
 
