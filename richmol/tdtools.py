@@ -25,6 +25,8 @@ import itertools
 import inspect
 import copy
 import scipy.sparse
+import random
+import string
 
 
 au_to_coulmet_ = {1: 8.47835326e-30,      # to convert electric electric dipole from au to C*m
@@ -83,6 +85,12 @@ class Psi():
             assert (m2>=m1),f"mmin={mmin} > mmax={mmax}"
             assert (dm>=1),f"dm={dm}<1"
             self.mlist = [round(m,1) for m in np.linspace(m1,m2,int((m2-m1)/d)+1)]
+
+        # label for Psi object
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
 
         # generate basis: combinations of M and field-free state quanta for each F
 
