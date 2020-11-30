@@ -178,15 +178,16 @@ class Etensor():
 
     Args:
         filename (str): Template for generating the names of files containing tensor matrix elements.
-                        For example, for filename="matelem_alpha_j<j1>_j<j2>.rchm" the following
-                        files will be searched: matelem_alpha_j0_j0.rchm, matelem_alpha_j0_j1.rchm,
-                        matelem_alpha_j0_j2.rchm and so on, where "<j1>" and "<j2>" will be replaced
-                        by integer numbers running through all J quanta spanned by the basis psi.
-                        j2 and j1 are treated as bra and ket state quanta, respectively.
-                        For half-integer numbers (e.g., F quanta), substitute "<j1>" and "<j2>"
-                        by "<f1>" and "<f2>", which will then be replaced by floating point numbers
-                        rounded to the first decimal point after the comma.
-        psi (Psi()): Field-free basis set.
+            For example, for filename="matelem_alpha_j<j1>_j<j2>.rchm" the following
+            files will be searched: matelem_alpha_j0_j0.rchm, matelem_alpha_j0_j1.rchm,
+            matelem_alpha_j0_j2.rchm and so on, where "<j1>" and "<j2>" will be replaced
+            by integer numbers running through all J quanta spanned by the basis psi.
+            j2 and j1 are treated as bra and ket state quanta, respectively.
+            For half-integer numbers (e.g., F quanta), substitute "<j1>" and "<j2>"
+            by "<f1>" and "<f2>", which will then be replaced by floating point numbers
+            rounded to the first decimal point after the comma.
+        psi1 (Psi()): Field-free basis set representing bra states.
+        psi2 (Psi()): Field-free basis set representing ket states.
         kwargs:
             units (str): Units of stored tensor matrix elements.
                          The following units are implemented:
@@ -222,11 +223,13 @@ class Etensor():
         prefac (scalar): Some constant prefactor, used to convert tensor to proper units,
                          or to keep the result of tensor product with a scalar.
     """
-    def __init__(self, filename, psi, **kwargs):
+    def __init__(self, filename, psi1, psi2, **kwargs):
 
         self.M = {}
         self.K = {}
         self.prefac = 1.0
+        self.psi1 = psi1
+        self.psi2 = psi2
 
         if "units" in kwargs:
             units = kwargs["units"]
@@ -237,9 +240,12 @@ class Etensor():
                 raise KeyError(f"Unknown tensor units in 'units={units}'") from None
             self.prefac *= conv
 
-        # read Richmol matrix elements for all combinations of bra and ket F quanta spanned by basis
-        for f1 in psi.flist:
-            for f2 in psi.flist:
+        # read Richmol matrix elements for all combinations of bra and ket F quanta spanned by basis sets
+
+        no_files = 0
+
+        for f1 in psi1.flist:
+            for f2 in psi2.flist:
 
                 # generate file name
 
@@ -260,21 +266,23 @@ class Etensor():
                     fname = re.sub(r"\<j1\>", j2_str, fname)
                     fname = re.sub(r"\<j2\>", j1_str, fname)
                     if not os.path.exists(fname):
-                        print(f"Etensor: skip F1/F2 = {f1}/{f2} pair, no file(s) found: " \
-                                + f"{fname_} or {fname}")
+                        #print(f"Etensor: skip F1/F2 = {f1}/{f2} pair, no file(s) found: " \
+                        #        + f"{fname_} or {fname}")
                         continue
 
                 # read file
 
+                no_files += 1
+
                 name, ncart, nomega, mcart, mtype, mtens, kvec, ik1, ik2, tr = \
-                        read_tens(fname, f1, f2, psi.map_id_to_istate)
+                        read_tens(fname, f1, f2, psi1.map_id_to_istate, psi2.map_id_to_istate)
 
                 # transform k-tensor into a sparse CSR matrix
                 ktens = []
                 for iomega in range(nomega):
                     kmat = coo_matrix( (kvec[iomega][:], (ik1[iomega],ik2[iomega])), \
-                                       shape=(len(psi.states[f1]['istate']), \
-                                              len(psi.states[f2]['istate'])), dtype=np.float64 )
+                                       shape=(len(psi1.states[f1]['istate']), \
+                                              len(psi2.states[f2]['istate'])), dtype=np.float64 )
                     ktens.append( kmat.tocsr() )
 
                 # compute rank of tensor
@@ -305,19 +313,22 @@ class Etensor():
                 # in case user have selected only a reduced subspace of m quanta,
                 # also convert M-tensor to a complex-valued form
 
-                dim1 = len([m for m in psi.mlist if abs(m)<=f1])
-                dim2 = len([m for m in psi.mlist if abs(m)<=f2])
+                dim1 = len([m for m in psi1.mlist if abs(m)<=f1])
+                dim2 = len([m for m in psi2.mlist if abs(m)<=f2])
                 self.M[(f1,f2)] = [ np.zeros((self.ncart,dim1,dim2), dtype=np.complex128) \
                                     for iomega in range(self.nomega) ]
 
                 vec1j = np.array([{"real":1,"imaginary":1j}[mt] for mt in mtype], dtype=np.complex128)
 
-                for i,m1 in enumerate([m for m in psi.mlist if abs(m)<=f1]):
+                for i,m1 in enumerate([m for m in psi1.mlist if abs(m)<=f1]):
                     im1 = int(m1+f1)
-                    for j,m2 in enumerate([m for m in psi.mlist if abs(m)<=f2]):
+                    for j,m2 in enumerate([m for m in psi2.mlist if abs(m)<=f2]):
                         im2 = int(m2+f2)
                         for iomega in range(self.nomega):
                             self.M[(f1,f2)][iomega][:,i,j] = mtens[iomega][:,im1,im2] * vec1j
+
+        if no_files == 0:
+            raise RuntimeError(f"No matrix elements found using '{filename}'") from None
 
         # modify self.pref such that Etensor*field[V/m]**rank gives units of cm^-1
 
@@ -712,54 +723,75 @@ class Etensor():
         return psi_new
 
 
-    def matrix(self, psi, ix=1, plus_diag=True):
-        """Returns matrix representation of tensor operator or Hamiltonian (i.e. tensor times field)
-        in the field-free basis 'psi'. For matrix elements of Hamiltonian, adds a field-free diagonal
-        part when required.
+    def hmat(self, plus_diag=True):
+        """Returns matrix elements of Hamiltonian (i.e. tensor times field),
+        adds field-free diagonal part when required
 
         Args:
-            psi (Psi()): Field-free basis set.
-            ix (int): Tensor's Cartesian component index for which the matrix elements are computed.
-            plus_diag (bool): if True, the field free energies will be added to the diagonal
-                of Hamiltonian matrix.
+            plus_diag : bool
+                If True, the field free energies will be added to the diagonal
+                of Hamiltonian matrix
 
         Returns:
-            Matrix representation of tensor or Hamiltonian in the field-free basis as numpy array.
+            Hamiltonian matrix as numpy array
         """
-        flist = psi.flist
-        mat = {(f1,f2) : np.zeros( (len(psi.quanta[f1]), len(psi.quanta[f2])), dtype=np.complex128 ) \
-                for f1 in flist for f2 in flist}
+        psi1 = self.psi1
+        psi2 = self.psi2
+
+        if psi1.name != psi2.name:
+            raise RuntimeError(f"Bra and ket states for tensor '{self.name}' " \
+                +f"belong to basis sets with different names '{psi1.name}' != '{psi2.name}'") from None
+
+        flist1 = psi1.flist
+        flist2 = psi2.flist
+        mat = {(f1,f2) : np.zeros( (len(psi1.quanta[f1]), len(psi2.quanta[f2])), dtype=np.complex128 ) \
+                for f1 in flist1 for f2 in flist2}
+
+        Mtens = self.MF
+
+        for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+            for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                mat[fkey] += kron(mm, kk).todense() * self.prefac
+
+        if plus_diag==True:
+            for f in flist1:
+                mat[(f,f)] += np.diag(psi1.energy[f])
+
+        return np.block([[mat[(f1,f2)] for f2 in flist2] for f1 in flist1])
+
+
+    def mat(self, ix=0):
+        """Returns matrix elements of tensor operator
+
+        Args:
+            ix : int
+                Tensor's component index for which the matrix elements are computed
+
+        Returns:
+            Matrix elements of tensor as numpy array
+        """
+        psi1 = self.psi1
+        psi2 = self.psi2
+
+        flist1 = psi1.flist
+        flist2 = psi2.flist
+        mat = {(f1,f2) : np.zeros( (len(psi1.quanta[f1]), len(psi2.quanta[f2])), dtype=np.complex128 ) \
+                for f1 in flist1 for f2 in flist2}
 
         try:
-            # will return Hamiltonian matrix
+            x = self.mcart[ix]
+        except IndexError:
+            raise IndexError(f"Cartesian component index '{ix}' is out of range for tensor '{self.name}' " \
+                    + f"\nlist of components with indices for tensor '{self.name}': " \
+                    + f"{[val for val in enumerate(self.mcart)]} ") from None
 
-            Mtens = self.MF
+        Mtens = self.M
 
-            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
-                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
-                    mat[fkey] += kron(mm, kk).todense() * self.prefac
+        for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
+            for mm,kk in zip(Mtens[fkey],self.K[fkey]):
+                mat[fkey] += kron(mm[ix,:,:], kk).todense()
 
-            if plus_diag==True:
-                for f in flist:
-                    mat[(f,f)] += np.diag(psi.energy[f])
-
-        except AttributeError:
-            # will return matrix elements of ix Cartesian component of tensor
-
-            try:
-                x = self.mcart[ix]
-            except IndexError:
-                raise IndexError(f"Cartesian component index '{ix}' is out of range for tensor '{self.name}' " \
-                        + f"\nlist of components with indices for tensor '{self.name}': " \
-                        + f"{[val for val in enumerate(self.mcart)]} ") from None
-
-            Mtens = self.M
-
-            for fkey in list(set(Mtens.keys()) & set(self.K.keys())):
-                for mm,kk in zip(Mtens[fkey],self.K[fkey]):
-                    mat[fkey] += kron(mm[ix,:,:], kk).todense()
-
-        return np.block([[mat[(f1,f2)] for f2 in flist] for f1 in flist])
+        return np.block([[mat[(f1,f2)] for f2 in flist2] for f1 in flist1])
 
 
 
@@ -882,7 +914,7 @@ def read_states(filename, **kwargs):
     return states, map_id_to_istate
 
 
-def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
+def read_tens(filename, f1, f2, map_id_to_istate1, map_id_to_istate2, me_tol=1.0e-14):
     """Reads matrix-elements of Cartesian tensor operator
     """
     # extract F1 and F2 from the filename, check if they match the input values for F1 and F2
@@ -896,6 +928,8 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
             swap_quanta = lambda x, y: (copy.copy(y), copy.copy(x))
             conjugate = lambda x, numtype: copy.copy(x) * {"imaginary":-1.0,"real":1.0}[numtype]
             transp = True
+            map_id_to_istate1_ = map_id_to_istate2
+            map_id_to_istate2_ = map_id_to_istate1
         else:
             raise RuntimeError(f"Error: values of f1 and f2 parameters = {f1} and {f2} don't match " \
                     + f"the values = {ff1} and {ff2} extracted from the name of matrix-elements " \
@@ -904,6 +938,9 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
         swap_quanta = lambda x, y: (copy.copy(x), copy.copy(y))
         conjugate = lambda x, numtype: copy.copy(x)
         transp = False
+        map_id_to_istate1_ = map_id_to_istate1
+        map_id_to_istate2_ = map_id_to_istate2
+
 
     # read matrix elements
 
@@ -983,8 +1020,8 @@ def read_tens(filename, f1, f2, map_id_to_istate, me_tol=1.0e-14):
             ideg1 = int(w[2])
             ideg2 = int(w[3])
             kval = [float(val) for val in w[4:]]
-            istate1,istate2 = swap_quanta( map_id_to_istate[ff1][id1]+ideg1-1, \
-                                           map_id_to_istate[ff2][id2]+ideg2-1 )
+            istate1,istate2 = swap_quanta( map_id_to_istate1_[ff1][id1]+ideg1-1, \
+                                           map_id_to_istate2_[ff2][id2]+ideg2-1 )
             if istate1<0 or istate2<0:
                 continue
             ind_omega = [i for i in range(nomega) if abs(kval[i])>me_tol]
