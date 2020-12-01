@@ -12,3 +12,5 @@ molecular physcis through computation.
    :maxdepth: 1
 
    notebooks/ocs_stark.ipynb
+   notebooks/water_rigrot.ipynb
+
