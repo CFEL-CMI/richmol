@@ -51,9 +51,9 @@ def eval_k(i, j, coords):
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,0]*dpsi_r[ind, i[0]]*psi_r[ind, i[1]]*psi_theta[ind, i[2]] \
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,1]*psi_r[ind, i[0]]*dpsi_r[ind, i[1]]*psi_theta[ind, i[2]] \
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,2]*psi_r[ind, i[0]]*psi_r[ind, i[1]]*dpsi_theta[ind, i[2]] \
-
     print(evals)
-    sys.exit()
+    return evals
+
 
 
 @com
