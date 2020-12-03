@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 
-def eval_k(i, j, coords):
+def eval_k(i, j, ind):
     """
     i: a vector of shape (3, ) containing i1,i2,i3
     J: a vector of shape (3, ) containing j1,j2,j3
@@ -33,14 +33,14 @@ def eval_k(i, j, coords):
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
     # compute strechting basis
 
-    _, _, psi_r, dpsi_r = herm(0, ref_coords, 100, 30, [0.5, 10.0],
+    xherm, _, psi_r, dpsi_r = herm(0, ref_coords, 100, 30, [0.5, 10.0],
                                     poten_h2s_Tyuterev.poten, keo_jax.Gmat,
                                     verbose=False)
-    _, _, psi_theta, dpsi_theta= legcos(2, ref_coords, 100, 30, [0, np.pi],
+    xleg, _, psi_theta, dpsi_theta= legcos(2, ref_coords, 100, 30, [0, np.pi],
                                   poten_h2s_Tyuterev.poten, keo_jax.Gmat,
                                   verbose=False)
-    ind = 0 # index of the grid point; need to find it
-    G = keo_jax.Gmat(list(coords))
+    #ind = 0 # index of the grid point; need to find it
+    G = keo_jax.Gmat([xherm[ind],xherm[ind],xleg[ind]])
     evals = np.zeros((1,))
     evals = dpsi_r[ind, j[0]]*psi_r[ind, j[1]]*psi_theta[ind, j[2]]*G[0,0]*dpsi_r[ind, i[0]]*psi_r[ind, i[1]]*psi_theta[ind, i[2]] \
             + dpsi_r[ind, j[0]]*psi_r[ind, j[1]]*psi_theta[ind, j[2]]*G[0,1]*psi_r[ind, i[0]]*dpsi_r[ind, i[1]]*psi_theta[ind, i[2]] \
@@ -51,7 +51,9 @@ def eval_k(i, j, coords):
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,0]*dpsi_r[ind, i[0]]*psi_r[ind, i[1]]*psi_theta[ind, i[2]] \
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,1]*psi_r[ind, i[0]]*dpsi_r[ind, i[1]]*psi_theta[ind, i[2]] \
             + psi_r[ind, j[0]]*psi_r[ind, j[1]]*dpsi_theta[ind, j[2]]*G[2,2]*psi_r[ind, i[0]]*psi_r[ind, i[1]]*dpsi_theta[ind, i[2]] \
-    print(evals)
+    
+
+    
     return evals
 
 
@@ -80,4 +82,5 @@ if __name__ == "__main__":
     i = [1,2,3]
     j = [1,2,3]
 
-    eval_k(i,j, ref_coords)
+    eval = eval_k(i,j, 0)
+    print(eval)
