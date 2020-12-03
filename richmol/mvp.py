@@ -3,6 +3,9 @@ from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
 from mapping import indexmap
 from matplotlib import pyplot as plt
+from test import eval_k
+
+
 class MVP:
     def __init__(self,Nquad1D_herm,Nquad1D_leg):
         self.w_tol = 1e-30 #threshold value for keeping 3D quadrature product-weights
@@ -23,24 +26,34 @@ class MVP:
         r = np.arccos(x)
         return r,w
 
-    def f_temp(self,r1,r2,theta,i,j):
-        """temporary test function for 3D integration"""
-        return r1 * r2 * theta * np.exp(-r1**2) * np.exp(-r2**2)
+    def f_temp(self,ivec,jvec,coords):
+        """temporary test function for 3D integration
+        ivec: a vector of shape (3, ) containing i1,i2,i3
+        jvec : a vector of shape (3, ) containing j1,j2,j3
+        coords: (3, ): r1,r2,theta"""
+        return coords[0]**2 * coords[1]**2 * coords[2]**2 * np.exp(-coords[0]**2) * np.exp(-coords[1]**2)
 
-    def helem(self,leftindex,rightindex):
-
-
-        #  w1, w2, w3 are weights over a pruned grid x1, x2, x3
-        for k1 in range(len(w1)):
-            for k2 in range(len(w2)):
-                for k3 in range(len(w3)):
-                    hij += self.f_temp(x1[k1],x2[k2],x3[k3],leftindex,rightindex) * w1[k1] * w1[k2] * w1[k3]
+    def helem(self,ivec,jvec,coords,weights):
+        #print(np.shape(coords[:,1]))
+        #weightsvec[:] = weights[:,0] * weights[:,1] * weights[:,2]
+        #print(np.shape(weightsvec))
+        hij = 0
+        for ipoint in range(np.size(coords,axis=0)):
+            #print(self.f_temp(ivec,jvec,coords[ipoint,:]))
+            #print(weights[ipoint,0] * weights[ipoint,1] * weights[ipoint,2])
+            #hij += self.f_temp(ivec,jvec,coords[ipoint,:]) * weights[ipoint,0] * weights[ipoint,1] * weights[ipoint,2]
+            hij += eval_k(ivec, jvec, ipoint)  * weights[ipoint,0] * weights[ipoint,1] * weights[ipoint,2]
+         
+        #fvec = self.f_temp(ivec,jvec,coords[:])
+        #hij = np.dot( fvec, weights)
         return hij
 
 
-    def calc_hmat(self):
+    def calc_hmat(self,indmap):
         """calculate full Hamiltonian Matrix"""
-        
+        #indmap: array [Nbasis,4] with mapping between basis set indices and integers
+        Nbas = np.size( indmap , axis =0)
+        print("number of basis functions = " + str(Nbas))
         """construct the quadrature grid. For now it is direct product Gaussian grid"""
         x1, w1 = self.gen_herm_quad()
         x2 = x1
@@ -51,26 +64,52 @@ class MVP:
         plt.stem(x3,w3)
         plt.show()"""
 
-        grid_kron = np.kron(x1,x2)
-        weights_kron = np.kron(w1,w2)
+        grid_dp = np.array(np.meshgrid(x3, x2, x1, indexing = 'ij')).T.reshape(-1,3)
 
+        #print(grid_dp)
+        #print(np.shape(grid_dp))
+        #print(type(grid_dp))
+
+        weights_dp = np.array(np.meshgrid(w3, w2, w1, indexing = 'ij')).T.reshape(-1,3)
+
+        #print(x1[:],x2[:],x3[:])
+        #weights_12 = np.tensordot(w1,w2,axes=0)
+        #print(np.shape(grid_12))
+        #weights_dp = np.tensordot(weights_12,w3,axes=0)
+        #print(np.shape(weights_dp))
+        #print(weights_dp)
+        """counter= 0
+        for i in range(0,10):
+            for j in range(0,10):            
+                for k in range(0,10):
+                    print(x3[k]-grid_dp[counter,0],x2[j]-grid_dp[counter,1],x1[i]-grid_dp[counter,2]) #this is the indexing
+                    counter +=1"""
+
+        #weights_12 = np.kron(w1,w2)
+        #weights_dp = np.kron(weights_12,w3)
+        #print(weights_dp)
         #prune the grid by weights
-        if weights_kron[:] > self.w_tol:
-            weights = weights_kron
-        print(weights)
+        #for ipoint in range(len(weights_dp)):
+        #    if weights_dp[ipoint] > self.w_tol:
+        #        weights = weights_dp[ipoint]
+        #print(weights)
 
-        """calculate the <psi_i | H | psi_j> integral"""
-        #self.helem(leftindex,rightindex)
+        hmat = np.zeros((Nbas,Nbas), dtype = float)
+        """calculate the <psi_i | H | psi_j> integral """
+        for ivec in range(Nbas):
+            for jvec in range(Nbas):  
+               hmat[ivec,jvec] = self.helem(ivec,jvec,grid_dp,weights_dp)
 
+        print(hmat)
 
 if __name__=="__main__":
 
     """generate mapping function"""
-    b = 4
+    b = 3
 
     simpleMap = indexmap(b,'simple',3)
     indmap =simpleMap.gen_map()
-    print(indmap)
+    #print(indmap)
 
     ham0 = MVP(10,10)
-    ham0.calc_hmat()
+    ham0.calc_hmat(indmap)
