@@ -1,238 +1,291 @@
-class States():
-    """ Basis of field-free molecular states """
+import h5py
+import numpy as np
+from scipy.sparse import csr_matrix, coo_matrix
 
-    def __init__(self, fname, **kwargs):
 
-        # read field-free states
+def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
+    """Stores field-free states energies, assignments, and matrix elements
+    of Cartesian tensor operators in HDF5 file.
 
-        self.states, self.map_id_to_istate = self.read_states(fname, **kwargs)
+    Args:
+        filename : str
+            Name of the output HDF5 file, if the file exists it will be appended,
+            if desired it can be overwritten by passing replace=True.
+        J1, J2 : int or half-integer float
+            Values of J quantum numbers for bra (J1) and ket (J2) states.
+        replace : bool
+            If True, the HDF5 file when existing will be overwritten.
 
-        fmax = max(list(self.states.keys()))
-        fmin = min(list(self.states.keys()))
+        kwargs:
+            enr : array (no_states) of floats
+                State energies, no_states is the number of states for J = J1 == J2.
+            sym : array (no_states) of strings
+                State symmetries.
+            assign : array (no_states) of strings
+                State assignments.
+            id : array (no_states, 2) of integers
+                State ID numbers [[:,0] and degenerate component indices [:,1].
+            tens : string
+                Name of Cartesian tensor operator for which the matrix elements
+                to be stored. Use together with 'kmat' and 'mmat'.
+            irreps : list of integers
+                List of tensor irreducible representations.
+                Use together with 'kmat' and 'mmat'.
+            cart : string
+                Since matrix elements for different Cartesian components of tensor
+                (in the laboratory frame) are stored in separate calls,
+                'cart' is used to label currently stored Cartesian component.
+                Use together with 'mmat'
+            kmat : list of csr_matrix(no_states(J1), no_states(J2))
+                List of K-matrices for different irreducible representations
+                of tensor, in the same order as in 'irreps'.
+            mmat : list of csr_matrix(2*J1+1, 2*J2+1)
+                List of M-matrices for different irreducible representations
+                of tensor, in the same order as in 'irreps'.
+                Only single Cartesian component of M-matrix can be stored
+                at a call, the corresponding component is labelled by 'cart'.
+            thresh : float
+                Threshold for storing the matrix elements.
+    """
 
-        # generate list of M quanta
+    def _J1_eq_J2(argname):
+        assert (round(float(J1), 1) == round(float(J2), 1)), \
+            f"Bra and ket J1 and J2 quanta (= {J1} and {J2}) must be equal " + \
+            f"to each other when storing {argname}"
 
-        if 'mlist' in kwargs:
-            mlist = [round(m, 1) for m in kwargs['mlist']]
+    def _check_dim(dim, argname):
+        if "dim" in J_grp:
+            dim_ = J_grp['dim'][()]
+            assert (all(dim == dim_)), \
+                f"Dimensions of '{argname}' = {dim} do not match " + \
+                f"basis set dimensions = {dim_} already stored in file {filename}"
         else:
-            if 'mmax' in kwargs:
-                mmax = min([kwargs['mmax'], fmax])
-                if mmax < kwargs['mmax']:
-                    print(f"Psi: mmax is set to {mmax} which is maximum F in states file {fname}")
-                if -mmax > fmin:
-                    print(f"Psi: mmax is set to {mmax} and has a larger absolute value than \
-                          fmin which is set to {fmin}")
-            else:
-                mmax = fmax
-            if 'mmin' in kwargs:
-                mmin = max([kwargs['mmin'], -fmax])
-                if mmin > kwargs['mmin']:
-                    print(f"Psi: mmin is set to {mmin} which is minus maximum F in states file {fname}")
-                if mmin > fmin:
-                    print(f"Psi: mmin is set to {mmin} and has a larger value than \
-                          fmin which is set to {fmin}")
-            else:
-                mmin = -fmax
-            if 'dm' in kwargs:
-                dm = kwargs['dm']
-            else:
-                dm = 1
-            m1 = round(mmin, 1)
-            m2 = round(mmax, 1)
-            d = round(dm)
-            assert (m2 >= m1), f"mmin = {mmin} > mmax = {mmax}"
-            assert (dm >=1 ),f "dm = {dm} < 1"
-            self.mlist = [round(m,1) for m in np.linspace(m1,m2,int((m2-m1)/d)+1)]
+            dset = J_grp.create_dataset('dim', data=dim)
 
-        # generate basis: combinations of M and field-free state quanta for each F
 
-        self.flist = [f for f in self.states.keys() if f>=min(map(abs, self.mlist))]
+    fl = h5py.File(filename, {False:"w", True:"a"}[replace])
 
-        self.quanta_m = {f:[m for m in self.mlist if abs(m)<=f] for f in self.flist}
-        self.quanta_istate = {f:[state['istate'] for state in self.states[f]] for f in self.flist}
-        self.dim_m = {f:len(self.quanta_m[f]) for f in self.flist}
-        self.dim_istate = {f:len(self.quanta_istate[f]) for f in self.flist}
-
-        self.quanta = {}
-        self.energy = {}
-        self.dim = {}
-        self.f = []
-        self.m = []
-        self.istate = []
-        for f in self.flist:
-            self.quanta[f] = []
-            enr = []
-            for m in self.mlist:
-                if abs(m)>f:
-                    continue
-                for state in self.states[f]:
-                    istate = state['istate']
-                    self.quanta[f].append([m,istate])
-                    enr.append(state['enr'])
-                    self.f.append(f)
-                    self.m.append(m)
-                    self.istate.append(istate)
-                self.energy[f] = np.array(enr, dtype=np.float64)
-            self.dim[f] = len(self.quanta[f])
-            assert (self.dim[f] == self.dim_m[f] * self.dim_istate[f]), \
-                    f"Basis dimension = {self.dim[f]} for J = {f} is not equal to the product " \
-                    +f"of dimensions of m-basis = {self.dim_m[f]} and field-free basis = " \
-                    +f"{self.dim_istate[f]}"
-
-    def read_states(filename, **kwargs):
-    """ Reads molecular field free energies and quantum numbers from Richmol states file """
-    fl = open(filename, "r")
-
-    # scan file for the number of states with different F quanta, max ID number, symmetry, etc.
-    nstates = {}
-    maxid = {}
-    for line in fl:
-        w = line.split()
-        f = round(float(w[0]),1)
-        id = np.int64(w[1])
-        sym = w[2].upper()
-        ndeg = int(w[3])
-        enr = float(w[4])
-        if 'emin' in kwargs and enr<kwargs['emin']:
-            continue
-        if 'emax' in kwargs and enr>kwargs['emax']:
-            continue
-        try:
-            nstates[(f,sym)] += 1
-        except:
-            nstates[(f,sym)] = 1
-        try:
-            maxid[f] = max([id,maxid[f]])
-        except:
-            maxid[f] = id
-
-    # create list of F quanta
-    if 'flist' in kwargs:
-        flist = [round(f,1) for f in kwargs['flist']]
+    key = str(round(float(J1), 1)) + "_" + str(round(float(J2), 1))
+    if key not in fl:
+        J_grp = fl.create_group(key)
     else:
-        if 'fmax' in kwargs:
-            fmax = min([ kwargs['fmax'], max([key[0] for key in nstates.keys()]) ])
-            if fmax<kwargs['fmax']:
-                print(f"read_states: fmax is set to {fmax} which is maximal F in states file {filename}")
+        J_grp = fl[key]
+
+    # store energy
+
+    try:
+        enr = kwargs['enr']
+        _J1_eq_J2("state energies")
+        _check_dim((len(enr), len(enr)), 'enr')
+        if 'enr' in J_grp:
+            del J_grp['enr']
+            print(f"replace state energies for J1, J2 = {J1}, {J2} in file {filename}")
         else:
-            fmax = max([key[0] for key in nstates.keys()])
-        if 'fmin' in kwargs:
-            fmin = max([ kwargs['fmin'], min([key[0] for key in nstates.keys()]) ])
-            if fmin>kwargs['fmin']:
-                print(f"read_states: fmin is set to {fmin} which is minimal F in states file {filename}")
+            print(f"write state energies for J1, J2 = {J1}, {J2} into file {filename}")
+        dset = J_grp.create_dataset('enr', data=enr)
+    except KeyError:
+        pass
+
+    # store assignment
+
+    try:
+        assign = kwargs['assign']
+        _J1_eq_J2("state assignments")
+        _check_dim((len(assign), len(assign)), 'assign')
+        if 'assign' in J_grp:
+            del J_grp['assign']
+            print(f"replace state assignments for J1, J2 = {J1}, {J2} in file {filename}")
         else:
-            fmin = min([key[0] for key in nstates.keys()])
-        if 'df' in kwargs:
-            df = kwargs['df']
+            print(f"write state assignments for J1, J2 = {J1}, {J2} into file {filename}")
+        dset = J_grp.create_dataset('assign', data=[str.encode(elem) for elem in assign])
+    except KeyError:
+        pass
+
+    # store IDs
+
+    try:
+        id = kwargs['id']
+        _J1_eq_J2("state IDs")
+        _check_dim((len(id), len(id)), 'id')
+        if 'id' in J_grp:
+            del J_grp['id']
+            print(f"replace state IDs for J1, J2 = {J1}, {J2} in file {filename}")
         else:
-            df = 1
-        f1 = round(fmin,1)
-        f2 = round(fmax,1)
-        d = round(df)
-        assert (f1>=0 and f2>=0),f"fmin={fmin} or fmax={fmax} is less than zero"
-        assert (f2>=f1),f"fmin={fmin} > fmax={fmax}"
-        assert (df>=1),f"df={df}<1"
-        flist = [round(f,1) for f in np.linspace(f1,f2,int((f2-f1)/d)+1)]
+            print(f"write state IDs for J1, J2 = {J1}, {J2} into file {filename}")
+        dset = J_grp.create_dataset('id', data=id)
+    except KeyError:
+        pass
 
-    # create list of state symmetries
-    if 'sym' in kwargs:
-        sym_list = list( set(elem.upper() for elem in kwargs['sym']) & \
-                         set([key[1] for key in nstates.keys()]) )
-        bad_sym = list( set(elem.upper() for elem in kwargs['sym']) - \
-                         set([key[1] for key in nstates.keys()]) )
-        if len(bad_sym)>0:
-            print(f"read_states: there are no states with symmetries {bad_sym} in states file {filename}")
-    else:
-        sym_list = set([key[1] for key in nstates.keys()])
+    # store symmetries
 
-    # read states
+    try:
+        sym = kwargs['sym']
+        _J1_eq_J2("state symmetries")
+        _check_dim((len(sym), len(sym)), 'sym')
+        if 'sym' in J_grp:
+            del J_grp['sym']
+            print(f"replace state symmetries for J1, J2 = {J1}, {J2} in file {filename}")
+        else:
+            print(f"write state symmetries for J1, J2 = {J1}, {J2} into file {filename}")
+        dset = J_grp.create_dataset('sym', data=[str.encode(elem) for elem in sym])
+    except KeyError:
+        pass
 
-    states = {}
-    map_id_to_istate = {}
-    for f in flist:
-        nst = sum([nstates[(f,sym)] for sym in sym_list if (f,sym) in nstates])
-        if nst==0:
-            continue
-        states[f] = np.zeros( nst, dtype={'names':('f', 'id', 'ideg', 'istate', 'sym', 'enr', 'qstr'), \
-            'formats':('f8', 'i8', 'i4', 'i8', 'U10', 'f8', 'U300')} )
-        map_id_to_istate[f] = np.zeros( maxid[f]+1, dtype=np.int64 )
-        map_id_to_istate[f][:] = -1
+    # store K-matrix
 
-    fl.seek(0)
+    try:
+        kmat = kwargs['kmat']
+        for k_irrep in kmat:
+            _check_dim(k_irrep.shape, 'kmat')
 
-    nstates = {key[0]:0 for key in nstates}
-    for line in fl:
-        w = line.split()
-        f = round(float(w[0]),1)
-        id = np.int64(w[1])
-        sym = w[2]
-        ndeg = int(w[3])
-        enr = float(w[4])
-        qstr = ' '.join([w[i] for i in range(5,len(w))])
-        if 'emin' in kwargs and enr<kwargs['emin']:
-            continue
-        if 'emax' in kwargs and enr>kwargs['emax']:
-            continue
-        if f not in flist:
-            continue
-        if sym.upper() not in sym_list:
-            continue
+        if 'irreps' not in kwargs:
+            raise Exception(f"'irreps' argument must be passed together with 'kmat'") from None
+        else:
+            irreps = kwargs['irreps']
+            assert (len(irreps) == len(kmat)), \
+                f"Number of elements in 'irreps' = {len(irreps)} does not match " + \
+                f"the number of elements in 'kmat' = {len(kmat)}"
 
-        map_id_to_istate[f][id] = nstates[f]
+        numtype = []
+        k_data = []
+        for k_irrep in kmat:
+            data = k_irrep.data
+            indices = k_irrep.indices
+            indptr = k_irrep.indptr
+            if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
+                numtype.append('real')
+                data = data.real
+            elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
+                numtype.append('imag')
+                data = data.imag
+            elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
+                numtype.append('zero')
+                continue
+            else:
+                numtype.append('cmplx')
+            k_data.append([data, indices, indptr])
 
-        for ideg in range(ndeg):
-            istate = nstates[f]
-            states[f]['f'][istate] = f
-            states[f]['id'][istate] = id
-            states[f]['ideg'][istate] = ideg
-            states[f]['sym'][istate] = sym
-            states[f]['enr'][istate] = enr
-            states[f]['qstr'][istate] = qstr
-            states[f]['istate'][istate] = istate
+        if 'tens' not in kwargs:
+            raise Exception(f"'tens' argument must be passed together with 'kmat'") from None
+        else:
+            tens = kwargs['tens']
+        if tens not in J_grp:
+            tens_J_grp = J_grp.create_group(tens)
+        else:
+            tens_J_grp = J_grp[tens]
 
-            nstates[f] += 1
+        if 'kmat' in tens_J_grp:
+            del tens_J_grp['kmat']
+            print(f"replace {tens} K-matrix for J1, J2 = {J1}, {J2} in file {filename} (thresh = {thresh})")
+        else:
+            print(f"write {tens} K-matrix for J1, J2 = {J1}, {J2} into file {filename} (thresh = {thresh})")
 
-    fl.close()
+        dset = tens_J_grp.create_dataset('kmat', data=k_data)
+        dset.attrs['irreps'] = [irrep for irrep, numt in zip(irreps, numtype)]
+        dset.attrs['numtype'] = [numt for numt in numtype]
+        dset.attrs['thresh'] = thresh
 
-    return states, map_id_to_istate
+    except KeyError:
+        pass
 
+    # store M-matrix
 
-    @property
-    def j_m_id(self):
+    try:
+        mmat = kwargs['mmat']
+
+        for irrep, m_irrep in enumerate(mmat):
+            assert (m_irrep.shape == (int(2*J1)+1, int(2*J2)+1)), \
+                f"Dimensions of {irrep}-th element of 'mmat' = {m_irrep.shape} " + \
+                f"do not match the values (2*J1+1, 2*J2+1) = {int(2*J1)+1, int(2*J2)+1} " +\
+                f"for J1, J2 = {J1}, {J2}"
+
+        if 'cart' not in kwargs:
+            raise Exception(f"'cart' argument must be passed together with 'mmat'") from None
+        else:
+            cart = kwargs['cart']
+
+        if 'irreps' not in kwargs:
+            raise Exception(f"'irreps' argument must be passed together with 'mmat'") from None
+        else:
+            irreps = kwargs['irreps']
+            assert (len(irreps) == len(mmat)), \
+                f"Number of elements in 'irreps' = {len(irreps)} does not match " + \
+                f"the number of elements in 'mmat' = {len(mmat)}"
+
+        numtype = []
+        m_data = []
+        for m_irrep in mmat:
+            data = m_irrep.data
+            indices = m_irrep.indices
+            indptr = m_irrep.indptr
+            if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
+                numtype.append('real')
+                data = data.real
+            elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
+                numtype.append('imag')
+                data = data.imag
+            elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
+                numtype.append('zero')
+                continue
+            else:
+                numtype.append('cmplx')
+            m_data.append([data, indices, indptr])
+
+        if 'tens' not in kwargs:
+            raise Exception(f"'tens' argument must be passed together with 'mmat'") from None
+        else:
+            tens = kwargs['tens']
+        if tens not in J_grp:
+            tens_J_grp = J_grp.create_group(tens)
+        else:
+            tens_J_grp = J_grp[tens]
+
+        if 'mmat_'+cart in tens_J_grp:
+            del tens_J_grp['mmat_'+cart]
+            print(f"replace {tens} M-matrix({cart}) for J1, J2 = {J1}, {J2} in file {filename} (thresh = {thresh})")
+        else:
+            print(f"write {tens} M-matrix({cart}) for J1, J2 = {J1}, {J2} into file {filename} (thresh = {thresh})")
+
+        dset = tens_J_grp.create_dataset('mmat_'+cart, data=m_data)
+        dset.attrs['irreps'] = [irrep for irrep, numt in zip(irreps, numtype)]
+        dset.attrs['numtype'] = [numt for numt in numtype]
+        dset.attrs['thresh'] = thresh
+        dset.attrs['cart'] = cart
+
+    except KeyError:
         pass
 
 
-    @j_m_id.setter
-    def j_m_id(self, val):
-        """Use this function to define the initial wavepacket coefficients, as
-        Psi().j_m_id = (j, m, id, ideg, coef), where j, m, id, and ideg identify the stationary
-        basis function and coef is the desired coefficient. Call it multiple times define the
-        coefficient values for multiple basis functions.
-        """
-        try:
-            f, m, id, ideg, coef = val
-        except ValueError:
-            raise ValueError(f"Pass an iterable with five items, i.e., j_m_id = (j, m, id, ideg, coef)")
-        ff = round(float(f),1)
-        mm = round(float(m),1)
-        iid = int(id)
-        iideg = int(ideg)
-        try:
-            x = self.flist.index(ff)
-        except ValueError:
-            raise ValueError(f"Input quantum number J = {ff} is not spanned by the basis") from None
-        try:
-            istate = self.map_id_to_istate[ff][iid]+iideg-1
-        except IndexError:
-            raise IndexError(f"Input set of quanta (id,ideg) = ({iid},{iideg}) for J = {ff} " \
-                    + f"is not spanned by the basis") from None
-        try:
-            ibas = self.quanta[ff].index([mm,istate])
-        except ValueError:
-            raise ValueError(f"Input set of quanta (m,id,ideg,istate) = ({mm},{iid},{iideg},{istate}) " \
-                    + f"for J = {ff} is not spanned by the basis") from None
-        try:
-            x = self.coefs
-        except AttributeError:
-            self.coefs = {f:np.zeros(len(self.quanta[f]), dtype=np.complex128) for f in self.flist}
-        self.coefs[ff][ibas] = coef
+
+
+if __name__ == "__main__":
+    import random
+    import string
+
+    nstates = 500
+    assign = []
+    id = []
+
+    for istate in range(nstates):
+        assign.append( "".join(random.choice(string.ascii_lowercase) for i in range(10)) )
+        id.append([istate,1])
+
+    enr = np.random.uniform(low=0.5, high=13.3, size=(500,))
+
+
+    dat = np.array([0.3+1j*5, 0.2+1j*0.3, 1.3+0.8*1j ,0.9], dtype=np.complex128)
+    a = coo_matrix((dat, ([0,0,1,2],[0,1,2,1])), shape=(3,3))
+    b = a.tocsr()
+
+    a = coo_matrix((dat.real, ([0,0,1,2],[0,1,2,1])), shape=(3,3))
+    c = a.tocsr()
+
+    a = coo_matrix((dat.imag*1j, ([0,0,1,2],[0,1,2,1])), shape=(3,3))
+    d = a.tocsr()
+
+    a = coo_matrix((dat.imag*0, ([0,0,1,2],[0,1,2,1])), shape=(3,3))
+    e = a.tocsr()
+
+    kmat = [b,b,e,c,d]
+    irreps = [0, 1,2,3,4]
+    store("test_file.h5", 1, 1, replace=True, mmat=kmat, irreps=irreps, cart="xx", tens='alpha')
