@@ -3,7 +3,7 @@ import keo_jax
 import jax.numpy as np
 import poten_h2s_Tyuterev
 from prim import numerov, legcos, herm, laguerre
-
+import sys
 
 @com
 @bisector('zxy')
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # equilibrium/reference coordinates
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
-
+    """
     # test Numerov basis
     laguerre(0, ref_coords, 50, 30, [0.5, 10.0], \
                                 poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
@@ -38,12 +38,13 @@ if __name__ == "__main__":
     _, num_enr_bnd, _ = numerov(2, ref_coords, 1000, 30, [30*np.pi/180.0, 170*np.pi/180.0], \
                                 poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
                                 dgmat=keo_jax.dGmat, verbose=True)
-
+    """
     # test Hermite basis
-    _, her_enr_str, _, _ = herm(0, ref_coords, 100, 30, [0.5, 10.0], \
+    r, her_enr_str, psi, dpsi = herm(0, ref_coords, 100, 30, [0.5, 10.0], \
                                 poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
                                 verbose=True)
-
+    print(f"shape of psi: {np.shape(psi)}, shape of dpsi: {np.shape(dpsi)}")
+    sys.exit()
     # test Legendre(cos) basis
     _, leg_enr_bnd, _, _ = legcos(2, ref_coords, 100, 30, [0, np.pi], \
                                   poten_h2s_Tyuterev.poten, keo_jax.Gmat, \

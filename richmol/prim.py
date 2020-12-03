@@ -87,7 +87,7 @@ def legcos(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
     r = np.arccos(x)
 
     # delete points that fall outside the coordinate ranges
-    x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
+    #x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
 
     # basis functions and derivatives
 
@@ -272,7 +272,7 @@ def herm(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
          print(f"Mapping x <--> r calculated for Gauss-Hermite quadrature: {xmap}, (mu = {gmat}, omega = {freq})")
 
     # delete points that fall outside the coordinate ranges
-    x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
+    #x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
 
     # basis functions and derivatives
 
@@ -457,8 +457,9 @@ def laguerre(icoord, ref_coords, npoints, vmax, ranges, poten, gmat,
     beta = w0*np.sqrt(mu/(2*De))
     scale = np.sqrt(np.sqrt(2.0*np.abs(w0)*mu))
     A = 4*De/beta
-    alpha = np.floor(A) # it's sooooo big
-    alpha = 1
+    #alpha = np.floor(A) # it's sooooo big
+    #alpha = 1
+    alpha = np.sqrt(8*mu*De/(beta**2))
     Qo, w = hermgauss(npoints)
     Qo /= scale + 5
     # correction factor to make the integrand suitable
@@ -494,8 +495,8 @@ def laguerre(icoord, ref_coords, npoints, vmax, ranges, poten, gmat,
         print(Qo)
         #t = np.linspace(2, 8, 300)
         #tn = A*np.exp(-beta*(t))
-
-        psi[:,i] = _lag(x, i)
+        norm_fac = np.sqrt(beta*(alpha-2*i-1)*ss.gamma(n+1)/ss.gamma(alpha-n))
+        psi[:,i] = _lag(x, i)*norm_fac
         #val = _lag(t,i)
         #plt.plot(t, _lag(tn, i))
         dpsi[:,i] = _dlag(x,i)
