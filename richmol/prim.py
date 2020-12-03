@@ -87,7 +87,7 @@ def legcos(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
     r = np.arccos(x)
 
     # delete points that fall outside the coordinate ranges
-    #x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
+    x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
 
     # basis functions and derivatives
 
@@ -168,7 +168,7 @@ def legcos(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
         raise RuntimeError(f"Hamiltonian matrix is not hermitian (tol = {symmetric_tol})")
 
     # diagonalize Hamiltonian
-    eigval, eigvec = np.linalg.eigh(hmat)
+    eigval, eigvec = np.linalg.eigh(hmat) #eigvec gives the coefficients
 
     # transform basis
     psi = np.dot(psi, eigvec.T)
@@ -272,7 +272,7 @@ def herm(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
          print(f"Mapping x <--> r calculated for Gauss-Hermite quadrature: {xmap}, (mu = {gmat}, omega = {freq})")
 
     # delete points that fall outside the coordinate ranges
-    #x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
+    x, w, r = check_outliers(x, w, r, ranges, zero_weight_thresh)
 
     # basis functions and derivatives
 
@@ -331,6 +331,11 @@ def herm(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
     eigval, eigvec = np.linalg.eigh(hmat)
 
     # transform basis
+    """
+    for j in range(psi.shape[1]):
+        #psi [:,j] = psi [:,j]*np.exp(-x**2)
+        psi [:,j] = psi [:,j]*np.sqrt(w)
+        """
     psi = np.dot(psi, eigvec.T)
     dpsi = np.dot(dpsi, eigvec.T)
 
