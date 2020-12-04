@@ -27,10 +27,11 @@ import matplotlib.pyplot as plt
 
 
 class matelem:
-    def __init__(self, Nbas, Nquad1D_herm, Nquad1D_leg, ref_coords, masses):
+    def __init__(self, Nbas, Ngrid, Nquad1D_herm, Nquad1D_leg, ref_coords, masses):
 
         self.w_tol = 1e-30 #threshold value for keeping 3D quadrature product-weights
         self.Nbas = Nbas #basis set size
+        self.Ngrid = Ngrid
         self.Nquad1D_herm =  Nquad1D_herm  #number of Gauss-Hermite quadrature points in 1D
         self.Nquad1D_leg =  Nquad1D_leg  #number of Gauss-Legendre quadrature points in 1D
         self.ref_coords = ref_coords #reference coordinates
@@ -114,7 +115,11 @@ class matelem:
 
         #initialize the KEO
         keo_jax.init(masses=self.masses, internal_to_cartesian=self.internal_to_cartesian)
-        print(np.shape(keo_jax.Gmat))
+        for ipoint in range(Ngrid):
+            icoords = [qgrid_ind[ipoint][0],qgrid_ind[ipoint][1],qgrid_ind[ipoint][2]]
+            G[icoords,:,:] = keo_jax.Gmat(icoords) #need to add here full 
+        print(np.shape(G))
+
         # compute strechting basis on the quadrature grid
         _, _, psi_r, dpsi_r = herm(0, ref_coords, self.Nquad1D_herm, self.Nquad1D_herm-1, [0.5, 10.0],
                                         poten_h2s_Tyuterev.poten, keo_jax.Gmat,
@@ -142,7 +147,7 @@ class matelem:
                 phi_j = [np.sqrt(w1[:]) * psi_r[:,jvec[0]],np.sqrt(w2[:]) * psi_r[:,jvec[1]],np.sqrt(w3[:]) * psi_theta[:,jvec[2]]]
                 dphi_j = [np.sqrt(w1[:]) * dpsi_r[:,jvec[0]],np.sqrt(w2[:]) * dpsi_r[:,jvec[1]],np.sqrt(w3[:]) * dpsi_theta[:,jvec[2]]]
 
-                hmat[i,j] = self.matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, keo_jax.Gmat, qgrid_ind)
+                hmat[i,j] = self.matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, G, qgrid_ind)
 
         print(hmat)
         eval, eigvec = np.linalg.eigh(hmat)
@@ -178,8 +183,9 @@ if __name__=="__main__":
     """generate 3D quadrature grid (for now direct product, only indices)"""
     qgrid = gridmap(Nquad1D_herm, 'dp', 3, w_tol, Nquad1D_herm, Nquad1D_herm, Nquad1D_leg)
     qgrid_ind = np.asarray(qgrid.gen_map())
+    Ngrid = np.size(qgrid_ind , axis =0) 
     #print(qgrid_ind)
 
 
-    ham = matelem( Nbas, Nquad1D_herm, Nquad1D_leg, ref_coords, masses) #hamiltonian class
+    ham = matelem( Nbas, Ngrid, Nquad1D_herm, Nquad1D_leg, ref_coords, masses) #hamiltonian class
     ham.hmat(bas_ind,qgrid_ind)
