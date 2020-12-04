@@ -34,6 +34,7 @@ class MVP:
         return coords[0]**2 * coords[1]**2 * coords[2]**2 * np.exp(-coords[0]**2) * np.exp(-coords[1]**2)
 
     def helem(self,ivec,jvec,coords,weights):
+        """Calculated single matrix element using gaussian quadratures"""
         #print(np.shape(coords[:,1]))
         #weightsvec[:] = weights[:,0] * weights[:,1] * weights[:,2]
         #print(np.shape(weightsvec))
@@ -47,6 +48,21 @@ class MVP:
         #fvec = self.f_temp(ivec,jvec,coords[:])
         #hij = np.dot( fvec, weights)
         return hij
+
+    def helem_lame(self,ivec,jvec,w1,w2,w3):
+        """Calculated single matrix element using gaussian quadratures.
+        the integrand function is only defined by grid indices which must be the gaussian quadrature points
+        """
+        hij = 0
+
+        for k1 in range(self.Nquad1D_herm):
+            for k2 in range(self.Nquad1D_herm):
+                for k3 in range(self.Nquad1D_leg):
+                    #print(eval_k([0,0,0],[1,1,1], [k1,k2,k3])  * w1[k1] *  w2[k2] * w3[k3])
+                    #hij += eval_k([indmap[ivec,0],indmap[ivec,1],indmap[ivec,2]], [indmap[jvec,0],indmap[jvec,1],indmap[jvec,2]], [k1,k2,k3])  * w1[k1] *  w2[k2] * w3[k3]
+                    hij += eval_k(ivec,jvec, [k1,k2,k3])  * w1[k1] *  w2[k2] * w3[k3]
+        return hij
+
 
 
     def calc_hmat(self,indmap):
@@ -96,20 +112,30 @@ class MVP:
 
         hmat = np.zeros((Nbas,Nbas), dtype = float)
         """calculate the <psi_i | H | psi_j> integral """
-        for ivec in range(Nbas):
-            for jvec in range(Nbas):  
-               hmat[ivec,jvec] = self.helem(ivec,jvec,grid_dp,weights_dp)
+        for i in range(Nbas):
+            ivec = [indmap[i][0],indmap[i][1],indmap[i][2]]
+            print(type(ivec))
+            print(ivec)
+            for j in range(Nbas):
+                jvec = [indmap[j][0],indmap[j][1],indmap[j][2]]
+                #hmat[ivec,jvec] = self.helem(ivec,jvec,grid_dp,weights_dp)
+                hmat[i,j] = self.helem_lame(ivec,jvec,w1,w2,w3)
+
 
         print(hmat)
+        eval, eigvec = np.linalg.eigh(hmat)
+        print(eval)
+
+
 
 if __name__=="__main__":
 
     """generate mapping function"""
-    b = 3
+    b = 2
 
     simpleMap = indexmap(b,'simple',3)
     indmap =simpleMap.gen_map()
     #print(indmap)
 
-    ham0 = MVP(10,10)
+    ham0 = MVP(5,5)
     ham0.calc_hmat(indmap)

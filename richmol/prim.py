@@ -331,11 +331,11 @@ def herm(icoord, ref_coords, npoints, vmax, ranges, poten, gmat, \
     eigval, eigvec = np.linalg.eigh(hmat)
 
     # transform basis
-    """
-    for j in range(psi.shape[1]):
-        #psi [:,j] = psi [:,j]*np.exp(-x**2)
-        psi [:,j] = psi [:,j]*np.sqrt(w)
-        """
+    
+    #for j in range(psi.shape[1]):
+        #psi [:,j] = psi [:,j]*np.exp(-0.5*x**2)
+        #psi [:,j] = psi [:,j]#*np.sqrt(w)
+        
     psi = np.dot(psi, eigvec.T)
     dpsi = np.dot(dpsi, eigvec.T)
 

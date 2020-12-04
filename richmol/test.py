@@ -33,10 +33,10 @@ def eval_k(i, j, k):
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
     # compute strechting basis
 
-    xherm, _, psi_r, dpsi_r = herm(0, ref_coords, 40, 30, [0.5, 10.0],
+    xherm, _, psi_r, dpsi_r = herm(0, ref_coords, 5, 4, [0.5, 10.0],
                                     poten_h2s_Tyuterev.poten, keo_jax.Gmat,
                                     verbose=False)
-    xleg, _, psi_theta, dpsi_theta= legcos(2, ref_coords, 40, 30, [0, np.pi],
+    xleg, _, psi_theta, dpsi_theta= legcos(2, ref_coords, 5, 4, [0, np.pi],
                                   poten_h2s_Tyuterev.poten, keo_jax.Gmat,
                                   verbose=False)
     #ind = 0 # index of the grid point; need to find it
@@ -65,7 +65,7 @@ def internal_to_cartesian(coords):
                     [-r2 * np.sin(alpha/2), 0.0, r2 * np.cos(alpha/2)]], \
                     dtype=np.float64)
     return xyz
-sif __name__ == "__main__":
+if __name__ == "__main__":
     """
     keo_jax.init(masses=[31.97207070, 1.00782505, 1.00782505], \
                  internal_to_cartesian=internal_to_cartesian)
@@ -74,7 +74,7 @@ sif __name__ == "__main__":
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
     r, her_enr_str, psi, dpsi = herm(0, ref_coords, 100, 30, [0.5, 10.0], \
                                     poten_h2s_Tyuterev.poten, keo_jax.Gmat, \
-s                                    verbose=True)
+                                    verbose=True)
     """
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
     i = [1,2,3]
