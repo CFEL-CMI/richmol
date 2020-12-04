@@ -11,7 +11,7 @@ levi_chivita = np.array([[[ int((i - j) * (j - k) * (k - i) * 0.5) \
                             dtype=np.float64)
 
 G_to_invcm = const.planck * const.avogno * 1.0e+16 / (4.0 * np.pi * np.pi * const.vellgt)
-
+masses=np.array([31.97207070, 1.00782505, 1.00782505] ) 
 
 def init(*args, **kwargs):
     """ Initializes global molecular parameters """
