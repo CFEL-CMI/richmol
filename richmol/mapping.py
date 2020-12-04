@@ -40,12 +40,14 @@ class indexmap:
 
 
 class gridmap:
-    def __init__(self,b,pruntype,dim,w_tol):
+    def __init__(self,b,pruntype,dim,w_tol,N1,N2,N3):
         self.pruntype = pruntype #type of pruning
         self.b = b #pruning parameter
         self.dim = dim #number of dimensions. For now it is 3
-        self.w_tol = 1e-15 #threshold value for keeping 3D quadrature product-weights
-
+        self.w_tol = w_tol #threshold value for keeping 3D quadrature product-weights
+        self.N1 = N1
+        self.N2 = N2
+        self.N3 = N3 #number of quadrature grid points
 
     def get_pruning_func(self):
         "generate pruning function"
@@ -55,17 +57,13 @@ class gridmap:
         return alpha1,alpha2,alpha3
             
     def gen_map(self):
-        #print(self.get_basis_size())
-        maparray = [] #np.zeros((int(self.get_basis_size()),4),dtype=int)
-        alpha1,alpha2,alpha3 = self.get_pruning_func()
+        maparray = [] 
         i = 0 
-        for i1 in range(self.b):
-            for i2 in range(self.b):
-                for i3 in range(self.b):
-                    #print(str(i1)+' '+str(i2)+' '+str(i3))
-                    if  i1 * alpha1 + i2 * alpha2 + i3 * alpha3 <= self.b:
-                        maparray.append([i1,i2,i3,i+1])
-                        i+=1
+        for k1 in range(self.N1):
+            for k2 in range(self.N2):
+                for k3 in range(self.N3):  
+                    maparray.append([k1,k2,k3,i+1])
+                    i+=1
 
         return maparray 
 

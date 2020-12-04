@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
-from mapping import indexmap
+from mapping import indexmap,gridmap
 from matplotlib import pyplot as plt
 from test import eval_k
 import sympy as sp
@@ -71,7 +71,7 @@ class matelem:
         f_int[:] = dpsi_r[k[0], j[0]]*psi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[0,0][k1,k2,k3]*dpsi_r[k[0], i[0]]*psi_r[k[1], i[1]]*psi_theta[k[2], i[2]] \
 
 
-              """  + dpsi_r[k[0], j[0]]*psi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[0,1]*psi_r[k[0], i[0]]*dpsi_r[k[1], i[1]]*psi_theta[k[2], i[2]] \
+        """  + dpsi_r[k[0], j[0]]*psi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[0,1]*psi_r[k[0], i[0]]*dpsi_r[k[1], i[1]]*psi_theta[k[2], i[2]] \
                 + dpsi_r[k[0], j[0]]*psi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[0,2]*psi_r[k[0], i[0]]*psi_r[k[1], i[1]]*dpsi_theta[k[2], i[2]] \
                 + psi_r[k[0], j[0]]*dpsi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[1,0]*dpsi_r[k[0], i[0]]*psi_r[k[1], i[1]]*psi_theta[k[2], i[2]] \
                 + psi_r[k[0], j[0]]*dpsi_r[k[1], j[1]]*psi_theta[k[2], j[2]]*G[1,1]*psi_r[k[0], i[0]]*dpsi_r[k[1], i[1]]*psi_theta[k[2], i[2]] \
@@ -191,22 +191,34 @@ class matelem:
 
 if __name__=="__main__":
 
-    """generate mapping function"""
-    b = 2
-
-    simpleMap = indexmap(b,'simple',3)
-    indmap =simpleMap.gen_map()
-    #print(indmap)
-
-    """generate 3D quadrature grid (direct product, only indices)"""
-
-    dpgrid = indexmap(b,'simple',3)
-    dpgrid_ind = dpgrid .gen_map()
-
-
     # equilibrium/reference coordinates
     ref_coords = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
     masses=[31.97207070, 1.00782505, 1.00782505]    
 
-    ham0 = MVP(5,5)
-    ham0.calc_hmat(indmap)
+    """generate mapping function"""
+    b = 2 #basis set pruning parameters
+
+    simpleMap = indexmap(b,'simple',3)
+    indmap =simpleMap.gen_map()
+    Nbas = np.size(indmap , axis =0) 
+    #print(indmap)
+
+    Nquad1D_herm = 5
+    Nquad1D_leg = 5
+    grid_type = 'dp'
+    
+    """Grid types:
+                    'dp': direct product Nquad1D_herm x Nquad1D_herm x Nquad1D_leg
+                    'ndp_weights': non-direct product with pruning based on product weights (w_tol)
+    """
+    
+    w_tol =  1e-15 #threshold value for keeping 3D quadrature product-weights
+
+    """generate 3D quadrature grid (for now direct product, only indices)"""
+    quadgrid = gridmap(Nquad1D_herm,'dp',3,w_tol,Nquad1D_herm,Nquad1D_herm,Nquad1D_leg)
+    quadgrid_ind = quadgrid.gen_map()
+    print(quadgrid_ind)
+
+
+    keo = matelem( Nbas, Nquad1D_herm, Nquad1D_leg, ref_coords, masses)
+    #ham0.calc_hmat(indmap)
