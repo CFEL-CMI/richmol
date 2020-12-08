@@ -16,6 +16,7 @@ import warnings
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 from functools import wraps
 from richmol import rchm
+from scipy.sparse import csr_matrix
 
 
 bohr_to_angstrom = 0.529177249    # converts distances from atomic units to Angstrom
@@ -1658,8 +1659,8 @@ class CartTensor():
             Contains elements of Cartesian tensor in the molecular frame.
     """
 
-    # transformation matrix for tensors of rank in tmat_s.keys()
-    # from Cartesian to spherical-tensor representation
+    # transformation matrix from Cartesian to spherical-tensor representation
+    # for tensors of different ranks (dict keys)
     tmat_s = {1 : np.array([ [np.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0], \
                              [0, 0, 1.0], \
                              [-math.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0] ], dtype=np.complex128),
@@ -1676,11 +1677,12 @@ class CartTensor():
     # inverse spherical-tensor to Cartesian transformation matrix
     tmat_x = {key : np.linalg.pinv(val) for key,val in tmat_s.items()}
 
+    # Cartesian components and irreducible representations for tensors of different ranks
     cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
 
-    def __init__(self, arg):
+    def __init__(self, arg, **kwargs):
 
         # check input tensor
         if isinstance(arg, (tuple, list)):
@@ -1688,10 +1690,9 @@ class CartTensor():
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
         else:
-            raise TypeError(f"Bad argument type '{type(arg)}' for tensor, expected list, tuple, " \
-                    +f"or numpy array") from None
+            raise TypeError(f"Bad argument type '{type(arg)}' for tensor") from None
         if not all(dim==3 for dim in tens.shape):
-            raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+            raise ValueError(f"Tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
         if np.all(np.abs(tens) < settings.tens_small_elem):
             raise ValueError(f"Tensor has all its elements equal to zero") from None
         if np.any(np.abs(tens) > settings.tens_large_elem):
@@ -1733,20 +1734,24 @@ class CartTensor():
                 self.Ux = np.delete(self.Ux, [1,2,3], 1)
                 self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+
 
     def __call__(self, arg):
-        """Computes |psi'> = CartTensor|psi>
+        """Computes projection |psi'> = CartTensor |psi>.
 
         Args:
-            arg : PsiTableMK)
-                |psi>, set of linear combinations of symmetric-top functions.
+            arg : PsiTableMK
+                Set of linear combinations of symmetric-top functions |psi>.
 
         Returns:
-            res : dict of PsiTableMK
-                |psi'>, resulting tensor-projected set of linear combinations of symmetric-top
-                functions for different laboratory-frame Cartesian components and different
-                irreducible components of the tensor as dict keys (cart,irrep),
-                where cart is in self.cart and irrep is in set(omega for (omega,sigma) in self.os).
+            res : dict with elements PsiTableMK and keys (cart,irrep)
+                Resulting tensor-projected set of linear combinations of symmetric-top
+                functions |psi'>, computed for different Cartesian and different
+                irreducible representation components of the tensor, which are
+                saved as dict keys (cart,irrep). Here cart is in self.cart
+                and irrep is in set(omega for (omega,sigma) in self.os).
         """
         try:
             jm_table = arg.m.table
@@ -1819,7 +1824,8 @@ class CartTensor():
 
 
     def me(self, psi_bra, psi_ket):
-        """Computes matrix elements of Cartesian tensor operator < psi_bra | CartTensor | psi_ket >
+        """Computes matrix elements of Cartesian tensor operator
+        < psi_bra | CartTensor | psi_ket >
 
         Args:
             psi_bra, psi_ket : PsiTableMK
@@ -1827,11 +1833,12 @@ class CartTensor():
 
         Returns:
             res : dict of 4D arrays
-                Matrix elements between states in psi_bra and psi_ket sets of functions, for different
-                laboratory-frame Cartesian components of the tensor (in self.cart) as dict keys.
+                Matrix elements between states in psi_bra and psi_ket, for different
+                Cartesian components of the tensor (in self.cart) as dict keys.
                 For each Cartesian component, matrix elements are stored in a 4D matrix
-                [k2,m2,k1,m1], where k2 and k1 are the k-state indices in psi_bra and psi_ket
-                respectively, and m2 and m1 are the corresponding m-state indices.
+                [k1,m1,k2,m2], where k1 and k2 are the K-subspace indices in psi_bra
+                and psi_ket, respectively, and m1 and m2 are the corresponding
+                M-subspace indices.
         """
         try:
             x = psi_bra.m.table
@@ -1875,7 +1882,121 @@ class CartTensor():
         return res
 
 
-    def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
+    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, **kwargs):
+        """Stores matrix elements of Cartesian tensor in richmol HDF5 file.
+
+        Args:
+            psi_bra, psi_ket : PsiTableMK
+                Set of linear combinations of symmetric-top functions.
+            filename : str
+                Name of richmol HDF5 file.
+            thresh : float
+                Threshold for storing the matrix elements.
+        """
+        try:
+            x = psi_bra.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_bra.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'k'") from None
+        try:
+            x = psi_ket.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_ket.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'k'") from None
+
+        if 'tens_name' in kwargs:
+            tens_name = kwargs['tens_name']
+        else:
+            try:
+                tens_name = self.name
+            except AttributeError:
+                raise Exception(f"Please specify name of the tensor, either by passing " + \
+                    f"'tens_name' argument to 'store_richmol' or 'name' argument to " + \
+                    f"{retrieve_name(self)} ") from None
+
+        # determine J quanta for bra and ket states
+
+        Jk_bra = list(set(J for J in psi_bra.k.table['prim'][:,0]))
+        Jm_bra = list(set(J for J in psi_bra.m.table['prim'][:,0]))
+        if len(Jk_bra)>1 or len(Jm_bra)>1:
+            raise ValueError(f"Wavefunction set {retrieve_name(psi_bra)} contains multiple " + \
+                f"values of J quanta = {Jk_bra} and {Jm_bra} in the K- and M-subspaces, " + \
+                f"therefore matrix elements can't be stored in richmol file") from None
+        else:
+            if Jk_bra[0] != Jm_bra[0]:
+                raise ValueError(f"Wavefunction set {retrieve_name(psi_bra)} contains " + \
+                    f"different values of J quanta = {Jk_bra[0]} and {Jm_bra[0]}" + \
+                    f"in the K- and M-subspaces (no idea how this had happened)") from None
+            J1 = Jk_bra[0]
+
+        Jk_ket = list(set(J for J in psi_ket.k.table['prim'][:,0]))
+        Jm_ket = list(set(J for J in psi_ket.m.table['prim'][:,0]))
+        if len(Jk_ket)>1 or len(Jm_ket)>1:
+            raise ValueError(f"Wavefunction set {retrieve_name(psi_ket)} contains multiple " + \
+                f"values of J quanta = {Jk_ket} and {Jm_ket} in the K- and M-subspaces, " + \
+                f"therefore matrix elements can't be stored in richmol file") from None
+        else:
+            if Jk_ket[0] != Jm_ket[0]:
+                raise ValueError(f"Wavefunction set {retrieve_name(psi_ket)} contains " + \
+                    f"different values of J quanta = {Jk_ket[0]} and {Jm_ket[0]}" + \
+                    f"in the K- and M-subspaces (no idea how this had happened)") from None
+            J2 = Jk_ket[0]
+
+        # compute matrix elements for M and K tensors
+
+        tens_psi = self(psi_ket)
+
+        dim_bra_k = psi_bra.k.table['c'].shape[1]
+        dim_ket_k = psi_ket.k.table['c'].shape[1]
+        dim_bra_m = psi_bra.m.table['c'].shape[1]
+        dim_ket_m = psi_ket.m.table['c'].shape[1]
+
+        irreps = list(set(omega for (omega,sigma) in self.os))
+        nirrep = len(irreps)
+        ncart = len(self.cart)
+
+        # store K matrix elements in file
+
+        kmat = [csr_matrix(np.zeros(1)) for irrep in irreps]
+        cart0 = self.cart[0]
+        for (cart, irrep), val in tens_psi.items():
+            if cart == cart0:
+                me = psi_bra.overlap_k(val)
+                # set to zero elements with absolute values smaller than a threshold
+                me[np.abs(me) < thresh] = 0
+                sme = csr_matrix(me)
+                #sme.eliminate_zeros() # this may be unnecessary
+                irrep_ind = irreps.index(irrep)
+                kmat[irrep_ind] = sme
+
+        rchm.store(filename, J1, J2, tens=tens_name, kmat=kmat, irreps=irreps)
+
+        # store M matrix elements in file
+
+        for cart in self.cart:
+            mmat = [csr_matrix(np.zeros(1)) for irrep in irreps]
+            for irrep in irreps:
+                try:
+                    val = tens_psi[(cart, irrep)]
+                    me = psi_bra.overlap_m(val)
+                    # set to zero elements with absolute values smaller than a threshold
+                    me[np.abs(me) < thresh] = 0
+                    sme = csr_matrix(me)
+                    #sme.eliminate_zeros() # this may be unnecessary
+                    irrep_ind = irreps.index(irrep)
+                    mmat[irrep_ind] = sme
+                except KeyError:
+                    continue
+            rchm.store(filename, J1, J2, tens=tens_name, mmat=mmat, irreps=irreps, cart=cart)
+
+
+    def store_richmol2(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
         """Stores tensor matrix elements in Richmol file
 
         Args:
