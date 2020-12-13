@@ -17,17 +17,20 @@ Data structure of richmol HDF5 file
    |---/dim                                 ((dim1, dim2) - number of states for J1 and J2)
    |---/tens:<tens>                         (matrix element data for specific tensor)
         |
-        |---/irrep:<irrep>                  (matrix element data for specific irreducible representation)
-             |
-             |---/kmat_data                 (non-zero elements of K-matrix, CSR format)
-             |---/kmat_data.numtype         (type of elements, i.e., 'real', 'imag', or 'cmplx')
-             |---/kmat_indices              (column indices of nonzero elements)
-             |---/kmat_indptr               (row pointers of nonzero elements)
-             |
-             |---/mmat:<cart>_data          (non-zero elements of M-matrix for specific cartesian component, CSR format)
-             |---/mmat:<cart>_data.numtype  (type of elements, i.e., 'real', 'imag', or 'cmplx')
-             |---/mmat:<cart>_indices       (column indices of nonzero elements)
-             |---/mmat:<cart>_indptr        (row pointers of nonzero elements)
+        |---/kmat_data                      (vector of non-zero elements of K-matrix, concatenated across all irreducible representations)
+        |---/kmat_data.numtype              (type of elements, 'real', 'imag', or 'cmplx')
+        |---/kmat_data.irreps               (list of irreducible representations)
+        |---/kmat_data.nnz                  (number of elements in kmat_data for each irreducible representation)
+        |---/kmat_row                       (row indices of non-zero elements)
+        |---/kmat_col                       (column indices of non-zero elements)
+        |
+        |---/mmat_<cart>_data               (...)
+        |---/mmat_<cart>_data.numtype
+        |---/mmat_<cart>_data.irreps
+        |---/mmat_<cart>_data.nnz
+        |---/mmat_<cart>_data.cart
+        |---/mmat_<cart>_row
+        |---/mmat_<cart>_col
 
  <J1> and <J2> (float): bra and ket quantum numbers of the total angular momentum
     operator, rounded to first decimal, e.g., 1.0 and 2.0 or 1.5 and 2.5
@@ -42,8 +45,8 @@ def J_group_key(J1, J2):
 def tens_group_key(tens):
     return 'tens:' + tens
 
-def irrep_group_key(irrep):
-    return 'irrep:' + str(irrep)
+# def irrep_group_key(irrep):
+#     return 'irrep:' + str(irrep)
 
 
 def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
@@ -78,10 +81,10 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
             Matrix elements for different Cartesian components of a tensor
             are stored in separate calls. Here 'cart' is used to label the Cartesian
             component which is currently stored.
-        kmat : list of csr_matrix(no_states(J1), no_states(J2))
+        kmat : list of coo_matrix(no_states(J1), no_states(J2))
             List of K-matrices for different irreducible representations
             of tensor, in the same order as in 'irreps'.
-        mmat : list of csr_matrix(2*J1+1, 2*J2+1)
+        mmat : list of coo_matrix(2*J1+1, 2*J2+1)
             List of M-matrices for different irreducible representations
             of tensor, in the same order as in 'irreps'.
             Only single Cartesian component of M-matrix (labelled by 'cart')
@@ -210,55 +213,74 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         else:
             irreps = kwargs['irreps']
             assert (len(irreps) == len(kmat)), \
-                f"Number of elements in 'irreps' = {len(irreps)} does not match " + \
-                f"the number of elements in 'kmat' = {len(kmat)}"
+                f"Shapes of 'irreps' = {len(irreps)} and 'kmat' = {len(kmat)} are not aligned"
 
-        k_data = []
-        for k_irrep, irrep in zip(kmat, irreps):
-            data = k_irrep.data
-            indices = k_irrep.indices
-            indptr = k_irrep.indptr
+        k_data = None
+        k_row = None
+        k_col = None
+        k_nnz = []
+        k_irrep = []
+        numtype = []
+
+        for km, irrep in zip(kmat, irreps):
+
+            data = km.data
+            row = km.row
+            col = km.col
+
             if len(data) == 0:
                 continue
             if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
-                numtype = 'real'
+                numtype.append('real')
                 data = data.real
             elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
-                numtype = 'imag'
+                numtype.append('imag')
                 data = data.imag
             elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
                 continue
             else:
-                numtype = 'cmplx'
-            k_data.append([irrep, numtype, data, indices, indptr])
+                numtype.append('cmplx')
 
-        if 'tens' not in kwargs:
-            raise Exception(f"'tens' argument must be passed together with 'kmat'") from None
-        else:
-            tens = kwargs['tens']
-        if tens_group_key(tens) not in J_grp:
-            tens_grp = J_grp.create_group(tens_group_key(tens))
-        else:
-            tens_grp = J_grp[tens_group_key(tens)]
+            k_nnz.append(len(data))
+            k_irrep.append(irrep)
 
-        for k_irrep in k_data:
-            irrep = k_irrep[0]
-            if irrep_group_key(irrep) not in tens_grp:
-                irrep_grp = tens_grp.create_group(irrep_group_key(irrep))
+            if k_data is None:
+                k_data = data
+                k_row = row
+                k_col = col
             else:
-                irrep_grp = tens_grp[irrep_group_key(irrep)]
+                k_data = np.concatenate((k_data, data))
+                k_row = np.concatenate((k_row, row))
+                k_col = np.concatenate((k_col, col))
 
-            if 'kmat_data' in irrep_grp:
-                del irrep_grp['kmat_data']
-            if 'kmat_indices' in irrep_grp:
-                del irrep_grp['kmat_indices']
-            if 'kmat_indptr' in irrep_grp:
-                del irrep_grp['kmat_indptr']
+        if len(set(numtype)) > 1:
+            raise ValueError(f"K-matrix elements for different irreps = {k_irrep} " + \
+                f"have different numerical types = {numtype}, for J1, J2 = {J1}, {J2}") from None
 
-            dset = irrep_grp.create_dataset('kmat_data', data=k_irrep[2])
-            dset.attrs['numtype'] = k_irrep[1]
-            dset = irrep_grp.create_dataset('kmat_indices', data=k_irrep[3])
-            dset = irrep_grp.create_dataset('kmat_indptr', data=k_irrep[4])
+        if k_data is not None:
+
+            if 'tens' not in kwargs:
+                raise Exception(f"'tens' argument must be passed together with 'kmat'") from None
+            else:
+                tens = kwargs['tens']
+            if tens_group_key(tens) not in J_grp:
+                tens_grp = J_grp.create_group(tens_group_key(tens))
+            else:
+                tens_grp = J_grp[tens_group_key(tens)]
+
+            if 'kmat_data' in tens_grp:
+                del tens_grp['kmat_data']
+            if 'kmat_row' in tens_grp:
+                del tens_grp['kmat_row']
+            if 'kmat_col' in tens_grp:
+                del tens_grp['kmat_col']
+
+            dset = tens_grp.create_dataset('kmat_data', data=k_data)
+            dset.attrs['numtype'] = list(set(numtype))[0]
+            dset.attrs['irreps'] = k_irrep
+            dset.attrs['nnz'] = k_nnz
+            dset = tens_grp.create_dataset('kmat_row', data=k_row)
+            dset = tens_grp.create_dataset('kmat_col', data=k_col)
 
     except KeyError:
         pass
@@ -270,9 +292,9 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
         for irrep, m_irrep in enumerate(mmat):
             assert (m_irrep.shape == (int(2*J1)+1, int(2*J2)+1)), \
-                f"Dimensions of {irrep}-th element of 'mmat' = {m_irrep.shape} " + \
-                f"do not match the values (2*J1+1, 2*J2+1) = {int(2*J1)+1, int(2*J2)+1} " + \
-                f"for bra and ket J1, J2 = {J1}, {J2}"
+                f"Shapes of {irrep}-th element of 'mmat' = {m_irrep.shape} " + \
+                f"and (2*J1+1, 2*J2+1) = {int(2*J1)+1, int(2*J2)+1} are not aligned" + \
+                f"for J1, J2 = {J1}, {J2}"
 
         if 'cart' not in kwargs:
             raise Exception(f"'cart' argument must be passed together with 'mmat'") from None
@@ -284,63 +306,82 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         else:
             irreps = kwargs['irreps']
             assert (len(irreps) == len(mmat)), \
-                f"Number of elements in 'irreps' = {len(irreps)} does not match " + \
-                f"the number of elements in 'mmat' = {len(mmat)}"
+                f"Shapes of 'irreps' = {len(irreps)} and 'mmat' = {len(mmat)} are not aligned"
 
-        m_data = []
-        for m_irrep, irrep in zip(mmat, irreps):
-            data = m_irrep.data
-            indices = m_irrep.indices
-            indptr = m_irrep.indptr
+        m_data = None
+        m_row = None
+        m_col = None
+        m_nnz = []
+        m_irrep = []
+        numtype = []
+
+        for mm, irrep in zip(mmat, irreps):
+
+            data = mm.data
+            row = mm.row
+            col = mm.col
+
             if len(data) == 0:
                 continue
             if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
-                numtype = 'real'
+                numtype.append('real')
                 data = data.real
             elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
-                numtype = 'imag'
+                numtype.append('imag')
                 data = data.imag
             elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
                 continue
             else:
-                numtype = 'cmplx'
-            m_data.append([irrep, numtype, data, indices, indptr])
+                numtype.append('cmplx')
 
-        if 'tens' not in kwargs:
-            raise Exception(f"'tens' argument must be passed together with 'mmat'") from None
-        else:
-            tens = kwargs['tens']
-        if tens_group_key(tens) not in J_grp:
-            tens_grp = J_grp.create_group(tens_group_key(tens))
-        else:
-            tens_grp = J_grp[tens_group_key(tens)]
+            m_nnz.append(len(data))
+            m_irrep.append(irrep)
 
-        for m_irrep in m_data:
-            irrep = m_irrep[0]
-            if irrep_group_key(irrep) not in tens_grp:
-                irrep_grp = tens_grp.create_group(irrep_group_key(irrep))
+            if m_data is None:
+                m_data = data
+                m_row = row
+                m_col = col
             else:
-                irrep_grp = tens_grp[irrep_group_key(irrep)]
+                m_data = np.concatenate((m_data, data))
+                m_row = np.concatenate((m_row, row))
+                m_col = np.concatenate((m_col, col))
 
-            if 'mmat:'+cart+'_data' in irrep_grp:
-                del irrep_grp['mmat:'+cart+'_data']
-            if 'mmat:'+cart+'_indices' in irrep_grp:
-                del irrep_grp['mmat:'+cart+'_indices']
-            if 'mmat:'+cart+'_indptr' in irrep_grp:
-                del irrep_grp['mmat:'+cart+'_indptr']
+        if len(set(numtype)) > 1:
+            raise ValueError(f"M-matrix elements for different irreps = {m_irrep} " + \
+                f"have different numerical types = {numtype}, for J1, J2 = {J1}, {J2}") from None
 
-            dset = irrep_grp.create_dataset('mmat:'+cart+'_data', data=m_irrep[2])
-            dset.attrs['numtype'] = m_irrep[1]
+        if m_data is not None:
+
+            if 'tens' not in kwargs:
+                raise Exception(f"'tens' argument must be passed together with 'mmat'") from None
+            else:
+                tens = kwargs['tens']
+            if tens_group_key(tens) not in J_grp:
+                tens_grp = J_grp.create_group(tens_group_key(tens))
+            else:
+                tens_grp = J_grp[tens_group_key(tens)]
+
+            if 'mmat_'+cart+'_data' in tens_grp:
+                del tens_grp['mmat_'+cart+'_data']
+            if 'mmat_'+cart+'_row' in tens_grp:
+                del tens_grp['mmat_'+cart+'_row']
+            if 'mmat_'+cart+'_col' in tens_grp:
+                del tens_grp['mmat_'+cart+'_col']
+
+            dset = tens_grp.create_dataset('mmat_'+cart+'_data', data=m_data)
+            dset.attrs['numtype'] = list(set(numtype))[0]
+            dset.attrs['irreps'] = m_irrep
+            dset.attrs['nnz'] = m_nnz
             dset.attrs['cart'] = cart
-            dset = irrep_grp.create_dataset('mmat:'+cart+'_indices', data=m_irrep[3])
-            dset = irrep_grp.create_dataset('mmat:'+cart+'_indptr', data=m_irrep[4])
+            dset = tens_grp.create_dataset('mmat_'+cart+'_row', data=m_row)
+            dset = tens_grp.create_dataset('mmat_'+cart+'_col', data=m_col)
 
     except KeyError:
         pass
 
 
 def inspect_tensors(filename):
-    """Returns list of coupled J quanta for each Cartesian tensor stored in HDF5 file.
+    """Returns list of coupled J quanta for each tensor stored in file.
 
     Args:
         filename : str
@@ -348,8 +389,8 @@ def inspect_tensors(filename):
 
     Returns:
         tens : dict
-            Dictionary with keys as names of Cartesian tensors and values as
-            lists of pairs of J quanta coupled by a tensor.
+            Dictionary with keys as names of tensors and values as
+            lists of pairs of J quanta coupled by tensor.
     """
     fl = h5py.File(filename, "r")
 
@@ -371,8 +412,119 @@ def inspect_tensors(filename):
         for key2 in fl[key]:
             if re.match(r''+tens_key_re, key2):
                 tens = re.search(tens_key_re, key2).group(1)
-                tensors[tens] = [(J1, J2)]
+                try:
+                    tensors[tens].append( (J1, J2) )
+                except KeyError:
+                    tensors[tens] = []
+                    tensors[tens].append( (J1, J2) )
     return tensors
+
+
+def read_mmat(filename, tens, J1, J2):
+    """Reads M-matrix for selected tensor and pair of J quanta.
+
+    Args:
+        filename : str
+            Name of richmol HDF5 file.
+        tens : str
+            Name of tensor (as stored in file).
+        J1, J2 : float
+            Values of bra (J1) and ket (J2) rotational angular momentum quanta.
+
+    Returns:
+        swapJ : bool
+            If True, the returned M-matrix data is for swapped J1 and J2 quanta.
+        mmat : list
+            List of sets for each Cartesian component of M-matrix.
+            The elements of each set are the following:
+                cart (str): Cartesian-component label
+                numtype (str): type of elements, 'real, 'imag', or 'cmplx'
+                irreps (list): list of irreducible representations
+                nnz (list) : number of non-zero elements for each irreducible representation in irreps
+                data (array(nnz)): non-zero elements concatenated across all irreps
+                row (array(nnz)): row indices of non-zero elements, concatenated across all irreps
+                col (array(nnz)): column indices of non-zero elements, concatenated across all irreps
+    """
+
+    fl = h5py.File(filename, "r")
+
+    J_key_re = re.sub(r"1.0", '\d+\.\d+', J_group_key(1, 1))
+
+    try:
+        J_key = J_group_key(J1, J2)
+        J_group = fl[J_key]
+        swapJ = False
+    except KeyError:
+        try:
+            J_key2 = J_group_key(J2, J1)
+            J_group = fl[J_key2]
+            swapJ = True
+            J_key = J_key2
+        except KeyError:
+            raise KeyError(f"Can't locate data group {J_key} or {J_key2} in file {filename}") from None
+
+    try:
+        tens_key = tens_group_key(tens)
+        tens_group = J_group[tens_key]
+    except KeyError:
+        raise KeyError(f"Can't locate data group {J_key}/{tens_key} in file {filename}") from None
+
+    mmat = []
+    for key in tens_group:
+        if re.match(r'mmat_(\w+)_data', key):
+            cart = re.search('mmat_(\w+)_data', key).group(1)
+            dat = tens_group[key]
+            data = dat[()]
+
+            try:
+                numtype = dat.attrs['numtype']
+            except KeyError:
+                raise KeyError(f"Can't locate attribute 'numtype' for dataset = {J_key}/{tens_key}/{key} in file = {filename}") from None
+            try:
+                irreps = dat.attrs['irreps']
+            except KeyError:
+                raise KeyError(f"Can't locate attribute 'irreps' for dataset = {J_key}/{tens_key}/{key} in file = {filename}") from None
+            try:
+                nnz = dat.attrs['nnz']
+            except KeyError:
+                raise KeyError(f"Can't locate attribute 'nnz' for dataset = {J_key}/{tens_key}/{key} in file = {filename}") from None
+            try:
+                cart_ = dat.attrs['cart']
+            except KeyError:
+                raise KeyError(f"Can't locate attribute 'cart' for dataset = {J_key}/{tens_key}/{key} in file = {filename}") from None
+
+            assert (len(nnz) == len(irreps)), \
+                f"Number of elements in nnz and irreps are not equal: {len(nnz)} != {len(irreps)}; " + \
+                f"dataset = {J_key}/{tens_key}/{key}, file = {filename}"
+            assert (sum(nnz) == len(data)), \
+                f"Number of elements in data in sum(nnz) are not equal: {len(data)} != {sum(nnz)}; " + \
+                f"dataset = {J_key}/{tens_key}/{key}, file = {filename}"
+            assert (cart == cart_), \
+                f"Cartesian label {cart} in dataset key does not match that in attribute = {cart_}; " + \
+                f"dataset = {J_key}/{tens_key}/{key}, file = {filename}"
+
+            try:
+                key_row = 'mmat_'+cart+'_row'
+                row = tens_group[key_row][()]
+            except KeyError:
+                raise KeyError(f"Can't locate dataset {J_key}/{tens_key}/{key_row} in file {filename}") from None
+            try:
+                key_col = 'mmat_'+cart+'_col'
+                col = tens_group[key_col][()]
+            except KeyError:
+                raise KeyError(f"Can't locate dataset {J_key}/{tens_key}/{key_col} in file {filename}") from None
+
+            assert (len(row) == len(data)), \
+                f"Number of elements in row and data are not equal: {len(row)} != {len(data)}; " + \
+                f"dataset = {J_key}/{tens_key}/{key}, file = {filename}"
+            assert (len(col) == len(data)), \
+                f"Number of elements in col and data are not equal: {len(col)} != {len(data)}; " + \
+                f"dataset = {J_key}/{tens_key}/{key}, file = {filename}"
+
+            mmat.append((cart, numtype, irreps, nnz, data, row, col))
+
+    return swapJ, mmat
+
 
 
 def inspect_kmat(filename, tens):
