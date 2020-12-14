@@ -152,7 +152,9 @@ class Tensor():
 
         for (J1, J2) in J_pairs:
             swapJ, mmat = rchm.read_mmat(filename, tens_name, J1, J2)
-            print(J1, J2, [elem[3] for elem in mmat])
+            swapJ, kmat = rchm.read_kmat(filename, tens_name, J1, J2)
+            if kmat is not None:
+                print(J1, J2, kmat[0])
 
 
 if __name__ == '__main__':
