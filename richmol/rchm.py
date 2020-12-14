@@ -409,6 +409,11 @@ def inspect_tensors(filename):
         for key2 in fl[key]:
             if re.match(r''+tens_key_re, key2):
                 tens = re.search(tens_key_re, key2).group(1)
+                # check if for given J-pair and tensor both K- and M-matrices exist
+                if 'kmat_data' not in fl[key][key2]:
+                    continue
+                if not any(re.match(r'mmat_(\w+)_data', key3) for key3 in fl[key][key2]):
+                    continue
                 try:
                     tensors[tens].append( (J1, J2) )
                 except KeyError:
@@ -580,8 +585,7 @@ def read_kmat(filename, tens, J1, J2):
         key = 'kmat_data'
         dat = tens_group[key]
     except KeyError:
-        return swapJ, None
-        #raise KeyError(f"Can't locate data group '{J_key}/{tens_key}/{key}'") from None
+        raise KeyError(f"Can't locate data group '{J_key}/{tens_key}/{key}'") from None
 
     data = dat[()]
 
