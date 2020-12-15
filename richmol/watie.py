@@ -1096,7 +1096,7 @@ class PsiTableMK():
             replace = False
 
         rchm.store(filename, J, J, replace=replace, enr=enr, assign=assign, \
-                   sym=sym, id=[[i,1] for i in range(nstat)])
+                   sym=sym, id=[i for i in range(nstat)])
 
 
     def store_richmol_old(self, name, append=False):
