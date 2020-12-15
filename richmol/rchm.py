@@ -14,6 +14,7 @@ Data structure of richmol HDF5 file
    |---/sym                                 (state symmetries, for J1 == J2)
    |---/assign                              (state assignments, for J1 == J2)
    |---/id                                  (state IDs, for J1 == J2)
+   |---/ideg                                (state degeneracy indices, for J1 == J2)
    |---/dim                                 ((dim1, dim2) - number of states for J1 and J2)
    |---/tens:<tens>                         (matrix element data for specific tensor)
         |
@@ -21,16 +22,16 @@ Data structure of richmol HDF5 file
         |---/kmat_data.numtype              (type of elements, 'real', 'imag', or 'cmplx')
         |---/kmat_data.irreps               (list of irreducible representations)
         |---/kmat_data.nnz                  (number of elements in kmat_data for each irreducible representation)
-        |---/kmat_row                       (row indices of non-zero elements)
-        |---/kmat_col                       (column indices of non-zero elements)
+        |---/kmat_row                       (bra state IDs of non-zero elements)
+        |---/kmat_col                       (ket state IDs of non-zero elements)
         |
         |---/mmat_<cart>_data               (...)
-        |---/mmat_<cart>_data.numtype
-        |---/mmat_<cart>_data.irreps
-        |---/mmat_<cart>_data.nnz
-        |---/mmat_<cart>_data.cart
-        |---/mmat_<cart>_row
-        |---/mmat_<cart>_col
+        |---/mmat_<cart>_data.numtype       (...)
+        |---/mmat_<cart>_data.irreps        (...)
+        |---/mmat_<cart>_data.nnz           (...)
+        |---/mmat_<cart>_data.cart          (Cartesian component label cart == <cart>)
+        |---/mmat_<cart>_row                (bra state m quanta, as m+J, of non-zero elements)
+        |---/mmat_<cart>_col                (ket state m quanta, as m+J, of non-zero elements)
 
  <J1> and <J2> (float): bra and ket quantum numbers of the total angular momentum operator, rounded
     to first decimal, e.g., 1.0 and 2.0 or 1.5 and 2.5
@@ -71,18 +72,26 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
             State symmetries.
         assign : array (no_states)
             State assignments.
-        id : array (no_states, 2)
-            State ID numbers [:,0] and degenerate component indices [:,1].
+        id : array (no_states)
+            State ID numbers.
+        ideg : array (no_states)
+            State degeneracy indices.
         tens : str
             Name of Cartesian tensor operator.
         irreps : list
             List of tensor irreducible representations.
         cart : str
             Cartesian component of tensor.
-        kmat : list
-            List of K-matrices ( coo_matrix(no_states(J1), no_states(J2)) ) for different irreducible representations.
-        mmat : list
-            List of M-matrices ( coo_matrix(2*J1+1, 2*J2+1) ) for different irreducible representations.
+        kmat : list of scipy.coo_matrix, where coo_matrix.shape = (no_states(J1), no_states(J2))
+            List of K-matrices for different irreducible representations of tensor.
+            Each K-matrix is stored in a sparse scipy.coo_matrix format, where kmat[irrep].row and
+            kmat[irrep].col contain IDs of bra and ket states, respectively, that are coupled
+            by tensor with corresponding matrix element given by kmat[irrep].data.
+        mmat : list of scipy.coo_matrix, where coo_matrix.shape = (2*J1+1, 2*J2+1)
+            List of M-matrices for different irreducible representations of tensor.
+            Each M-matrix is stored in a sparse scipy.coo_matrix format, where mmat[irrep].row and
+            mmat[irrep].col contain m1=-J1..J1 bra and m2=-J2..J2 ket quanta as int(m+J), respectively,
+            that are coupled by tensor with corresponding matrix element given by mmat[irrep].data.
             Only single Cartesian component of M-matrix (labelled by 'cart') can be stored at a call.
         thresh : float
             Threshold for neglecting matrix elements.
@@ -93,35 +102,48 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
             f"Bra and ket J quanta = {J1} and {J2} must be equal to each other when storing {argname}"
 
     def _check_dim(dim, argname):
-        # check if dimensions in dim match those for J1_J2 group
+        # check if dimensions in dim match those for J1,J2 group
         try:
-            dim_ = J_grp['dim'][()]
-            assert (all(dim == dim_)), \
-                f"Dimensions of '{argname}' = {dim} do not match " + \
-                f"basis set dimensions = {dim_} for bra and ket J quanta = {J1}, {J2} " + \
-                f"already stored in file {filename}"
+            dset = J_grp['dim']
+            dim_ = dset[()]
+            assert (all(dim == dim_)), f"Dimensions of '{argname}' = {dim} do not match those = {dim_} " + \
+                +f"already stored in file {filename} at a stage of writing '{dset.attrs['parent']}'; " + \
+                f"J1, J2 = {J1}, {J2}"
         except KeyError:
             dset = J_grp.create_dataset('dim', data=dim)
-        # check if dimensions in dim[0] and dim[1] match those for J1_J1 and J2_J2 groups
+            dset.attrs['parent'] = argname
+        # check if dimensions in dim[0] and dim[1] match those for J1,J1 and J2,J2 groups
         if round(float(J1), 1) != round(float(J2), 1):
             key1 = J_group_key(J1, J1)
             key2 = J_group_key(J2, J2)
             try:
-                dim_ = fl[key1+'/dim'][()]
-                assert (dim[0] == dim_[0]), \
-                    f"First dimension of '{argname}' = {dim[0]} does not match " + \
-                    f"basis set dimensions = {dim_[0]} for bra J = {J1} " + \
-                    f"already stored in file {filename}"
+                dset = fl[key1+'/dim']
+                dim_ = dset[()]
+                assert (dim[0] == dim_[0]), f"First dimension of '{argname}' = {dim[0]} does not match " + \
+                    f"that = {dim_[0]} already stored in file {filename} at a stage of writing " + \
+                    f"'{dset.attrs['parent']}'; J1, J2 = {J1}, {J2}"
             except KeyError:
                 dset = fl.create_dataset(key1+'/dim', data=[dim[0], dim[0]])
+                dset.attrs['parent'] = argname
             try:
-                dim_ = fl[key2+'/dim'][()]
-                assert (dim[1] == dim_[0]), \
-                    f"Second dimension of '{argname}' = {dim[1]} does not match " + \
-                    f"basis set dimensions = {dim_[0]} for ket J = {J2} " + \
-                    f"already stored in file {filename}"
+                dset = fl[key2+'/dim']
+                dim_ = dset[()]
+                assert (dim[1] == dim_[0]), f"Second dimension of '{argname}' = {dim[1]} does not match " + \
+                    f"that = {dim_[0]} already stored in file {filename} at a stage of writing " + \
+                    f"'{dset.attrs['parent']}'; J1, J2 = {J1}, {J2}"
             except KeyError:
                 dset = fl.create_dataset(key2+'/dim', data=[dim[1], dim[1]])
+                dset.attrs['parent'] = argname
+
+    def _check_ids(IDs, J, argname):
+        key = J_group_key(J, J)
+        try:
+            IDs_ = fl[key+'/id'][()]
+            assert all([ID in IDs_ for ID in IDs]), f"Not all state ID numbers in '{argname}' " + \
+                f"are contained in IDs array already stored in file {filename}"
+        except KeyError:
+            raise Exception(f"Please store state ID numbers before storing '{argname}'") from None
+
 
     fl = h5py.File(filename, {True:"w", False:"a"}[replace])
 
@@ -183,6 +205,18 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
     except KeyError:
         pass
 
+    # store degeneracy indices
+
+    try:
+        ideg = kwargs['ideg']
+        _J1_eq_J2("state degeneracy indices")
+        _check_dim((len(ideg), len(ideg)), 'ideg')
+        if 'ideg' in J_grp:
+            del J_grp['ideg']
+        dset = J_grp.create_dataset('ideg', data=ideg)
+    except KeyError:
+        pass
+
     # store symmetries
 
     try:
@@ -201,6 +235,8 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         kmat = kwargs['kmat']
         for k_irrep in kmat:
             _check_dim(k_irrep.shape, 'kmat')
+            _check_ids(k_irrep.row, J1, 'kmat.row')
+            _check_ids(k_irrep.col, J2, 'kmat.col')
 
         if 'irreps' not in kwargs:
             raise Exception(f"'irreps' argument must be passed together with 'kmat'") from None
@@ -649,8 +685,10 @@ def read_states(filename, J):
             Number of states, no_states (basis dimension for given J).
         enr : array (no_states)
             State energies.
-        id : array (no_states, 2)
-            State ID numbers [:,0] and degenerate component indices [:,1].
+        id : array (no_states)
+            State ID numbers.
+        ideg : array (no_states)
+            State degenerate component indices.
         sym : array (no_states)
             State symmetries.
         assign : array (no_states)
@@ -702,7 +740,13 @@ def read_states(filename, J):
     except KeyError:
         id = None
 
+    # read idegs
+    try:
+        ideg = J_grp['ideg'][()]
+    except KeyError:
+        ideg = None
+
     fl.close()
 
-    return descr, dim, enr, id, sym, assign
+    return descr, dim, enr, id, ideg, sym, assign
 
