@@ -136,6 +136,7 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 dset.attrs['parent'] = argname
 
     def _check_ids(IDs, J, argname):
+        # checks if IDs are contained in state IDs array sored in dataset 'id'
         key = J_group_key(J, J)
         try:
             IDs_ = fl[key+'/id'][()]
@@ -143,6 +144,19 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 f"are contained in IDs array already stored in file {filename}"
         except KeyError:
             raise Exception(f"Please store state ID numbers before storing '{argname}'") from None
+
+    def _check_rank(cart, argname):
+        # checks rank consistency across different cartesain components and J quanta
+        rank = len(cart)
+        try:
+            dset = J_grp['rank']
+            rank_ = dset[()]
+            assert (rank == rank_), f"Rank of '{argname}' = {rank} derived from Cartesian label '{cart}' " + \
+                f"for J1, J2 = {J1}, {J2} does not match that = {rank_} already stored in file {filename} " + \
+                f"at a stage of writing {dset.attrs['parent']}"
+        except KeyError:
+            dset = J_grp.create_dataset('rank', data=rank)
+            dset.attrs['parent'] = f"{argname}({cart}) for J1, J2 = {J1}, {J2}"
 
 
     fl = h5py.File(filename, {True:"w", False:"a"}[replace])
@@ -199,6 +213,7 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         id = kwargs['id']
         _J1_eq_J2("state IDs")
         _check_dim((len(id), len(id)), 'id')
+        assert (len(list(set(id))) == len(id)), f"State IDs contain duplicates for J = {J1}"
         if 'id' in J_grp:
             del J_grp['id']
         dset = J_grp.create_dataset('id', data=id)
@@ -390,6 +405,8 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 tens_grp = J_grp.create_group(tens_group_key(tens))
             else:
                 tens_grp = J_grp[tens_group_key(tens)]
+
+            _check_rank(cart, tens)
 
             if 'mmat_'+cart+'_data' in tens_grp:
                 del tens_grp['mmat_'+cart+'_data']
