@@ -145,19 +145,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         except KeyError:
             raise Exception(f"Please store state ID numbers before storing '{argname}'") from None
 
-    def _check_rank(cart, argname):
-        # checks rank consistency across different cartesain components and J quanta
-        rank = len(cart)
-        try:
-            dset = J_grp['rank']
-            rank_ = dset[()]
-            assert (rank == rank_), f"Rank of '{argname}' = {rank} derived from Cartesian label '{cart}' " + \
-                f"for J1, J2 = {J1}, {J2} does not match that = {rank_} already stored in file {filename} " + \
-                f"at a stage of writing {dset.attrs['parent']}"
-        except KeyError:
-            dset = J_grp.create_dataset('rank', data=rank)
-            dset.attrs['parent'] = f"{argname}({cart}) for J1, J2 = {J1}, {J2}"
-
 
     fl = h5py.File(filename, {True:"w", False:"a"}[replace])
 
@@ -346,6 +333,8 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         else:
             cart = kwargs['cart']
 
+        assert all(c.lower() in 'xyz' for c in cart), f"Illegal Cartesian label = '{cart}'"
+
         if 'irreps' not in kwargs:
             raise Exception(f"'irreps' argument must be passed together with 'mmat'") from None
         else:
@@ -406,7 +395,15 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
             else:
                 tens_grp = J_grp[tens_group_key(tens)]
 
-            _check_rank(cart, tens)
+            # store/check rank
+            rank = len(cart)
+            try:
+                dset = tens_grp['rank']
+                rank_ = dset[()]
+                assert (rank == rank_), f"Rank of '{tens}' = {rank} derived from Cartesian label '{cart}' " + \
+                    f"for J1, J2 = {J1}, {J2} does not match that = {rank_} already stored in file {filename}"
+            except KeyError:
+                dset = tens_grp.create_dataset('rank', data=rank)
 
             if 'mmat_'+cart+'_data' in tens_grp:
                 del tens_grp['mmat_'+cart+'_data']
