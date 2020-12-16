@@ -1,6 +1,5 @@
 import h5py
 import numpy as np
-from scipy.sparse import csr_matrix, coo_matrix
 import re
 import sys
 
@@ -19,14 +18,12 @@ Data structure of richmol HDF5 file
    |---/tens:<tens>                         (matrix element data for specific tensor)
         |
         |---/kmat_data                      (vector of non-zero elements of K-matrix, concatenated across all irreducible representations)
-        |---/kmat_data.numtype              (type of elements, 'real', 'imag', or 'cmplx')
         |---/kmat_data.irreps               (list of irreducible representations)
         |---/kmat_data.nnz                  (number of elements in kmat_data for each irreducible representation)
         |---/kmat_row                       (bra state IDs of non-zero elements)
         |---/kmat_col                       (ket state IDs of non-zero elements)
         |
         |---/mmat_<cart>_data               (...)
-        |---/mmat_<cart>_data.numtype       (...)
         |---/mmat_<cart>_data.irreps        (...)
         |---/mmat_<cart>_data.nnz           (...)
         |---/mmat_<cart>_data.cart          (Cartesian component label cart == <cart>)
@@ -247,12 +244,11 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
             assert (len(irreps) == len(kmat)), \
                 f"Lengths of 'irreps' and 'kmat' are not equal: {len(irreps)} != {len(kmat)}"
 
+        k_nnz = []
+        k_irrep = []
         k_data = None
         k_row = None
         k_col = None
-        k_nnz = []
-        k_irrep = []
-        numtype = []
 
         for km, irrep in zip(kmat, irreps):
 
@@ -262,16 +258,8 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
             if len(data) == 0:
                 continue
-            if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
-                numtype.append('real')
-                data = data.real
-            elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
-                numtype.append('imag')
-                data = data.imag
-            elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
+            if np.all(np.abs(data) < thresh):
                 continue
-            else:
-                numtype.append('cmplx')
 
             k_nnz.append(len(data))
             k_irrep.append(irrep)
@@ -284,10 +272,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 k_data = np.concatenate((k_data, data))
                 k_row = np.concatenate((k_row, row))
                 k_col = np.concatenate((k_col, col))
-
-        if len(set(numtype)) > 1:
-            raise ValueError(f"K-matrix elements for different irreps = {k_irrep} " + \
-                f"have different numerical types = {numtype}, for J1, J2 = {J1}, {J2}") from None
 
         if k_data is not None:
 
@@ -308,7 +292,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 del tens_grp['kmat_col']
 
             dset = tens_grp.create_dataset('kmat_data', data=k_data)
-            dset.attrs['numtype'] = list(set(numtype))[0]
             dset.attrs['irreps'] = k_irrep
             dset.attrs['nnz'] = k_nnz
             dset = tens_grp.create_dataset('kmat_row', data=k_row)
@@ -347,7 +330,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
         m_col = None
         m_nnz = []
         m_irrep = []
-        numtype = []
 
         for mm, irrep in zip(mmat, irreps):
 
@@ -357,16 +339,8 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
             if len(data) == 0:
                 continue
-            if np.any(np.abs(data.real) >= thresh) and np.all(np.abs(data.imag) < thresh):
-                numtype.append('real')
-                data = data.real
-            elif np.all(np.abs(data.real) < thresh) and np.any(np.abs(data.imag) >= thresh):
-                numtype.append('imag')
-                data = data.imag
-            elif np.all(np.abs(data.real) < thresh) and np.all(np.abs(data.imag) < thresh):
+            if np.all(np.abs(data) < thresh):
                 continue
-            else:
-                numtype.append('cmplx')
 
             m_nnz.append(len(data))
             m_irrep.append(irrep)
@@ -379,10 +353,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 m_data = np.concatenate((m_data, data))
                 m_row = np.concatenate((m_row, row))
                 m_col = np.concatenate((m_col, col))
-
-        if len(set(numtype)) > 1:
-            raise ValueError(f"M-matrix elements for different irreps = {m_irrep} " + \
-                f"have different numerical types = {numtype}, for J1, J2 = {J1}, {J2}") from None
 
         if m_data is not None:
 
@@ -413,7 +383,6 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
                 del tens_grp['mmat_'+cart+'_col']
 
             dset = tens_grp.create_dataset('mmat_'+cart+'_data', data=m_data)
-            dset.attrs['numtype'] = list(set(numtype))[0]
             dset.attrs['irreps'] = m_irrep
             dset.attrs['nnz'] = m_nnz
             dset.attrs['cart'] = cart
@@ -493,7 +462,6 @@ def read_mmat(filename, tens, J1, J2):
             List of sets for each Cartesian component of M-matrix.
             The elements of each set are the following:
                 cart (str): Cartesian-component label
-                numtype (str): type of elements, 'real, 'imag', or 'cmplx'
                 irreps (list): list of irreducible representations
                 nnz (list) : number of non-zero elements for each irreducible representation in irreps
                 data (array(nnz)): non-zero elements concatenated across all irreps
@@ -531,10 +499,6 @@ def read_mmat(filename, tens, J1, J2):
             dat = tens_group[key]
             data = dat[()]
 
-            try:
-                numtype = dat.attrs['numtype']
-            except KeyError:
-                raise KeyError(f"Can't locate attribute 'numtype' for dataset = '{J_key}/{tens_key}/{key}' in file = {filename}") from None
             try:
                 irreps = dat.attrs['irreps']
             except KeyError:
@@ -576,7 +540,7 @@ def read_mmat(filename, tens, J1, J2):
                 f"Number of elements in 'col' and 'data' are not equal: {len(col)} != {len(data)}; " + \
                 f"dataset = '{J_key}/{tens_key}/{key}', file = {filename}"
 
-            mmat.append((cart, numtype, irreps, nnz, data, row, col))
+            mmat.append((cart, irreps, nnz, data, row, col))
 
     fl.close()
 
@@ -600,7 +564,6 @@ def read_kmat(filename, tens, J1, J2):
             If True, the returned K-matrix data is for swapped J1 and J2 quanta.
         kmat : set
             The elements of set are the following:
-                numtype (str): type of elements, 'real, 'imag', or 'cmplx'
                 irreps (list): list of irreducible representations
                 nnz (list) : number of non-zero elements for each irreducible representation in irreps
                 data (array(nnz)): non-zero elements concatenated across all irreps
@@ -640,10 +603,6 @@ def read_kmat(filename, tens, J1, J2):
     data = dat[()]
 
     try:
-        numtype = dat.attrs['numtype']
-    except KeyError:
-        raise KeyError(f"Can't locate attribute 'numtype' for dataset = '{J_key}/{tens_key}/{key}' in file = {filename}") from None
-    try:
         irreps = dat.attrs['irreps']
     except KeyError:
         raise KeyError(f"Can't locate attribute 'irreps' for dataset = '{J_key}/{tens_key}/{key}' in file = {filename}") from None
@@ -677,7 +636,7 @@ def read_kmat(filename, tens, J1, J2):
         f"Number of elements in 'col' and 'data' are not equal: {len(col)} != {len(data)}; " + \
         f"dataset = '{J_key}/{tens_key}/{key}', file = {filename}"
 
-    kmat  = (numtype, irreps, nnz, data, row, col)
+    kmat  = (irreps, nnz, data, row, col)
 
     fl.close()
 

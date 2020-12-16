@@ -132,17 +132,21 @@ class States():
 
         # mapping id -> istate
         self.id_to_istate = {}
+        self.dim_k = {}
         for J in self.J_list:
             self.id_to_istate[J] = np.array([-1 for i in range(maxid[J]+1)], dtype=np.int64)
             for istate, id in enumerate(self.id[J]):
                 self.id_to_istate[J][id] = istate
+            self.dim_k[J] = max(self.id_to_istate[J]) + 1
 
         # mapping int(m + J) -> ind_m
         self.mJ_to_im = {}
+        self.dim_m = {}
         for J in self.J_list:
             self.mJ_to_im[J] = np.array([-1 for i in range(int(2*J+1))], dtype=np.int64)
             for im, m in enumerate(self.m_list[J]):
                 self.mJ_to_im[J][int(m+J)] = im
+            self.dim_m[J] = max(self.mJ_to_im[J]) + 1
 
         # generate basis set indices
 
@@ -173,6 +177,7 @@ class Tensor():
             Tensor rank
         irreps : list
             List of tensor irreducible representations.
+        Jpairs : list
         mmat : dict
         kmat : dict
     """
@@ -189,55 +194,49 @@ class Tensor():
             J_pairs = tens[tens_name]
         except KeyError:
             raise KeyError(f"Can't find tensor {tens_name} in file {filename}, " + \
-                f"list of stored tensors: {[elem for elem in tens.keys()]}") from None
+                f"here is by the way a list of all stored tensors: {[elem for elem in tens.keys()]}") from None
 
-        J_pairs = [(J1, J2) for J1 in states.J_list for J2 in states.J_list \
-                    if (J1, J2) in J_pairs or (J2, J1) in J_pairs]
+        self.J_pairs = [(J1, J2) for J1 in states.J_list for J2 in states.J_list \
+                        if (J1, J2) in J_pairs or (J2, J1) in J_pairs]
 
-        if len(J_pairs) == 0:
-            raise Exception(f"Can't find any of the pairs of J quanta spanned by the basis in file " + \
-                +f"{filename} for tensor {tens_name}") from None
+        if len(self.J_pairs) == 0:
+            raise Exception(f"Can't find any pair of J quanta that is spanned by basis and coupled " + \
+                +f"by tensor {tens_name} at the same time, reading file {filename}") from None
 
         if verbose == True:
-            print(f"pairs of coupled J quanta: {J_pairs}")
-            print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in J_pairs))}")
+            print(f"pairs of coupled J quanta: {self.J_pairs}")
+            print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
 
-        rank = []
-        irreps = []
-        dtype = {'real' : np.float64, 'imag': np.float64, 'cmplx': np.complex128}
+        self.rank = []
+        self.irreps = []
 
         # read M-matrix
 
         self.mmat = {}
 
-        for (J1, J2) in J_pairs:
-
-            if (J1, J2) in self.mmat:
-                continue
+        for (J1, J2) in self.J_pairs:
 
             # read richmol file
             swapJ, mmat = rchm.read_mmat(filename, tens_name, J1, J2)
 
-            m_ind1 = states.mJ_to_im[J1] # m_ind[int(m+J)] gives index of m quantum number in the m-subset
+            m_ind1 = states.mJ_to_im[J1] # m_ind[int(m+J)] gives the index of m quantum number in the m-subset of basis
             m_ind2 = states.mJ_to_im[J2] # ... or -1 if m is not contained in the m-subset
-            dim1 = max(m_ind1) + 1 # dimension of m-subset for J1
-            dim2 = max(m_ind2) + 1 # dimension of m-subset for J2
+            dim1 = states.dim_m[J1] # dimension of m-subset for J1
+            dim2 = states.dim_m[J2] # dimension of m-subset for J2
             Jpair = (J1, J2)
 
             if swapJ == True:
                 m_ind1, m_ind2 = m_ind2, m_ind1
                 dim1, dim2 = dim2, dim1
-                Jpair = (J2, J1)
 
             self.mmat[Jpair] = []
 
             for m_cart in mmat:  # loop over Cartesian components of M-matrix
-                cart_label, numtype, irreps, nnz, data, row, col = m_cart # unpack
+                cart_label, irreps, nnz, data, row, col = m_cart
                 try:
-                    cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart_label) # for cart_label = 'xyzx' gives cart_ind = (0,1,2,0)
+                    cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart_label)
                 except ValueError:
-                    raise ValueError(f"Illegal value of M-tensor Cartesian component = '{cart_label}' " + \
-                        f"for J1, J2 = {Jpair}, must contain 'x', 'y', or 'z' only") from None
+                    raise ValueError(f"Illegal Cartesian label = '{cart_label}'") from None
                 # split data into arrays for each irrep (opposite to np.concatenate)
                 data = np.split(data, np.cumsum(nnz))[:-1]
                 row = np.split(row, np.cumsum(nnz))[:-1]
@@ -247,18 +246,21 @@ class Tensor():
                 row_ = [[m_ind1[r] for d,r,c in zip(dd,rr,cc) if m_ind1[r]>=0 and m_ind2[c]>=0] for dd,rr,cc in zip(data,row,col)]
                 col_ = [[m_ind2[c] for d,r,c in zip(dd,rr,cc) if m_ind1[r]>=0 and m_ind2[c]>=0] for dd,rr,cc in zip(data,row,col)]
                 # store in sparse format
-                mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2), dtype=dtype[numtype]).tocsr() for d,r,c in zip(data_,row_,col_)]
-                self.mmat[Jpair].append((cart_ind, numtype, {irrep:m for irrep,m in zip(irreps,mat)}))
+                if swapJ == True:
+                    mat = [coo_matrix((d, (c, r)), shape=(dim2, dim1)).tocsr() for d,r,c in zip(data_,row_,col_)]
+                    mat = np.conjugate(mat)
+                else:
+                    mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
+                self.mmat[Jpair].append((cart_ind, {irrep:m for irrep,m in zip(irreps,mat)}))
 
-            # collect rank and irreps
-            rank = set(list(rank) + [len(elem[0]) for elem in self.mmat[Jpair]])
-            irreps = set(list(irreps) + [irrep for elem in self.mmat[Jpair] for irrep in elem[2]])
+            # update rank and irreps
+            self.rank = set(list(self.rank) + [len(elem[0]) for elem in self.mmat[Jpair]])
+            self.irreps = set(list(self.irreps) + [irrep for elem in self.mmat[Jpair] for irrep in elem[1].keys()])
 
-        if len(rank) != 1:
-            raise Exception(f"Inconsistent rank of tensor {tens_name} across different J-quanta: " + \
-                f"rank = {list(rank)}, file = {filename}") from None
+        if len(self.rank) != 1:
+            raise Exception(f"Multiple values of tensor rank = {list(rank)} across different J-quanta") from None
 
-        self.rank = list(rank)[0]
+        self.rank = list(self.rank)[0]
         if verbose == True:
             print(f"tensor rank: {self.rank}")
 
@@ -266,29 +268,22 @@ class Tensor():
 
         self.kmat = {}
 
-        for (J1, J2) in J_pairs:
-
-            if (J1, J2) in self.kmat:
-                continue
+        for (J1, J2) in self.J_pairs:
 
             # read richmol file
             swapJ, kmat = rchm.read_kmat(filename, tens_name, J1, J2)
 
-            # set of id indices spanned by basis for J1 and J2
-            id_ind1 = states.id_to_istate[J1] # id_ind[id] gives index of state in the k-subset
+            id_ind1 = states.id_to_istate[J1] # id_ind[id] gives the index of state in the k-subset of basis
             id_ind2 = states.id_to_istate[J2] # ... or -1 if id is not contained in the k-subset
-            dim1 = max(id_ind1) + 1 # dimension of k-subset for J1
-            dim2 = max(id_ind2) + 1 # dimension of k-subset for J2
+            dim1 = states.dim_k[J1] # dimension of k-subset for J1
+            dim2 = states.dim_k[J2] # dimension of k-subset for J2
             Jpair = (J1, J2)
 
             if swapJ == True:
                 id_ind1, id_ind2 = id_ind2, id_ind1
                 dim1, dim2 = dim2, dim1
-                Jpair = (J2, J1)
 
-            self.kmat[Jpair] = []
-
-            numtype, irreps, nnz, data, row, col = kmat # unpack
+            irreps, nnz, data, row, col = kmat
             # split data into arrays for each irrep (opposite to np.concatenate)
             data = np.split(data, np.cumsum(nnz))[:-1]
             row = np.split(row, np.cumsum(nnz))[:-1]
@@ -298,19 +293,23 @@ class Tensor():
             row_ = [[id_ind1[r] for d,r,c in zip(dd,rr,cc) if id_ind1[r]>=0 and id_ind2[c]>=0] for dd,rr,cc in zip(data,row,col)]
             col_ = [[id_ind2[c] for d,r,c in zip(dd,rr,cc) if id_ind1[r]>=0 and id_ind2[c]>=0] for dd,rr,cc in zip(data,row,col)]
             # store in sparse format
-            mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2), dtype=dtype[numtype]).tocsr() for d,r,c in zip(data_,row_,col_)]
-            self.kmat[Jpair].append((numtype, {irrep:m for irrep,m in zip(irreps,mat)}))
+            if swapJ == True:
+                mat = [coo_matrix((d, (c, r)), shape=(dim2, dim1)).tocsr() for d,r,c in zip(data_,row_,col_)]
+                mat = np.conjugate(mat)
+            else:
+                mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
+            self.kmat[Jpair] = {irrep:m for irrep,m in zip(irreps,mat)}
 
             # collect irreps
-            irreps = set(list(irreps) + [irrep for elem in self.kmat[Jpair] for irrep in elem[1]])
+            self.irreps = set(list(self.irreps) + [irrep for irrep in self.kmat[Jpair].keys()])
 
-        self.irreps = list(irreps)
         if verbose == True:
             print(f"tensor irreps: {self.irreps}")
 
 
     def field(self, field, field_tol=1e-12):
         """ Multiplies tensor with field and contracts over Cartesian components """
+
         try:
             fx, fy, fz = field[:3]
             fxyz = np.array([fx, fy, fz])
@@ -329,24 +328,33 @@ class Tensor():
 
         self.mfmat = {}
 
-        numfac = {'real' : 1, 'imag' : 1j, 'cmplx' : 1}
-
         for (J1, J2), mmat in self.mmat.items():
-            for (cart_ind, numtype, mat) in mmat:
+            for (cart_ind, mat) in mmat:
                 try:
                     fprod = field_prod[cart_ind]
                 except KeyError:
                     continue     # this means the corresponding product of field components can be neglected
-                try:
-                    fac = numfac[numtype] * fprod
-                except KeyError:
-                    raise KeyError(f"Illegal number type = '{numtype}'") from None
                 for irrep, m in mat.items():
                     try:
-                        self.mfmat[(J1,J2)][irrep] = self.mfmat[(J1,J2)][irrep] + m * fac
+                        self.mfmat[(J1,J2)][irrep] = self.mfmat[(J1,J2)][irrep] + m * fprod
                     except KeyError:
-                        self.mfmat[(J1,J2)] = {irrep : m * fac}
+                        self.mfmat[(J1,J2)] = {irrep : m * fprod}
 
+
+    def vec(self, vec):
+        """ Computes product Tensor * vec = (MF x K) * vec, where 'x' and '*' are tensor and dot products.
+        """
+        for Jpair in self.Jpairs:
+            try:
+                self.mfmat[Jpair]
+                fac = 1.0
+            except KeyError:
+                self.mfmat[(Jpair[1], Jpair[0])]
+            dim1 = self.dim_m[J2]
+            dim2 = self.dim_k[J2]
+            dim = self.dim_m[J1] * self.dim_k[J1]
+            vecT = np.transpose(vec[J2].reshape(dim1, dim2))
+            pass
 
 
 def retrieve_name(var):
