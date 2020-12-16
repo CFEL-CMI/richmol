@@ -1,7 +1,7 @@
 import numpy as np
 import rchm
 import warnings
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 import sys
 import itertools
 
@@ -37,6 +37,8 @@ class States():
         m_list
         id_to_istate
         mJ_to_im
+        dim_m
+        dim_k
     """
 
     def __init__(self, filename, J_list, verbose=False, **kwargs):
@@ -207,6 +209,8 @@ class Tensor():
             print(f"pairs of coupled J quanta: {self.J_pairs}")
             print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
 
+        self.dim_m = {J : states.dim_m[J] for J in set(elem for J_pair in self.J_pairs for elem in J_pair)}
+        self.dim_k = {J : states.dim_k[J] for J in set(elem for J_pair in self.J_pairs for elem in J_pair)}
         self.rank = []
         self.irreps = []
 
@@ -342,19 +346,39 @@ class Tensor():
 
 
     def vec(self, vec):
-        """ Computes product Tensor * vec = (MF x K) * vec, where 'x' and '*' are tensor and dot products.
+        """Computes product of tensor with vector.
+
+        Vector 'vec' must be a dictionary with keys as J quanta (rounded to the first decimal)
+        that are among those spanned by basis as well as coupled by tensor. The values of vec must
+        be numpy.ndarray vectors with dimension equal to the dimension of basis for a selected J.
         """
-        for Jpair in self.Jpairs:
-            try:
-                self.mfmat[Jpair]
-                fac = 1.0
-            except KeyError:
-                self.mfmat[(Jpair[1], Jpair[0])]
+        try:
+            x = self.mfmat
+        except AttributeError:
+            raise AttributeError("You need to multiply tensor with field (use .field()) before applying it to vector") from None
+        for J_pair in list(set(self.mfmat.keys()) & set(self.kmat.keys())):
+            mfmat = self.mfmat[J_pair]
+            kmat = self.kmat[J_pair]
+            J1, J2 = J_pair
             dim1 = self.dim_m[J2]
             dim2 = self.dim_k[J2]
             dim = self.dim_m[J1] * self.dim_k[J1]
-            vecT = np.transpose(vec[J2].reshape(dim1, dim2))
-            pass
+            try:
+                vecT = np.transpose(vec[J2].reshape(dim1, dim2))
+            except KeyError:
+                continue
+            for irrep in list(set(mfmat.keys()) & set(kmat.keys())):
+                tmat = csr_matrix.dot(kmat[irrep], vecT)
+                v = csr_matrix.dot(mfmat[irrep], np.transpose(tmat))
+                try:
+                    vec_new[J1] += csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+                except NameError:
+                    vec_new = {}
+                    vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+                except KeyError:
+                    vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+        return vec_new
+
 
 
 def retrieve_name(var):
@@ -372,4 +396,10 @@ if __name__ == '__main__':
     mu = Tensor(filename, 'alpha', a, verbose=True)
     field = [2,0,0.5]
     mu.field(field)
+
+    vec = {}
+    for J in (1.0, 2.0, 3.0):
+        vec[J] = np.random.rand(a.dim_m[J]*a.dim_k[J])
+    v = mu.vec(vec)
+    print([elem for elem in v.keys()])
 
