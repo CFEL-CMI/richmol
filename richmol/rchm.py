@@ -228,6 +228,22 @@ def store(filename, J1, J2, replace=False, thresh=1e-14, **kwargs):
     except KeyError:
         pass
 
+    # store tensor units
+
+    try:
+        units = kwargs['units']
+        if 'tens' not in kwargs:
+            raise Exception(f"'tens' argument must be passed together with 'units'") from None
+        else:
+            tens = kwargs['tens']
+        if tens_group_key(tens) not in J_grp:
+            tens_grp = J_grp.create_group(tens_group_key(tens))
+        else:
+            tens_grp = J_grp[tens_group_key(tens)]
+        tens_grp.attrs['units'] = units
+    except KeyError:
+        pass
+
     # store K-matrix
 
     try:

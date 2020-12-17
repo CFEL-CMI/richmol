@@ -1792,6 +1792,8 @@ class CartTensor():
 
         if 'name' in kwargs:
             self.name = kwargs['name']
+        if 'units' in kwargs:
+            self.units = kwargs['units']
 
 
     def __call__(self, arg):
@@ -1938,7 +1940,7 @@ class CartTensor():
         return res
 
 
-    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, **kwargs):
+    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, units='au', **kwargs):
         """Stores matrix elements of Cartesian tensor in richmol HDF5 file.
 
         Args:
@@ -1948,6 +1950,8 @@ class CartTensor():
                 Name of richmol HDF5 file.
             thresh : float
                 Threshold for storing the matrix elements.
+            units : str
+                Units of tensor operator.
         """
         try:
             x = psi_bra.m.table
@@ -1975,6 +1979,11 @@ class CartTensor():
                 raise Exception(f"Please specify name of the tensor, either by passing " + \
                     f"'tens_name' argument to 'store_richmol' or 'name' argument to " + \
                     f"{retrieve_name(self)} ") from None
+
+        try:
+            tens_units = self.units
+        except AttributeError:
+            tens_units = units
 
         # determine J quanta for bra and ket states
 
@@ -2018,6 +2027,8 @@ class CartTensor():
         ncart = len(self.cart)
 
         # store K matrix elements in file
+
+        rchm.store(filename, J1, J2, tens=tens_name, units=tens_units)
 
         kmat = [coo_matrix(np.zeros(1)) for irrep in irreps]
         cart0 = self.cart[0]
