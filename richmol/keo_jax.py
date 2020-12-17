@@ -38,6 +38,8 @@ def com(method):
     return wrapper_cm
 
 
+
+
 def bisector(axes='zyx'):
     """ Bisector frame for triatomic molecule """
     axes_ind = [("x", "y", "z").index(s) for s in list(axes.lower())]
@@ -62,6 +64,7 @@ def bisector(axes='zyx'):
             return np.dot(xyz, tmat[axes_ind, :].T)
         return wrapper_bisect
     return inner_function
+
 
 
 @jit
