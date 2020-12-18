@@ -1,9 +1,11 @@
 import numpy as np
 import rchm
 import warnings
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.sparse import coo_matrix, csr_matrix, kron
 import sys
 import itertools
+import copy
+import inspect
 
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
@@ -28,20 +30,27 @@ class States():
             Set to True to print out some data.
 
     Attributes:
-        enr
-        id
-        ideg
-        sym
-        assign
-        J_list
-        m_list
-        id_to_istate
-        mJ_to_im
-        dim_m
-        dim_k
+        enr : array(no_states)
+            Basis state energies.
+        id : array(no_states)
+            State ID numbers.
+        ideg : array(no_states)
+            State degeneracy indices.
+        sym : array(no_states)
+            State symmetries.
+        assign : array(no_states)
+            State assignments.
+        J_list : list
+            List of J quanta spanned by basis.
+        m_list : dict
+            List of m quanta spanned by basis (dict.values) for each J (dict.keys).
+        id_to_istate : array()
+        mJ_to_im : array()
+        dim_m : dict
+        dim_k : dict
     """
 
-    def __init__(self, filename, J_list, verbose=False, **kwargs):
+    def __init__(self, filename, tens, J_list, verbose=False, **kwargs):
         """Reads molecular field-free states from richmol HDF5 file, and generates basis set indices.
         """
 
@@ -60,7 +69,7 @@ class States():
 
             # read states for fixed J
 
-            descr, dim, enr, id, ideg, sym, assign = rchm.read_states(filename, J)
+            enr, id, ideg, sym, assign = rchm.read_states(filename, tens, J)
 
             maxid[J] = max(id) # maximal state id number will be needed for mapping id -> istate
 
@@ -125,7 +134,7 @@ class States():
             print(f"No. states and list of m quanta spanned by basis, for each J:")
             nonzero = False
             for J in self.J_list:
-                print(f"    J = {J}, no. states = {len(self.enr[J])}, m = {[m for m in self.m_list[J]] if len(m_list) > 0 else None}")
+                print(f"    J = {J}, no. states = {len(self.enr[J])}, m = {[m for m in self.m_list[J]] if len(self.m_list[J]) > 0 else None}")
 
         J_out = [J for J in self.J_list if len(self.m_list[J]) == 0]
         if len(J_out) > 0:
@@ -168,49 +177,62 @@ class Tensor():
             Name of richmol HDF5 file.
         tens_name : str
             String identifying tensor, as stored in the HDF5 file.
-        states : States
-            Field-free basis.
+        states1 : States
+            Field-free basis of bra functions.
+        states2 : States
+            Field-free basis of ket functions.
     Kwargs:
         verbose : bool
             Set to True to print out some data.
 
     Attributes:
+        prefac : int, float, complex
         rank : int
             Tensor rank
         irreps : list
             List of tensor irreducible representations.
-        Jpairs : list
+        J_pairs : list
+        dim_m1 : dict
+        dim_k1 : dict
+        dim_m2 : dict
+        dim_k2 : dict
         mmat : dict
         kmat : dict
+        mfmat : dict
     """
-    def __init__(self, filename, tens_name, states, verbose=False, **kwargs):
+    def __init__(self, filename, tens_name, states1, states2, verbose=False, **kwargs):
 
         if verbose == True:
             print(f"\nLoad matrix elements for tensor {tens_name} ...")
+
+        self.prefac = 1.0
 
         # generate list of bra and ket J pairs that are coupled by tensor and spanned by basis set
 
         tens = rchm.inspect_tensors(filename)
 
         try:
-            J_pairs = tens[tens_name]
+            J_pairs = tens[tens_name]['J_pairs']
         except KeyError:
             raise KeyError(f"Can't find tensor {tens_name} in file {filename}, " + \
                 f"here is by the way a list of all stored tensors: {[elem for elem in tens.keys()]}") from None
 
-        self.J_pairs = [(J1, J2) for J1 in states.J_list for J2 in states.J_list \
+        self.J_pairs = [(J1, J2) for J1 in states1.J_list for J2 in states2.J_list \
                         if (J1, J2) in J_pairs or (J2, J1) in J_pairs]
 
         if len(self.J_pairs) == 0:
-            raise Exception(f"Can't find any pair of J quanta that is spanned by basis and coupled " + \
-                +f"by tensor {tens_name} at the same time, reading file {filename}") from None
+            raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
+                +f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
 
         if verbose == True:
             print(f"pairs of coupled J quanta: {self.J_pairs}")
             print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
 
-        self.dim_m = {J : states.dim_m[J] for J in set(elem for J_pair in self.J_pairs for elem in J_pair)}
-        self.dim_k = {J : states.dim_k[J] for J in set(elem for J_pair in self.J_pairs for elem in J_pair)}
+        self.dim_m1 = {J : states1.dim_m[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
+        self.dim_k1 = {J : states1.dim_k[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
+        self.dim_m2 = {J : states2.dim_m[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
+        self.dim_k2 = {J : states2.dim_k[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
+
         self.rank = []
         self.irreps = []
 
@@ -223,17 +245,17 @@ class Tensor():
             # read richmol file
             swapJ, mmat = rchm.read_mmat(filename, tens_name, J1, J2)
 
-            m_ind1 = states.mJ_to_im[J1] # m_ind[int(m+J)] gives the index of m quantum number in the m-subset of basis
-            m_ind2 = states.mJ_to_im[J2] # ... or -1 if m is not contained in the m-subset
-            dim1 = states.dim_m[J1] # dimension of m-subset for J1
-            dim2 = states.dim_m[J2] # dimension of m-subset for J2
-            Jpair = (J1, J2)
+            m_ind1 = states1.mJ_to_im[J1]
+            m_ind2 = states2.mJ_to_im[J2]
+            dim1 = states1.dim_m[J1]
+            dim2 = states2.dim_m[J2]
+            J_pair = (J1, J2)
 
             if swapJ == True:
                 m_ind1, m_ind2 = m_ind2, m_ind1
                 dim1, dim2 = dim2, dim1
 
-            self.mmat[Jpair] = []
+            self.mmat[J_pair] = []
 
             for m_cart in mmat:  # loop over Cartesian components of M-matrix
                 cart_label, irreps, nnz, data, row, col = m_cart
@@ -255,11 +277,11 @@ class Tensor():
                     mat = np.conjugate(mat)
                 else:
                     mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
-                self.mmat[Jpair].append((cart_ind, {irrep:m for irrep,m in zip(irreps,mat)}))
+                self.mmat[J_pair].append((cart_ind, {irrep:m for irrep,m in zip(irreps,mat)}))
 
             # update rank and irreps
-            self.rank = set(list(self.rank) + [len(elem[0]) for elem in self.mmat[Jpair]])
-            self.irreps = set(list(self.irreps) + [irrep for elem in self.mmat[Jpair] for irrep in elem[1].keys()])
+            self.rank = set(list(self.rank) + [len(elem[0]) for elem in self.mmat[J_pair]])
+            self.irreps = set(list(self.irreps) + [irrep for elem in self.mmat[J_pair] for irrep in elem[1].keys()])
 
         if len(self.rank) != 1:
             raise Exception(f"Multiple values of tensor rank = {list(rank)} across different J-quanta") from None
@@ -277,11 +299,11 @@ class Tensor():
             # read richmol file
             swapJ, kmat = rchm.read_kmat(filename, tens_name, J1, J2)
 
-            id_ind1 = states.id_to_istate[J1] # id_ind[id] gives the index of state in the k-subset of basis
-            id_ind2 = states.id_to_istate[J2] # ... or -1 if id is not contained in the k-subset
-            dim1 = states.dim_k[J1] # dimension of k-subset for J1
-            dim2 = states.dim_k[J2] # dimension of k-subset for J2
-            Jpair = (J1, J2)
+            id_ind1 = states1.id_to_istate[J1]
+            id_ind2 = states2.id_to_istate[J2]
+            dim1 = states1.dim_k[J1]
+            dim2 = states2.dim_k[J2]
+            J_pair = (J1, J2)
 
             if swapJ == True:
                 id_ind1, id_ind2 = id_ind2, id_ind1
@@ -302,13 +324,17 @@ class Tensor():
                 mat = np.conjugate(mat)
             else:
                 mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
-            self.kmat[Jpair] = {irrep:m for irrep,m in zip(irreps,mat)}
+            self.kmat[J_pair] = {irrep:m for irrep,m in zip(irreps,mat)}
 
             # collect irreps
-            self.irreps = set(list(self.irreps) + [irrep for irrep in self.kmat[Jpair].keys()])
+            self.irreps = set(list(self.irreps) + [irrep for irrep in self.kmat[J_pair].keys()])
 
         if verbose == True:
             print(f"tensor irreps: {self.irreps}")
+
+
+    def mul(self, fac):
+        self.prefac = self.prefac * fac
 
 
     def field(self, field, field_tol=1e-12):
@@ -355,14 +381,14 @@ class Tensor():
         try:
             x = self.mfmat
         except AttributeError:
-            raise AttributeError("You need to multiply tensor with field (use .field()) before applying it to vector") from None
+            raise AttributeError("You need to multiply tensor with field before applying it to vector") from None
         for J_pair in list(set(self.mfmat.keys()) & set(self.kmat.keys())):
             mfmat = self.mfmat[J_pair]
             kmat = self.kmat[J_pair]
             J1, J2 = J_pair
-            dim1 = self.dim_m[J2]
-            dim2 = self.dim_k[J2]
-            dim = self.dim_m[J1] * self.dim_k[J1]
+            dim1 = self.dim_m2[J2]
+            dim2 = self.dim_k2[J2]
+            dim = self.dim_m1[J1] * self.dim_k1[J1]
             try:
                 vecT = np.transpose(vec[J2].reshape(dim1, dim2))
             except KeyError:
@@ -371,13 +397,60 @@ class Tensor():
                 tmat = csr_matrix.dot(kmat[irrep], vecT)
                 v = csr_matrix.dot(mfmat[irrep], np.transpose(tmat))
                 try:
-                    vec_new[J1] += csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+                    vec_new[J1] = vec_new[J1] + csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
                 except NameError:
                     vec_new = {}
                     vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
                 except KeyError:
                     vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
         return vec_new
+
+
+    def tomat(self, cart):
+        """ Returns full matrix representation of tensor operator """
+        try:
+            cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart)
+        except ValueError:
+            raise ValueError(f"Illegal Cartesian label = '{cart}'") from None
+
+        for J_pair in list(set(self.mmat.keys()) & set(self.kmat.keys())):
+            J1, J2 = J_pair
+            try:
+                ind = [elem[0] for elem in self.mmat[J_pair]].index(cart_ind)
+            except ValueError:
+                print(f"note matrix elements <J={J1}|{retrieve_name(self)}({cart})|J={J2}> = 0")
+                continue
+            mmat = self.mmat[J_pair][ind][1]
+            kmat = self.kmat[J_pair]
+            for irrep in list(set(mmat.keys()) & set(kmat.keys())):
+                try:
+                    mat[J_pair] = mat[J_pair] + kron(mmat[irrep], kmat[irrep]).todense()
+                except NameError:
+                    mat = {}
+                    mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
+                except KeyError:
+                    mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
+        return {key : val * self.prefac for key,val in mat.items()}
+
+
+    def __mul__(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
+                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        if isinstance(arg, scalar):
+            # multiply with a scalar
+            res = copy.deepcopy(self)
+            res.mul(arg)
+        elif isinstance(arg, (np.ndarray, list, tuple)):
+            # multiply with field
+            res = copy.deepcopy(self)
+            res.field(arg)
+        elif isinstance(arg, dict):
+            # multiply with wavepacket coefficient vector
+            res = copy.deepcopy(self)
+            res.vec(arg)
+        return res
+
+    __rmul__ = __mul__
 
 
 
@@ -392,14 +465,22 @@ def retrieve_name(var):
 if __name__ == '__main__':
 
     filename = '../examples/watie/OCS_energies_j0_j10.h5'
-    a = States(filename, [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[i for i in range(-10,2000)], verbose=True)
-    mu = Tensor(filename, 'alpha', a, verbose=True)
+
+    tens = rchm.inspect_tensors(filename)
+    print(tens)
+
+    a = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[0], verbose=True)
+    b = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[4], verbose=True)
+    mu = Tensor(filename, 'alpha', a, b, verbose=True)
+    mu = mu * 2
     field = [2,0,0.5]
-    mu.field(field)
+    mu = mu * field
+    # mu.field(field)
 
-    vec = {}
-    for J in (1.0, 2.0, 3.0):
-        vec[J] = np.random.rand(a.dim_m[J]*a.dim_k[J])
-    v = mu.vec(vec)
-    print([elem for elem in v.keys()])
+    # vec = {}
+    # for J in (1.0, 2.0, 3.0):
+    #     vec[J] = np.random.rand(b.dim_m[J]*b.dim_k[J])
+    # v = mu.vec(vec)
 
+    mat = mu.tomat('zz')
+    print(mat)

@@ -1095,8 +1095,8 @@ class PsiTableMK():
         else:
             replace = False
 
-        rchm.store(filename, J, J, replace=replace, enr=enr, assign=assign, \
-                   sym=sym, id=[i for i in range(nstat)])
+        rchm.store(filename, 'h0', J, J, replace=replace, enr=enr, assign=assign, \
+                   sym=sym, id=[i for i in range(nstat)], units='1/cm')
 
 
     def store_richmol_old(self, name, append=False):
@@ -2028,7 +2028,7 @@ class CartTensor():
 
         # store K matrix elements in file
 
-        rchm.store(filename, J1, J2, tens=tens_name, units=tens_units)
+        rchm.store(filename, tens_name, J1, J2, units=tens_units)
 
         kmat = [coo_matrix(np.zeros(1)) for irrep in irreps]
         cart0 = self.cart[0]
@@ -2042,7 +2042,7 @@ class CartTensor():
                 irrep_ind = irreps.index(irrep)
                 kmat[irrep_ind] = sme
 
-        rchm.store(filename, J1, J2, tens=tens_name, kmat=kmat, irreps=irreps)
+        rchm.store(filename, tens_name, J1, J2, kmat=kmat, irreps=irreps)
 
         # store M matrix elements in file
 
@@ -2060,7 +2060,7 @@ class CartTensor():
                     mmat[irrep_ind] = sme
                 except KeyError:
                     continue
-            rchm.store(filename, J1, J2, tens=tens_name, mmat=mmat, irreps=irreps, cart=cart)
+            rchm.store(filename, tens_name, J1, J2, mmat=mmat, irreps=irreps, cart=cart)
 
 
     def store_richmol_old(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
