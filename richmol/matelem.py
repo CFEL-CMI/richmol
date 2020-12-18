@@ -36,7 +36,7 @@ def init(*args):
 
 @com
 @bisector('zxy')
-def internal_to_cartesian(self,coords):
+def internal_to_cartesian(coords):
     r1, r2, alpha = coords
     xyz = np.array([[0.0, 0.0, 0.0], \
                     [ r1 * np.sin(alpha/2), 0.0, r1 * np.cos(alpha/2)], \
@@ -45,14 +45,14 @@ def internal_to_cartesian(self,coords):
     return xyz #this function can be called from XY2 or molecule module. It does not belong here. 
 
 
-def f_temp(self,ivec,jvec,coords):
+def f_temp(ivec,jvec,coords):
     """temporary test function for 3D integration
     ivec: a vector of shape (3, ) containing i1,i2,i3
     jvec : a vector of shape (3, ) containing j1,j2,j3
     coords: (3, ): r1,r2,theta"""
     return coords[0]**2 * coords[1]**2 * coords[2]**2 * np.exp(-coords[0]**2) * np.exp(-coords[1]**2)
 
-def matelem_keo(self, ivec, jvec, psi_i, dpsi_i, psi_j, dpsi_j, x1,x2,x3,  qgrid_ind):
+def matelem_keo( ivec, jvec, psi_i, dpsi_i, psi_j, dpsi_j, x1,x2,x3,  qgrid_ind):
     """
     This routine calculates the matrix element of the kinetic energy operator.
 
@@ -136,8 +136,8 @@ def hmat(bas_ind,qgrid_ind):
     print(type(bas_ind))
 
 
-
     keo_jax.init(masses=masses, internal_to_cartesian=internal_to_cartesian)
+    
     # compute strechting basis on the quadrature grid
     _, _, psi_r, dpsi_r = herm(0, ref_coords, Nquad1D_herm, Nquad1D_herm-1, [0.5, 10.0],
                                     poten_h2s_Tyuterev.poten, keo_jax.Gmat,
