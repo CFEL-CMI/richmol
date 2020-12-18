@@ -99,6 +99,16 @@ def matelem_keo( ivec, jvec, psi_i, dpsi_i, psi_j, dpsi_j, x1,x2,x3,  qgrid_ind)
 
     return f_int
 
+def matelem_pes(ivec, jvec, psi_i, psi_j, x1, x2, x3, qgrid_ind):
+    # concatenate points
+    x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1)
+    #qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
+    PES = poten_h2s_Tyuterev.poten(x)
+    psi_i_product = np.multiply(np.multiply(psi_i[:,0], psi_i[:,1]), psi_i[:,2])
+    psi_j_product = np.multiply(np.multiply(psi_j[:,0], psi_j[:,1]), psi_j[:,2])
+
+    return np.sum(np.multiply(np.multiply(psi_i_product, psi_j_product), PES))
+
 def hmat(bas_ind,qgrid_ind):
     """calculate full Hamiltonian Matrix"""
 
@@ -185,6 +195,7 @@ def hmat(bas_ind,qgrid_ind):
             dphi_j[:,0] *= np.sqrt(w1[:])
             dphi_j[:,1] *= np.sqrt(w2[:])
             dphi_j[:,2] *= np.sqrt(w3[:])
+            a = matelem_pes(ivec, jvec, phi_i, phi_j, x1,x2,x3, qgrid_ind)
             f = matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, x1,x2,x3, qgrid_ind)[0]
             jax.ops.index_update(hmat,(i,j),f)
 
