@@ -40,6 +40,8 @@ class States():
             State symmetries.
         assign : array(no_states)
             State assignments.
+        units : str
+            Energy units.
         J_list : list
             List of J quanta spanned by basis.
         m_list : dict
@@ -48,12 +50,17 @@ class States():
         mJ_to_im : array()
         dim_m : dict
         dim_k : dict
+        prefac : int, float, or complex
     """
 
-    def __init__(self, filename, tens, J_list, verbose=False, **kwargs):
+    def __init__(self, filename, tens_name, J_list, verbose=False, **kwargs):
         """Reads molecular field-free states from richmol HDF5 file, and generates basis set indices.
         """
 
+        if verbose == True:
+            print(f"\nLoad states of {tens_name} from file {filename} ... ")
+
+        self.prefac = 1
         self.enr = {}
         self.id = {}
         self.ideg = {}
@@ -69,16 +76,16 @@ class States():
 
             # read states for fixed J
 
-            enr, id, ideg, sym, assign = rchm.read_states(filename, tens, J)
+            enr, id, ideg, sym, assign, units = rchm.read_states(filename, tens_name, J)
 
             maxid[J] = max(id) # maximal state id number will be needed for mapping id -> istate
 
             # apply some filters
 
             if enr is None:
-                raise Exception(f"File {filename} does not contain states' energies ('enr' dataset) for J = {J}")
+                raise Exception(f"File {filename} does not contain states' energies ('enr' dataset) for J = {J}") from None
             if id is None:
-                raise Exception(f"File {filename} does not contain states' IDs ('id' dataset) for J = {J}")
+                raise Exception(f"File {filename} does not contain states' IDs ('id' dataset) for J = {J}") from None
             if ideg is None:
                 warnings.warn(f"File {filename} does not contain states' degeneracy indices ('ideg' dataset) for J = {J}", stacklevel=2)
             if sym is None:
@@ -109,6 +116,8 @@ class States():
                     pass
                 self.J_list.append(J)
 
+        self.units = units
+
         if len(self.J_list) == 0:
             raise Exception(f"State selection filters cast out all molecular states") from None
 
@@ -130,8 +139,9 @@ class States():
 
         # print J and m quanta
         if verbose == True:
-            print(f"List of J quanta spanned by basis: {self.J_list}")
-            print(f"No. states and list of m quanta spanned by basis, for each J:")
+            print(f"energy units: {self.units}")
+            print(f"list of J quanta spanned by basis: {self.J_list}")
+            print(f"no. states and list of m quanta spanned by basis, for each J:")
             nonzero = False
             for J in self.J_list:
                 print(f"    J = {J}, no. states = {len(self.enr[J])}, m = {[m for m in self.m_list[J]] if len(self.m_list[J]) > 0 else None}")
@@ -140,6 +150,7 @@ class States():
         if len(J_out) > 0:
             warnings.warn(f"m-quanta selection filters cast out all molecular states with J = {J_out}", stacklevel=2)
         self.J_list = [J for J in self.J_list if len(self.m_list[J]) > 0]
+        self.J_pairs = [(J,J) for J in self.J_list]
 
         # mapping id -> istate
         self.id_to_istate = {}
@@ -150,6 +161,9 @@ class States():
                 self.id_to_istate[J][id] = istate
             self.dim_k[J] = max(self.id_to_istate[J]) + 1
 
+        self.dim_k1 = self.dim_k
+        self.dim_k2 = self.dim_k
+
         # mapping int(m + J) -> ind_m
         self.mJ_to_im = {}
         self.dim_m = {}
@@ -159,6 +173,9 @@ class States():
                 self.mJ_to_im[J][int(m+J)] = im
             self.dim_m[J] = max(self.mJ_to_im[J]) + 1
 
+        self.dim_m1 = self.dim_m
+        self.dim_m2 = self.dim_m
+
         # generate basis set indices
 
         for J in self.J_list:
@@ -166,6 +183,63 @@ class States():
                 for istate in range(len(self.enr[J])):
                     pass
                     #print(J, m, istate, self.enr[J][istate])
+
+
+    def mul(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
+                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        if isinstance(arg, scalar):
+            self.prefac = self.prefac * arg
+        else:
+            raise TypeError(f"Unsupported argument type '{type(arg)}'") from None
+
+
+    def tomat(self):
+        """ Returns full diagonal matrix representation """
+        mat = {}
+        for J in self.J_list:
+            diag = [enr * self.prefac for m in self.m_list[J] for enr in self.id[J]]
+            mat[(J,J)] = np.diag(diag)
+        return {key : val * self.prefac for key,val in mat.items()}
+
+
+    def vec(self, vec):
+        """Computes product of diagonal matrix representation with vector.
+
+        Vector 'vec' must be a dictionary with keys as J quanta (rounded to the first decimal)
+        that are among those coupled by tensor. The values of vec must be numpy.ndarray arrays
+        with dimension equal to the dimension of basis for selected J.
+        """
+        if not isinstance(vec, dict):
+            raise TypeError(f"Unsupported argument type '{type(vec)}'") from None
+        vec_new = {}
+        for J in self.J_list:
+            try:
+                v = vec[J]
+            except KeyError:
+                continue
+            diag = np.array([enr * self.prefac for m in self.m_list[J] for enr in self.id[J]])
+            vec_new[J] = np.dot(diag, v)
+        return {key : val * self.prefac for key,val in vec_new.items()}
+
+
+    def __mul__(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
+                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        if isinstance(arg, scalar):
+            # multiply with a scalar
+            res = copy.deepcopy(self)
+            res.mul(arg)
+        elif isinstance(arg, dict):
+            # multiply with wavepacket coefficient vector
+            res = copy.deepcopy(self)
+            res.vec(arg)
+        else:
+            raise TypeError(f"Unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
+                f"'{type(arg)}'") from None
+        return res
+
+    __rmul__ = __mul__
 
 
 
@@ -191,6 +265,8 @@ class Tensor():
             Tensor rank
         irreps : list
             List of tensor irreducible representations.
+        cart : list
+        units : str
         J_pairs : list
         dim_m1 : dict
         dim_k1 : dict
@@ -203,7 +279,7 @@ class Tensor():
     def __init__(self, filename, tens_name, states1, states2, verbose=False, **kwargs):
 
         if verbose == True:
-            print(f"\nLoad matrix elements for tensor {tens_name} ...")
+            print(f"\nLoad matrix elements for tensor {tens_name} from file {filename} ... ")
 
         self.prefac = 1.0
 
@@ -224,17 +300,28 @@ class Tensor():
             raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
                 +f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
 
-        if verbose == True:
-            print(f"pairs of coupled J quanta: {self.J_pairs}")
-            print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
+        for attr in ('rank', 'irreps', 'cart'):
+            try:
+                self.__dict__[attr] = tens[tens_name][attr]
+            except KeyError:
+                raise KeyError(f"Can't find tensor {tens_name}'s attribute = '{attr}' in file {filename}") from None
+        try:
+            self.units = tens[tens_name]['units']
+        except KeyError:
+            self.units = None
 
         self.dim_m1 = {J : states1.dim_m[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
         self.dim_k1 = {J : states1.dim_k[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
         self.dim_m2 = {J : states2.dim_m[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
         self.dim_k2 = {J : states2.dim_k[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
 
-        self.rank = []
-        self.irreps = []
+        if verbose == True:
+            print(f"pairs of coupled J quanta: {self.J_pairs}")
+            print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
+            print(f"rank: {self.rank}")
+            print(f"Cartesian components ({len(self.cart)}): {self.cart}")
+            print(f"irreps: {self.irreps}")
+            print(f"units: {self.units}")
 
         # read M-matrix
 
@@ -262,7 +349,7 @@ class Tensor():
                 try:
                     cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart_label)
                 except ValueError:
-                    raise ValueError(f"Illegal Cartesian label = '{cart_label}'") from None
+                    raise ValueError(f"Illegal label for Cartesian component of tensor = '{cart_label}'") from None
                 # split data into arrays for each irrep (opposite to np.concatenate)
                 data = np.split(data, np.cumsum(nnz))[:-1]
                 row = np.split(row, np.cumsum(nnz))[:-1]
@@ -278,17 +365,6 @@ class Tensor():
                 else:
                     mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
                 self.mmat[J_pair].append((cart_ind, {irrep:m for irrep,m in zip(irreps,mat)}))
-
-            # update rank and irreps
-            self.rank = set(list(self.rank) + [len(elem[0]) for elem in self.mmat[J_pair]])
-            self.irreps = set(list(self.irreps) + [irrep for elem in self.mmat[J_pair] for irrep in elem[1].keys()])
-
-        if len(self.rank) != 1:
-            raise Exception(f"Multiple values of tensor rank = {list(rank)} across different J-quanta") from None
-
-        self.rank = list(self.rank)[0]
-        if verbose == True:
-            print(f"tensor rank: {self.rank}")
 
         # read K-matrix
 
@@ -326,15 +402,14 @@ class Tensor():
                 mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
             self.kmat[J_pair] = {irrep:m for irrep,m in zip(irreps,mat)}
 
-            # collect irreps
-            self.irreps = set(list(self.irreps) + [irrep for irrep in self.kmat[J_pair].keys()])
 
-        if verbose == True:
-            print(f"tensor irreps: {self.irreps}")
-
-
-    def mul(self, fac):
-        self.prefac = self.prefac * fac
+    def mul(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
+                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        if isinstance(arg, scalar):
+            self.prefac = self.prefac * arg
+        else:
+            raise TypeError(f"Unsupported argument type '{type(arg)}'") from None
 
 
     def field(self, field, field_tol=1e-12):
@@ -375,13 +450,16 @@ class Tensor():
         """Computes product of tensor with vector.
 
         Vector 'vec' must be a dictionary with keys as J quanta (rounded to the first decimal)
-        that are among those spanned by basis as well as coupled by tensor. The values of vec must
-        be numpy.ndarray vectors with dimension equal to the dimension of basis for a selected J.
+        that are among those coupled by tensor. The values of vec must be numpy.ndarray arrays
+        with dimension equal to the dimension of basis for selected J.
         """
         try:
             x = self.mfmat
         except AttributeError:
-            raise AttributeError("You need to multiply tensor with field before applying it to vector") from None
+            raise AttributeError("You need to multiply tensor with field before applying it to a vector") from None
+        if not isinstance(vec, dict):
+            raise TypeError(f"Unsupported argument type '{type(vec)}'") from None
+        vec_new = {}
         for J_pair in list(set(self.mfmat.keys()) & set(self.kmat.keys())):
             mfmat = self.mfmat[J_pair]
             kmat = self.kmat[J_pair]
@@ -398,36 +476,47 @@ class Tensor():
                 v = csr_matrix.dot(mfmat[irrep], np.transpose(tmat))
                 try:
                     vec_new[J1] = vec_new[J1] + csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
-                except NameError:
-                    vec_new = {}
-                    vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
                 except KeyError:
                     vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
-        return vec_new
+        return {key : val * self.prefac for key,val in vec_new.items()}
 
 
-    def tomat(self, cart):
-        """ Returns full matrix representation of tensor operator """
-        try:
-            cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart)
-        except ValueError:
-            raise ValueError(f"Illegal Cartesian label = '{cart}'") from None
+    def tomat(self, **kwargs):
+        """Returns dense-matrix representation of tensor contracted with external field, or of its
+        selected Cartesian component.
+        """
+        if 'cart' in kwargs:
+            cart = kwargs['cart']
+            ifcart = True
+            try:
+                cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart)
+            except ValueError:
+                raise ValueError(f"Illegal label for Cartesian component of tensor = '{cart}'") from None
+        else:
+            ifcart = False
+            try:
+                x = self.mfmat
+            except AttributeError:
+                raise AttributeError(f"You need to multiply tensor with field before computing " + \
+                    f"its matrix representation, or provide as argument a label for selected " + \
+                    f"Cartesian component of tensor") from None
 
+        mat = {}
         for J_pair in list(set(self.mmat.keys()) & set(self.kmat.keys())):
             J1, J2 = J_pair
-            try:
-                ind = [elem[0] for elem in self.mmat[J_pair]].index(cart_ind)
-            except ValueError:
-                print(f"note matrix elements <J={J1}|{retrieve_name(self)}({cart})|J={J2}> = 0")
-                continue
-            mmat = self.mmat[J_pair][ind][1]
+            if ifcart == True:
+                try:
+                    ind = [elem[0] for elem in self.mmat[J_pair]].index(cart_ind)
+                except ValueError:
+                    print(f"Note: matrix elements <J={J1}|{retrieve_name(self)}({cart})|J={J2}> = 0")
+                    continue
+                mmat = self.mmat[J_pair][ind][1]
+            else:
+                mmat = self.mfmat[J_pair]
             kmat = self.kmat[J_pair]
             for irrep in list(set(mmat.keys()) & set(kmat.keys())):
                 try:
                     mat[J_pair] = mat[J_pair] + kron(mmat[irrep], kmat[irrep]).todense()
-                except NameError:
-                    mat = {}
-                    mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
                 except KeyError:
                     mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
         return {key : val * self.prefac for key,val in mat.items()}
@@ -448,9 +537,89 @@ class Tensor():
             # multiply with wavepacket coefficient vector
             res = copy.deepcopy(self)
             res.vec(arg)
+        else:
+            raise TypeError(f"Unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
+                f"'{type(arg)}'") from None
         return res
 
     __rmul__ = __mul__
+
+
+
+class Hamiltonian():
+    """ Collects sum of tensors """
+
+    def __init__(self, **kwargs):
+        for key,val in kwargs.items():
+            if isinstance(val, (Tensor, States)):
+                self.tensors[key] = val
+            else:
+                raise TypeError(f"Unsupported '{key}' argument type '{type(val)}'") from None
+
+        for key,tens in self.tensors.items():
+            if isinstance(tens, Tensor):
+                try:
+                    x = tens.mfmat
+                except AttributeError:
+                    raise AttributeError(f"You need to multiply tensor '{key}' with field before " + \
+                        f"passing it to Hamiltonian") from None
+
+        # check consistency of dimensions
+        dim_m1 = {}
+        dim_m2 = {}
+        dim_k1 = {}
+        dim_k2 = {}
+        past_keys = []
+        for key,tens in self.tensors.items():
+            for J_pair in tens.J_pairs:
+                # check m-dimensions
+                dim1 = tens.dim_m1[J_pair]
+                dim2 = tens.dim_m2[J_pair]
+                try:
+                    if (dim1, dim2) != (dim_m1[J_pair], dim_m2[J_pair]):
+                        raise ValueError(f"Shape of M-part of tensor '{key}' = {(dim1, dim2)} " + \
+                            f"is not aligned with the shape of tensor(s) {past_keys} = " + \
+                            f"{(dim_m1[J_pair], dim_m2[J_pair])}, for J1, J2 = {J1}, {J2}") from None
+                except KeyError:
+                    dim_m1[J_pair] = dim1
+                    dim_m2[J_pair] = dim2
+                # check k-dimensions
+                dim1 = tens.dim_k1[J_pair]
+                dim2 = tens.dim_k2[J_pair]
+                try:
+                    if (dim1, dim2) != (dim_k1[J_pair], dim_k2[J_pair]):
+                        raise ValueError(f"Shape of K-part of tensor '{key}' = {(dim1, dim2)} " + \
+                            f"is not aligned with the shape of tensor(s) {past_keys} = " + \
+                            f"{(dim_k1[J_pair], dim_k2[J_pair])}, for J1, J2 = {J1}, {J2}") from None
+                except KeyError:
+                    dim_k1[J_pair] = dim1
+                    dim_k2[J_pair] = dim2
+            past_keys.append(key)
+
+
+
+    def tomat(self):
+        res = {}
+        for key,tens in self.tensors.items():
+            mat = tens.tomat()
+            for J_pair,elem in mat.items():
+                try:
+                    res[J_pair] = res[J_pair] + elem
+                except KeyError:
+                    res[J_pair] = elem
+        return res
+
+
+    def vec(self, vec):
+        vec_new = {}
+        for key,tens in self.tensors.items():
+            v = tens.vec(vec)
+            for J,elem in v.items():
+                try:
+                    vec_new[J] = vec_new[J] + elem
+                except KeyError:
+                    vec_new[J] = elem
+        return vec_new
 
 
 
@@ -462,6 +631,7 @@ def retrieve_name(var):
             return names[0]
 
 
+
 if __name__ == '__main__':
 
     filename = '../examples/watie/OCS_energies_j0_j10.h5'
@@ -470,12 +640,15 @@ if __name__ == '__main__':
     print(tens)
 
     a = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[0], verbose=True)
-    b = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[4], verbose=True)
+    b = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[0], verbose=True)
     mu = Tensor(filename, 'alpha', a, b, verbose=True)
     mu = mu * 2
     field = [2,0,0.5]
     mu = mu * field
     # mu.field(field)
+    mat = a.tomat()
+    print(mat)
+    sys.exit()
 
     # vec = {}
     # for J in (1.0, 2.0, 3.0):

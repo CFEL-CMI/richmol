@@ -621,6 +621,8 @@ def read_states(filename, tens, J):
             State symmetries.
         assign : array (no_states)
             State assignments.
+        units : str
+            Energy units.
     """
     fl = h5py.File(filename, 'r')
 
@@ -628,6 +630,12 @@ def read_states(filename, tens, J):
         J_grp = fl[tens_group_key(tens)][J_group_key(J, J)]
     except KeyError:
         raise KeyError(f"Can't locate data group {tens_group_key(tens)}/{J_group_key(J, J)} in file {filename}") from None
+
+    # read units
+    try:
+        units = fl[tens_group_key(tens)].attrs['units']
+    except KeyError:
+        units = None
 
     # read energies
     try:
@@ -661,5 +669,5 @@ def read_states(filename, tens, J):
 
     fl.close()
 
-    return enr, id, ideg, sym, assign
+    return enr, id, ideg, sym, assign, units
 
