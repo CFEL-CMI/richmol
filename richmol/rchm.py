@@ -7,6 +7,7 @@ from scipy.sparse import coo_matrix
 import platform
 import time
 
+
 """
 Data structure of richmol HDF5 file
 
@@ -906,9 +907,3 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
             store(h5_file, name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, descr=descr_)
 
 
-if __name__ == '__main__':
-
-    states_file = "../database/OCS/OCS_energies_j0_j30.rchm"
-    matelem_file = "../database/OCS/OCS_mu_j<j1>_j<j2>.rchm"
-    h5_file = "OCS.h5"
-    old_to_new_richmol(h5_file, states_file, tens_file=matelem_file, replace=False, store_states=True)
