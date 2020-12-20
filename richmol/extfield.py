@@ -202,12 +202,34 @@ class States():
         self.dim_m2 = self.dim_m
 
         # generate basis set indices
+        #for J in self.J_list:
+        #    for m in self.m_list[J]:
+        #        for istate in range(len(self.enr[J])):
+        #            pass
+        #            #print(J, m, istate, self.enr[J][istate])
 
-        for J in self.J_list:
-            for m in self.m_list[J]:
-                for istate in range(len(self.enr[J])):
-                    pass
-                    #print(J, m, istate, self.enr[J][istate])
+
+    def ind_assign(self, ind, Jlist):
+        """Returns assignment of states by their indices in the total basis set.
+
+        Args:
+            ind : scalar or list
+                Index(es) of states in the total basis, i.e., basis formed by coupling of all
+                J, m, and rovibrational state quanta.
+            Jlist : list
+                List of J quanta (order matters!).
+        Returns:
+            List of (J, m, energy, symmetry, assignment) for each state index in 'ind'.
+        """
+        try:
+            x = ind[0]
+            ind_list = ind
+        except IndexError:
+            ind_list = [ind]
+        quanta = [(J, m, enr, sym, assign) for J in Jlist \
+                                           for m in self.m_list[J] \
+                                           for enr, sym, assign in zip(self.enr[J], self.sym[J], self.assign[J])]
+        return [quanta[i] for i in ind_list]
 
 
     def mul(self, arg):
@@ -738,3 +760,5 @@ if __name__ == '__main__':
     
     enr, vec = np.linalg.eigh(hmat)
     print(enr)
+    assign = states.ind_assign([0,1,2], Jlist)
+    print(assign)
