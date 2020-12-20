@@ -2,6 +2,10 @@ import h5py
 import numpy as np
 import re
 import sys
+import os
+from scipy.sparse import coo_matrix
+import platform
+import time
 
 """
 Data structure of richmol HDF5 file
@@ -671,3 +675,240 @@ def read_states(filename, tens, J):
 
     return enr, id, ideg, sym, assign, units
 
+
+def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, store_states=True, \
+                       me_tol=1e-40, descr=None):
+    """Converts richmol old formatted text file format into to new hdf5 file format.
+
+    Args:
+        h5_fname : str
+            Name of new richmol hdf5 file.
+        states_fname : str
+            Name of old richmol states file.
+        tens_fname : str
+            Template for generating names of old richmol tensor matrix elements files.
+            For example, for filename="matelem_alpha_j<j1>_j<j2>.rchm" following files will be
+            searched: matelem_alpha_j0_j0.rchm, matelem_alpha_j0_j1.rchm,
+            matelem_alpha_j0_j2.rchm and so on, where <j1> and <j2> will be replaced by integer
+            numbers running through all J quanta spanned by all states listed in file states_fname.
+            NOTE: in old richmol format, j1 and j2 are treated as ket and bra state quanta, respectively.
+            For half-integer numbers (e.g., F quanta), substitute <j1> and <j2> in the template
+            tens_fname by <f1> and <f2>, which will then be replaced by floating point numbers
+            rounded to the first decimal.
+        replace : bool
+            Set True to replace existing hdf5 file.
+        store_states : bool
+            Set True to write richmol states data into hdf5 file, or False if you call this function
+            multiple times to convert different tensors and don't want each time to rewrite the states
+            data. The states file however need to be loaded for every new tensor.
+        me_tol : float
+            Threshold for neglecting matrix elements.
+        descr : str or list
+            Description of richmol data. Old richmol file format does not contain description
+            of the data, this can be added into hdf5 file by passing a string or list of strings
+            in descr variable.
+    """
+    if replace == True:
+        store_states_ = True
+    else:
+        store_states_ = store_states
+
+    # metadata
+    uname = platform.uname()
+    uinfo  = f"Created {time.asctime(time.localtime(time.time()))}, System: {uname.system}, " + \
+             f"Node Name: {uname.node}, Release: {uname.release}, Version: {uname.version}, " + \
+             f"Machine: {uname.machine}, Processor: {uname.processor}"
+    if descr is None:
+        descr_ = uinfo
+    else:
+        descr_ = descr + "\n" + uinfo
+
+    # read states data
+    print(f"Read states data from richmol formatted text file {states_file}")
+    fl = open(states_file, "r")
+    maxid = {}
+    for line in fl:
+        w = line.split()
+        J = round(float(w[0]),1)
+        id = np.int64(w[1])
+        try:
+            maxid[J] = max(maxid[J], id)
+        except KeyError:
+            maxid[J] = id
+    fl.seek(0)
+    map_id_to_istate = {J : np.zeros(maxid[J]+1, dtype=np.int64) for J in maxid.keys()}
+    for J, elem in map_id_to_istate.items():
+        elem[:] = -1
+    states = {}
+    nstates = {}
+    for line in fl:
+        w = line.split()
+        J = round(float(w[0]),1)
+        id = np.int64(w[1])
+        sym = w[2].upper()
+        ndeg = int(w[3])
+        enr = float(w[4])
+        qstr = ' '.join([w[i] for i in range(5,len(w))])
+        try:
+            map_id_to_istate[J][id] = nstates[J]
+        except KeyError:
+            map_id_to_istate[J][id] = 0
+        try:
+            x = states[J][0]
+        except (IndexError, KeyError):
+            states[J] = []
+        for ideg in range(ndeg):
+            states[J].append((id, sym, ideg, enr, qstr))
+            try:
+                nstates[J] += 1
+            except KeyError:
+                nstates[J] = 1
+    fl.close()
+
+    # store states data
+    if store_states_ == True:
+        print(f"Write states data into richmol hdf5 file {h5_file}, replace={replace}")
+        for J in states.keys():
+            id = [elem[0] for elem in states[J]]
+            sym = [elem[1] for elem in states[J]]
+            ideg = [elem[2] for elem in states[J]]
+            enr = [elem[3] for elem in states[J]]
+            qstr = [elem[4] for elem in states[J]]
+            store(h5_file, 'h0', J, J, enr=enr, id=id, sym=sym, ideg=ideg, assign=qstr, \
+                  replace=replace, descr=descr_)
+
+    # read matrix elements data and store into hdf5 file
+    print(f"Convert richmol matrix elements data {tens_file} --> {h5_file}, tol={me_tol}")
+    for J1 in states.keys():
+        for J2 in states.keys():
+
+            F1_str = str(round(J1,1))
+            F2_str = str(round(J2,1))
+            J1_str = str(int(round(J1,0)))
+            J2_str = str(int(round(J2,0)))
+
+            fname = re.sub(r"\<f1\>", F1_str, tens_file)
+            fname = re.sub(r"\<f2\>", F2_str, fname)
+            fname = re.sub(r"\<j1\>", J1_str, fname)
+            fname = re.sub(r"\<j2\>", J2_str, fname)
+
+            if not os.path.exists(fname):
+                continue
+
+            print(f"Read matrix elements from richmol formatted text file {fname}")
+            fl = open(fname, "r")
+
+            iline = 0
+            eof = False
+            read_m = False
+            read_k = False
+            icart = None
+
+            for line in fl:
+                strline = line.rstrip('\n')
+
+                if iline==0:
+                    if strline!="Start richmol format":
+                        raise RuntimeError(f"Matrix-elements file '{fname}' has bogus header = '{strline}'")
+                    iline+=1
+                    continue
+
+                if strline == "End richmol format":
+                    eof = True
+                    break
+
+                if iline==1:
+                    w = strline.split()
+                    name = w[0]
+                    nomega = int(w[1])
+                    ncart = int(w[2])
+                    iline+=1
+                    continue
+
+                if strline=="M-tensor":
+                    read_m = True
+                    read_k = False
+                    mvec = {}
+                    im1 = {}
+                    im2 = {}
+                    iline+=1
+                    continue
+
+                if strline=="K-tensor":
+                    read_m = False
+                    read_k = True
+                    kvec = [[] for i in range(nomega)]
+                    ik1 = [[] for i in range(nomega)]
+                    ik2 = [[] for i in range(nomega)]
+                    iline+=1
+                    continue
+
+                if read_m is True and strline.split()[0]=="alpha":
+                    w = strline.split()
+                    icart = int(w[1])
+                    icmplx = int(w[2])
+                    scart = w[3].lower()
+                    cmplx_fac = (1j, 1)[icmplx+1]
+                    mvec[scart] = [[] for i in range(nomega)]
+                    im1[scart] = [[] for i in range(nomega)]
+                    im2[scart] = [[] for i in range(nomega)]
+                    iline+=1
+                    continue
+
+                if read_m is True:
+                    w = strline.split()
+                    m1 = float(w[0])
+                    m2 = float(w[1])
+                    i1, i2 = int(m1 + J1), int(m2 + J2)
+                    mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                    ind_omega = [i for i in range(nomega) if abs(mval[i]) > me_tol]
+                    for iomega in ind_omega:
+                        im1[scart][iomega].append(i1)
+                        im2[scart][iomega].append(i2)
+                        mvec[scart][iomega].append(mval[iomega])
+
+                if read_k is True:
+                    w = strline.split()
+                    id1 = int(w[0])
+                    id2 = int(w[1])
+                    ideg1 = int(w[2])
+                    ideg2 = int(w[3])
+                    kval = [float(val) for val in w[4:]]
+                    istate1 = map_id_to_istate[J1][id1] + ideg1 - 1
+                    istate2 = map_id_to_istate[J2][id2] + ideg2 - 1
+                    ind_omega = [i for i in range(nomega) if abs(kval[i]) > me_tol]
+                    for iomega in ind_omega:
+                        ik1[iomega].append(istate1)
+                        ik2[iomega].append(istate2)
+                        kvec[iomega].append(kval[iomega])
+
+                iline +=1
+            fl.close()
+
+            if eof is False:
+                raise RuntimeError(f"Matrix-elements file '{fname}' has bogus footer = '{strline}'")
+
+            print(f"Write matrix elements into richmol hdf5 file {h5_file}, me_tol = {me_tol}")
+
+            # write M-matrix into hdf5 file
+            for cart in mvec.keys():
+                print(f"    M-tensor's {cart} component, irreps = {ind_omega}")
+                ind_omega = [iomega for iomega in range(nomega) if len(mvec[cart][iomega]) > 0]
+                mat = [ coo_matrix((mvec[cart][iomega], (im2[cart][iomega], im1[cart][iomega])), \
+                            shape=(int(2*J2+1), int(2*J1+1)) ) for iomega in ind_omega ]
+                store(h5_file, name, J2, J1, thresh=me_tol, irreps=ind_omega, cart=cart, mmat=mat)
+
+            # write K-matrix into hdf5 file
+            print(f"    K-tensor, irreps = {ind_omega}")
+            ind_omega = [iomega for iomega in range(nomega) if len(kvec[iomega]) > 0]
+            mat = [ coo_matrix((kvec[iomega], (ik2[iomega], ik1[iomega])), shape=(nstates[J2], nstates[J1]) ) \
+                    for iomega in ind_omega ]
+            store(h5_file, name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, descr=descr_)
+
+
+if __name__ == '__main__':
+
+    states_file = "../database/OCS/OCS_energies_j0_j30.rchm"
+    matelem_file = "../database/OCS/OCS_mu_j<j1>_j<j2>.rchm"
+    h5_file = "OCS.h5"
+    old_to_new_richmol(h5_file, states_file, tens_file=matelem_file, replace=False, store_states=True)
