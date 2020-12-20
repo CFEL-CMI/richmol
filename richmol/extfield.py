@@ -280,33 +280,55 @@ class Tensor():
 
     Args:
         filename : str
-            Name of richmol HDF5 file.
+            Name of richmol hdf5 file.
         tens_name : str
-            String identifying tensor, as stored in the HDF5 file.
+            String identifying tensor, as stored in richmol hdf5 file.
         states1 : States
             Field-free basis of bra functions.
         states2 : States
             Field-free basis of ket functions.
     Kwargs:
         verbose : bool
-            Set to True to print out some data.
+            Set to True to print some log.
 
     Attributes:
-        prefac : int, float, complex
         rank : int
-            Tensor rank
+            Tensor rank.
         irreps : list
-            List of tensor irreducible representations.
+            List of tensor irreducible representations (irreps).
         cart : list
+            List of tensor Cartesian components.
         units : str
+            Tensor units.
         J_pairs : list
+            List of pairs of J quanta coupled by tensor.
         dim_m1 : dict
+            states1.dim_m
         dim_k1 : dict
+            states1.dim_k
         dim_m2 : dict
+            states2.dim_m
         dim_k2 : dict
+            states2.dim_k
         mmat : dict
+            Keys are pairs of J quanta (J1, J2) coupled by tensor.
+            Values are elements of M-matrix for different Cartesian components and irreps of tensor.
+            mmat[(J1, J2)][icart][0] contains Cartesian component of tensor, e.g., 'xx', 'xy',
+                for icart in range(len(cart)).
+            mmat[(J1, J2)][icart][1][irrep] contains M-matrix in csr-sparse format,
+                for icart in range(len(cart)), for irrep in irreps.
         kmat : dict
+            Keys are pairs of J quanta (J1, J2) coupled by tensor.
+            Values are elements of K-matrix for different irreps of tensor.
+            kmat[(J1, J2)][irrep] contains K-matrix is csr-sparse format, for irrep in irreps.
         mfmat : dict
+            Keys are pairs of J quanta (J1, J2) coupled by tensor.
+            Values are elements of M-matrix contracted with external electric field for different
+            irreps of tensor.
+            mfmat[(J1, J2)][irrep] contains M-matrix, contracted with external field, in csr-sparse
+                format, for irrep in irreps.
+        prefac : scalar
+            Prefactor, used to multiply tensor with a scalar and to convert units.
     """
     def __init__(self, filename, tens_name, states1, states2, verbose=False, **kwargs):
 
@@ -481,9 +503,11 @@ class Tensor():
     def vec(self, vec):
         """Computes product of tensor with vector.
 
-        Vector 'vec' must be a dictionary with keys as J quanta (rounded to the first decimal)
-        that are among those coupled by tensor. The values of vec must be numpy.ndarray arrays
-        with dimension equal to the dimension of basis for selected J.
+        Args:
+            vec : dict
+                Parts of the vector (dict.values) for different values of J, rounded to the first
+                decimal (dict.keys). The dict.values must be numpy.ndarray with dimensions
+                equal to basis set dimensions for corresponding J.
         """
         try:
             x = self.mfmat
@@ -514,8 +538,8 @@ class Tensor():
 
 
     def tomat(self, **kwargs):
-        """Returns dense-matrix representation of tensor contracted with external field, or of its
-        selected Cartesian component.
+        """Returns dense-matrix representation of tensor contracted with external field,
+        or of its selected Cartesian component.
         """
         if 'cart' in kwargs:
             cart = kwargs['cart']
@@ -579,17 +603,17 @@ class Tensor():
 
 
 class Hamiltonian():
-    """ Collects sum of tensors """
+    """ Collects and performs operations on sum of tensors """
 
     def __init__(self, **kwargs):
         self.tensors = {}
-        for key,val in kwargs.items():
+        for key, val in kwargs.items():
             if isinstance(val, (Tensor, States)):
                 self.tensors[key] = val
             else:
                 raise TypeError(f"Unsupported '{key}' argument type '{type(val)}'") from None
 
-        for key,tens in self.tensors.items():
+        for key, tens in self.tensors.items():
             if isinstance(tens, Tensor):
                 try:
                     x = tens.mfmat
@@ -611,7 +635,7 @@ class Hamiltonian():
                 dim2 = tens.dim_m2[J2]
                 try:
                     if (dim1, dim2) != (dim_m1[J1], dim_m2[J2]):
-                        raise ValueError(f"Shape of M-part of tensor '{key}' = {(dim1, dim2)} " + \
+                        raise ValueError(f"Shape of the M-part of tensor '{key}' = {(dim1, dim2)} " + \
                             f"is not aligned with the shape of tensor(s) {past_keys} = " + \
                             f"{(dim_m1[J1], dim_m2[J2])}, for J1, J2 = {J1}, {J2}") from None
                 except KeyError:
@@ -622,7 +646,7 @@ class Hamiltonian():
                 dim2 = tens.dim_k2[J2]
                 try:
                     if (dim1, dim2) != (dim_k1[J1], dim_k2[J2]):
-                        raise ValueError(f"Shape of K-part of tensor '{key}' = {(dim1, dim2)} " + \
+                        raise ValueError(f"Shape of the K-part of tensor '{key}' = {(dim1, dim2)} " + \
                             f"is not aligned with the shape of tensor(s) {past_keys} = " + \
                             f"{(dim_k1[J1], dim_k2[J2])}, for J1, J2 = {J1}, {J2}") from None
                 except KeyError:
@@ -660,9 +684,9 @@ class Hamiltonian():
 
     def vec(self, vec):
         vec_new = {}
-        for key,tens in self.tensors.items():
+        for key, tens in self.tensors.items():
             v = tens.vec(vec)
-            for J,elem in v.items():
+            for J, elem in v.items():
                 try:
                     vec_new[J] = vec_new[J] + elem
                 except KeyError:
