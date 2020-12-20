@@ -10,22 +10,33 @@ import inspect
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
 
+# to convert electric moments from atomic units to SI units
+mu_au_to_Cm = 8.4783536255e-30              # dipole moment to C*m
+alpha_au_to_C2m2_per_J = 1.64877727436e-41  # polarizability to C^2*m^2/J
+beta_au_to_C3m3_per_J2 = 3.2063613061e-53   # hyperpolarizability to C^3*m^3/J^2
+gamma_au_to_C4m4_per_J3 = 6.2353799905e-65  # second hyperpolarizability to C^4*m^4/J^3
+theta_au_to_Cm2 = {1: 4.4865515246e-40}     # electric quadrupole to C*m^2
+
+planck = 6.62607015e-34 # J/Hz
+c_vac = 299792458 # m/s
+
 
 class States():
     """Molecular field-free states.
 
     Args:
         filename : str
-            Name of richmol HDF5 file, to read the field-free states from.
+            Name of richmol HDF5 file.
         J_list : list
-            List of quantum numbers of the total angular momentum spanned by the basis.
+            List of quantum numbers of the total angular momentum spanned by basis.
     Kwargs:
+        Additional set of parameters controlling the basis set.
         emin, emax : float
-            Minimal and maximal energy of states included in the basis.
+            Minimal and maximal energy of states.
         sym : list of str
-            List of basis symmetries of states included in the basis
+            List of symmetries of states.
         m_list : list
-            List of m quantum numbers spanned by the basis.
+            List of m quantum numbers.
         verbose : bool
             Set to True to print out some data.
 
@@ -54,7 +65,7 @@ class States():
     """
 
     def __init__(self, filename, tens_name, J_list, verbose=False, **kwargs):
-        """Reads molecular field-free states from richmol HDF5 file, and generates basis set indices.
+        """Reads molecular field-free states from richmol HDF5 file and generates basis set indices.
         """
 
         if verbose == True:
@@ -198,7 +209,7 @@ class States():
         """ Returns full diagonal matrix representation """
         mat = {}
         for J in self.J_list:
-            diag = [enr * self.prefac for m in self.m_list[J] for enr in self.id[J]]
+            diag = [enr * self.prefac for m in self.m_list[J] for enr in self.enr[J]]
             mat[(J,J)] = np.diag(diag)
         return {key : val * self.prefac for key,val in mat.items()}
 
@@ -320,7 +331,7 @@ class Tensor():
             print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
             print(f"rank: {self.rank}")
             print(f"Cartesian components ({len(self.cart)}): {self.cart}")
-            print(f"irreps: {self.irreps}")
+            print(f"irreps ({len(self.irreps)}): {self.irreps}")
             print(f"units: {self.units}")
 
         # read M-matrix
@@ -550,6 +561,7 @@ class Hamiltonian():
     """ Collects sum of tensors """
 
     def __init__(self, **kwargs):
+        self.tensors = {}
         for key,val in kwargs.items():
             if isinstance(val, (Tensor, States)):
                 self.tensors[key] = val
@@ -572,28 +584,29 @@ class Hamiltonian():
         past_keys = []
         for key,tens in self.tensors.items():
             for J_pair in tens.J_pairs:
+                J1, J2 = J_pair
                 # check m-dimensions
-                dim1 = tens.dim_m1[J_pair]
-                dim2 = tens.dim_m2[J_pair]
+                dim1 = tens.dim_m1[J1]
+                dim2 = tens.dim_m2[J2]
                 try:
-                    if (dim1, dim2) != (dim_m1[J_pair], dim_m2[J_pair]):
+                    if (dim1, dim2) != (dim_m1[J1], dim_m2[J2]):
                         raise ValueError(f"Shape of M-part of tensor '{key}' = {(dim1, dim2)} " + \
                             f"is not aligned with the shape of tensor(s) {past_keys} = " + \
-                            f"{(dim_m1[J_pair], dim_m2[J_pair])}, for J1, J2 = {J1}, {J2}") from None
+                            f"{(dim_m1[J1], dim_m2[J2])}, for J1, J2 = {J1}, {J2}") from None
                 except KeyError:
-                    dim_m1[J_pair] = dim1
-                    dim_m2[J_pair] = dim2
+                    dim_m1[J1] = dim1
+                    dim_m2[J2] = dim2
                 # check k-dimensions
-                dim1 = tens.dim_k1[J_pair]
-                dim2 = tens.dim_k2[J_pair]
+                dim1 = tens.dim_k1[J1]
+                dim2 = tens.dim_k2[J2]
                 try:
-                    if (dim1, dim2) != (dim_k1[J_pair], dim_k2[J_pair]):
+                    if (dim1, dim2) != (dim_k1[J1], dim_k2[J2]):
                         raise ValueError(f"Shape of K-part of tensor '{key}' = {(dim1, dim2)} " + \
                             f"is not aligned with the shape of tensor(s) {past_keys} = " + \
-                            f"{(dim_k1[J_pair], dim_k2[J_pair])}, for J1, J2 = {J1}, {J2}") from None
+                            f"{(dim_k1[J1], dim_k2[J2])}, for J1, J2 = {J1}, {J2}") from None
                 except KeyError:
-                    dim_k1[J_pair] = dim1
-                    dim_k2[J_pair] = dim2
+                    dim_k1[J1] = dim1
+                    dim_k2[J2] = dim2
             past_keys.append(key)
 
 
@@ -634,26 +647,32 @@ def retrieve_name(var):
 
 if __name__ == '__main__':
 
-    filename = '../examples/watie/OCS_energies_j0_j10.h5'
+    filename = '../examples/watie/OCS_j0_j30.h5'
 
+    # list tensors stored in file filename
     tens = rchm.inspect_tensors(filename)
-    print(tens)
+    for key in tens.keys():
+        print("\n", key, tens[key])
 
-    a = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[0], verbose=True)
-    b = States(filename, 'h0', [i for i in range(11)], emin=0, emax=1000, sym=['A'], m_list=[0], verbose=True)
-    mu = Tensor(filename, 'alpha', a, b, verbose=True)
-    mu = mu * 2
-    field = [2,0,0.5]
-    mu = mu * field
-    # mu.field(field)
-    mat = a.tomat()
-    print(mat)
-    sys.exit()
+    # field-free basis
+    states = States(filename, 'h0', [J for J in range(31)], emin=0, emax=10000, sym=['A'], verbose=True)
 
-    # vec = {}
-    # for J in (1.0, 2.0, 3.0):
-    #     vec[J] = np.random.rand(b.dim_m[J]*b.dim_k[J])
-    # v = mu.vec(vec)
+    # dipole matrix elements
+    mu = Tensor(filename, 'mu', states, states, verbose=True)
+    mu.mul(-1.0)
 
-    mat = mu.tomat('zz')
-    print(mat)
+    # external field in V/m
+    field = [0,0,1000 * 100]
+
+    # multiply dipole with external field
+    mu.field(field)
+
+    # convert dipole[au]*field[V/m] into [cm^-1]
+    fac = mu_au_to_Cm / (planck * c_vac) / 100
+    mu.mul(fac)
+
+    # mat = mu.tomat()
+    # print(mat)
+    h = Hamiltonian(mu=mu, h0=states)
+    mat = h.tomat()
+    #print(mat)
