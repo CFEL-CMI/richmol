@@ -24,49 +24,63 @@ c_vac = 299792458 # m/s
 class States():
     """Molecular field-free states.
 
+    The full basis is represented as a kronecker product of k-subspace and m-subspace functions.
+    The k-subspace functions are molecular rovibrational states, read from a richmol hdf5 file.
+    The m-subspace functions are spanned by different values of m quantum number.
+
     Args:
         filename : str
-            Name of richmol HDF5 file.
+            Name of richmol hdf5 file.
+        tens_name : str
+            Name of field-free Hamiltonian as stored in richmol hdf5 file.
+            Use rchm.inspect_tensors(filename) to extract information about different tensors
+            stored in file.
         J_list : list
-            List of quantum numbers of the total angular momentum spanned by basis.
+            List of J - quantum numbers of the total angular momentum - spanned by basis.
     Kwargs:
-        Additional set of parameters controlling the basis set.
+        Additional set of parameters controlling basis set.
         emin, emax : float
             Minimal and maximal energy of states.
         sym : list of str
-            List of symmetries of states.
+            List of selected symmetries of states. By default all symmetries are included.
         m_list : list
-            List of m quantum numbers.
+            List of selected m quantum numbers. By default, m = -J .. J
         verbose : bool
-            Set to True to print out some data.
+            Set to True to print some log.
 
     Attributes:
-        enr : array(no_states)
-            Basis state energies.
-        id : array(no_states)
-            State ID numbers.
-        ideg : array(no_states)
-            State degeneracy indices.
-        sym : array(no_states)
-            State symmetries.
-        assign : array(no_states)
-            State assignments.
+        enr : dict
+            Basis state energies (dict.values) for different J (dict.keys).
+        id : dict
+            State ID numbers (dict.values) for different J (dict.keys).
+        ideg : dict
+            State degeneracy indices (dict.values) for different J (dict.keys).
+        sym : dict
+            State symmetries (dict.values) for different J (dict.keys).
+        assign : dict
+            State assignments (dict.values) for different J (dict.keys).
         units : str
             Energy units.
         J_list : list
             List of J quanta spanned by basis.
         m_list : dict
-            List of m quanta spanned by basis (dict.values) for each J (dict.keys).
-        id_to_istate : array()
+            List of m quanta (dict.values) for different J (dict.keys).
+        id_to_istate : dict
+            Index mapping between the state ID numbers (in richmol matrix elements data)
+            and basis state indices in the k-subspace (dict.values), for different J (dict.keys).
         mJ_to_im : array()
+            Index mapping between the m indices = int(m + J) (in richmol matrix elements data)
+            and basis states indices in the m-subspace (dict.values), for different J (dict.keys).
         dim_m : dict
+            Dimension of m-subspace (dict.values) for different J (dict.keys).
         dim_k : dict
-        prefac : int, float, or complex
+            Dimension of k-subspace (dict.values) for different J (dict.keys).
+        prefac : scalar
+            Prefactor, used to multiply state energies with a scalar and to convert units.
     """
 
     def __init__(self, filename, tens_name, J_list, verbose=False, **kwargs):
-        """Reads molecular field-free states from richmol HDF5 file and generates basis set indices.
-        """
+        """ Reads molecular field-free states from richmol hdf5 file and generates basis set indices """
 
         if verbose == True:
             print(f"\nLoad states of {tens_name} from file {filename} ... ")
@@ -206,20 +220,27 @@ class States():
 
 
     def tomat(self):
-        """ Returns full diagonal matrix representation """
+        """Returns full diagonal matrix representation.
+
+        Returns:
+            mat : dict
+                Matrix blocks (dict.values) for different pairs of J quanta (J1, J2) (dict.keys).
+        """
         mat = {}
         for J in self.J_list:
             diag = [enr * self.prefac for m in self.m_list[J] for enr in self.enr[J]]
             mat[(J,J)] = np.diag(diag)
-        return {key : val * self.prefac for key,val in mat.items()}
+        return mat
 
 
     def vec(self, vec):
         """Computes product of diagonal matrix representation with vector.
 
-        Vector 'vec' must be a dictionary with keys as J quanta (rounded to the first decimal)
-        that are among those coupled by tensor. The values of vec must be numpy.ndarray arrays
-        with dimension equal to the dimension of basis for selected J.
+        Args:
+            vec : dict
+                Parts of the vector (dict.values) for different values of J, rounded to the first
+                decimal (dict.keys). The dict.values must be numpy.ndarray with dimensions
+                equal to basis dimensions for corresponding J.
         """
         if not isinstance(vec, dict):
             raise TypeError(f"Unsupported argument type '{type(vec)}'") from None
@@ -231,7 +252,7 @@ class States():
                 continue
             diag = np.array([enr * self.prefac for m in self.m_list[J] for enr in self.id[J]])
             vec_new[J] = np.dot(diag, v)
-        return {key : val * self.prefac for key,val in vec_new.items()}
+        return vec_new
 
 
     def __mul__(self, arg):
@@ -611,16 +632,30 @@ class Hamiltonian():
 
 
 
-    def tomat(self):
+    def tomat(self, form='dict'):
+        """Returns dense matrix representation of the sum of tensors.
+
+        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
+        as elements for different pairs of J quanta (J1, J2) as keys.
+        If form = 'mat', the first output variable is a numpy array with full matrix.
+        The second output variable is a list of J quanta spanned by matrix elements.
+        """
+        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
         res = {}
-        for key,tens in self.tensors.items():
+        for key, tens in self.tensors.items():
             mat = tens.tomat()
-            for J_pair,elem in mat.items():
+            for J_pair, elem in mat.items():
                 try:
                     res[J_pair] = res[J_pair] + elem
                 except KeyError:
                     res[J_pair] = elem
-        return res
+        Jlist = list(set([J1 for (J1, J2) in res.keys()] + [J2 for (J1, J2) in res.keys()]))
+        if form == 'mat':
+            dim = {J : res[(J, J)].shape[0] for J in Jlist}
+            res = np.block([[res[(J1, J2)] if (J1, J2) in res.keys() \
+                             else np.zeros((dim[J1], dim[J2])) \
+                             for J2 in Jlist] for J1 in Jlist])
+        return res, Jlist
 
 
     def vec(self, vec):
@@ -647,6 +682,8 @@ def retrieve_name(var):
 
 if __name__ == '__main__':
 
+    # example for OCS in static dc field
+
     filename = '../examples/watie/OCS_j0_j30.h5'
 
     # list tensors stored in file filename
@@ -655,14 +692,14 @@ if __name__ == '__main__':
         print("\n", key, tens[key])
 
     # field-free basis
-    states = States(filename, 'h0', [J for J in range(31)], emin=0, emax=10000, sym=['A'], verbose=True)
+    states = States(filename, 'h0', [J for J in range(31)], emin=0, emax=10000, sym=['A'], m_list=[0], verbose=True)
 
     # dipole matrix elements
     mu = Tensor(filename, 'mu', states, states, verbose=True)
     mu.mul(-1.0)
 
     # external field in V/m
-    field = [0,0,1000 * 100]
+    field = [0,0,1000 * 100] # 1kV/cm
 
     # multiply dipole with external field
     mu.field(field)
@@ -671,8 +708,9 @@ if __name__ == '__main__':
     fac = mu_au_to_Cm / (planck * c_vac) / 100
     mu.mul(fac)
 
-    # mat = mu.tomat()
-    # print(mat)
-    h = Hamiltonian(mu=mu, h0=states)
-    mat = h.tomat()
-    #print(mat)
+    # combine -dipole*field with field-free Hamiltonian
+    ham = Hamiltonian(mu=mu, h0=states)
+    hmat, Jlist = ham.tomat(form='mat')
+    
+    enr, vec = np.linalg.eigh(hmat)
+    print(enr)
