@@ -241,18 +241,26 @@ class States():
             raise TypeError(f"Unsupported argument type '{type(arg)}'") from None
 
 
-    def tomat(self):
+    def tomat(self, form='dict'):
         """Returns full diagonal matrix representation.
 
-        Returns:
-            mat : dict
-                Matrix blocks (dict.values) for different pairs of J quanta (J1, J2) (dict.keys).
+        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
+        as elements for pairs of J quanta (J, J) as keys.
+        If form = 'mat', the first output variable is a numpy array with full matrix.
+        The second output variable is a list of J quanta spanned by matrix elements.
         """
+        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
         mat = {}
         for J in self.J_list:
             diag = [enr * self.prefac for m in self.m_list[J] for enr in self.enr[J]]
             mat[(J,J)] = np.diag(diag)
-        return mat
+        if form == 'mat':
+            dim = {J_pair[0] : mat[J_pair].shape[0] for J_pair in mat.keys()}
+            dim.update( {J_pair[1] : mat[J_pair].shape[1] for J_pair in mat.keys()} )
+            mat = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
+                             else np.zeros((dim[J1], dim[J2])) \
+                             for J2 in self.J_list] for J1 in self.J_list])
+        return mat, self.J_list
 
 
     def vec(self, vec):
@@ -559,10 +567,16 @@ class Tensor():
         return {key : val * self.prefac for key,val in vec_new.items()}
 
 
-    def tomat(self, **kwargs):
+    def tomat(self, form='dict', **kwargs):
         """Returns dense-matrix representation of tensor contracted with external field,
         or of its selected Cartesian component.
+
+        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
+        as elements for different pairs of J quanta (J1, J2) as keys.
+        If form = 'mat', the first output variable is a numpy array with full matrix.
+        The second output variable is a list of J quanta spanned by matrix elements.
         """
+        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
         if 'cart' in kwargs:
             cart = kwargs['cart']
             ifcart = True
@@ -597,7 +611,16 @@ class Tensor():
                     mat[J_pair] = mat[J_pair] + kron(mmat[irrep], kmat[irrep]).todense()
                 except KeyError:
                     mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
-        return {key : val * self.prefac for key,val in mat.items()}
+        mat = {key : val * self.prefac for key,val in mat.items()}
+
+        Jlist = list(set([J1 for (J1, J2) in mat.keys()] + [J2 for (J1, J2) in mat.keys()]))
+        if form == 'mat':
+            dim = {J_pair[0] : mat[J_pair].shape[0] for J_pair in mat.keys()}
+            dim.update( {J_pair[1] : mat[J_pair].shape[1] for J_pair in mat.keys()} )
+            mat = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
+                             else np.zeros((dim[J1], dim[J2])) \
+                             for J2 in Jlist] for J1 in Jlist])
+        return mat, Jlist
 
 
     def __mul__(self, arg):
@@ -689,7 +712,7 @@ class Hamiltonian():
         assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
         res = {}
         for key, tens in self.tensors.items():
-            mat = tens.tomat()
+            mat, _ = tens.tomat()
             for J_pair, elem in mat.items():
                 try:
                     res[J_pair] = res[J_pair] + elem
@@ -697,7 +720,8 @@ class Hamiltonian():
                     res[J_pair] = elem
         Jlist = list(set([J1 for (J1, J2) in res.keys()] + [J2 for (J1, J2) in res.keys()]))
         if form == 'mat':
-            dim = {J : res[(J, J)].shape[0] for J in Jlist}
+            dim = {J_pair[0] : res[J_pair].shape[0] for J_pair in res.keys()}
+            dim.update( {J_pair[1] : res[J_pair].shape[1] for J_pair in res.keys()} )
             res = np.block([[res[(J1, J2)] if (J1, J2) in res.keys() \
                              else np.zeros((dim[J1], dim[J2])) \
                              for J2 in Jlist] for J1 in Jlist])
@@ -739,6 +763,7 @@ if __name__ == '__main__':
 
     # field-free basis
     states = States(filename, 'h0', [J for J in range(31)], emin=0, emax=10000, sym=['A'], m_list=[0], verbose=True)
+
 
     # dipole matrix elements
     mu = Tensor(filename, 'mu', states, states, verbose=True)
