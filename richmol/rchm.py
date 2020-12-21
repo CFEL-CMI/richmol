@@ -748,13 +748,8 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
     else:
         store_states_ = store_states
 
-    # metadata
-    uname = platform.uname()
-    uinfo  = f"Created {time.asctime(time.localtime(time.time()))}, System: {uname.system}, " + \
-             f"Node Name: {uname.node}, Release: {uname.release}, Version: {uname.version}, " + \
-             f"Machine: {uname.machine}, Processor: {uname.processor}"
     try:
-        descr = kwargs['descr'] + '\n' + uinfo
+        descr = kwargs['descr']
     except KeyError:
         descr = None
 

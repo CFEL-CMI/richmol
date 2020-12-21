@@ -1044,7 +1044,7 @@ class PsiTableMK():
 
 
     @counted
-    def store_richmol(self, filename, append=False, descr=None):
+    def store_richmol(self, filename, append=False, **kwargs):
         """Stores eigenstate energies in richmol hdf5 file.
 
         In order to control the number of primitive functions used for assignment,
@@ -1055,13 +1055,14 @@ class PsiTableMK():
         Args:
             filename : str
                 Name of richmol HDF5 file.
+                The tensor group name for storing energy data is 'h0'.
             append : bool
                 If True, the existing HDF5 file will be appended, otherwise
                 it will be overwritten in the first call, but appended at subsequent
                 calls.
+        Kwargs:
             descr : str or list
-                Description of states data. By default, a description of the meaning of assignment
-                data is added.
+                Description of states data.
         """
         Jk = list(set(J for J in self.k.table['prim'][:,0]))
         Jm = list(set(J for J in self.m.table['prim'][:,0]))
@@ -1090,12 +1091,10 @@ class PsiTableMK():
         except AttributeError:
             sym = ["A" for i in range(nstat)]
 
-        # add description of the assignment into tensor description
-        descr_assign = "state assignment: J, k, tau, |coef|^2, where tau is parity as (-1)^tau"
-        if descr is None:
-            descr_ = descr_assign
-        else:
-            descr_ = descr + "\n"+ descr_assign
+        try:
+            descr = kwargs['descr'] + "\nstate assignment: J, k, tau, |coef|^2, where tau is parity as (-1)^tau"
+        except KeyError:
+            descr = None
 
         # replace or append file
         if self.store_richmol.calls == 1:
@@ -1107,7 +1106,7 @@ class PsiTableMK():
             replace = False
 
         rchm.store(filename, 'h0', J, J, replace=replace, enr=enr, assign=assign, \
-                   sym=sym, id=[i for i in range(nstat)], units='1/cm', tens_descr=descr_)
+                   sym=sym, id=[i for i in range(nstat)], units='1/cm', tens_descr=descr)
 
 
     @counted
@@ -1980,7 +1979,7 @@ class CartTensor():
         Kwargs:
             units : str
                 Tensor units. By default, self.units is used, defined at __init__()
-            tens_name : str
+            name : str
                 Name of tensor, used to generate group name for matrix elements of tensor in hdf5 file.
                 By default, self.name is used, defined at __init__().
             descr : str or list
@@ -2004,15 +2003,14 @@ class CartTensor():
             raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'k'") from None
 
         # name of tensor
-        if 'tens_name' in kwargs:
-            tens_name = kwargs['tens_name']
+        if 'name' in kwargs:
+            tens_name = kwargs['name']
         else:
             try:
                 tens_name = self.name
             except AttributeError:
                 raise Exception(f"Please specify name of the tensor, either by passing " + \
-                    f"'tens_name' argument to 'store_richmol' or 'name' argument to " + \
-                    f"{retrieve_name(self)}") from None
+                    f"'name' argument to 'store_richmol' or '{retrieve_name(self)}'") from None
 
         # description of tensor
         if 'descr' in kwargs:
@@ -2021,7 +2019,7 @@ class CartTensor():
             try:
                 tens_descr = self.descr
             except AttributeError:
-                tens_descr = "no description"
+                tens_descr = None
 
         # units of tensor
         if 'units' in kwargs:
@@ -2030,7 +2028,7 @@ class CartTensor():
             try:
                 tens_units = self.units
             except AttributeError:
-                tens_units = "undefined"
+                tens_units = None
 
         # determine J quanta for bra and ket states
 
