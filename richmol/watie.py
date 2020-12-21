@@ -1044,8 +1044,8 @@ class PsiTableMK():
 
 
     @counted
-    def store_richmol(self, filename, append=False):
-        """Stores eigenstate energies in richmol HDF5 file.
+    def store_richmol(self, filename, append=False, descr=None):
+        """Stores eigenstate energies in richmol hdf5 file.
 
         In order to control the number of primitive functions used for assignment,
         change settings.assign_nprim (=1..6), to control the number of printed
@@ -1059,6 +1059,9 @@ class PsiTableMK():
                 If True, the existing HDF5 file will be appended, otherwise
                 it will be overwritten in the first call, but appended at subsequent
                 calls.
+            descr : str or list
+                Description of states data. By default, a description of the meaning of assignment
+                data is added.
         """
         Jk = list(set(J for J in self.k.table['prim'][:,0]))
         Jm = list(set(J for J in self.m.table['prim'][:,0]))
@@ -1087,6 +1090,14 @@ class PsiTableMK():
         except AttributeError:
             sym = ["A" for i in range(nstat)]
 
+        # add description of the assignment into tensor description
+        descr_assign = "state assignment: J, k, tau, |coef|^2, where tau is parity as (-1)^tau"
+        if descr is None:
+            descr_ = descr_assign
+        else:
+            descr_ = descr + "\n"+ descr_assign
+
+        # replace or append file
         if self.store_richmol.calls == 1:
             if append == True:
                 replace = False
@@ -1096,7 +1107,7 @@ class PsiTableMK():
             replace = False
 
         rchm.store(filename, 'h0', J, J, replace=replace, enr=enr, assign=assign, \
-                   sym=sym, id=[i for i in range(nstat)], units='1/cm')
+                   sym=sym, id=[i for i in range(nstat)], units='1/cm', tens_descr=descr_)
 
 
     @counted
@@ -1710,10 +1721,23 @@ class CartTensor():
         tens_flat : 1D array
             Contains elements of Cartesian tensor in the molecular frame, flattened in the order
             corresponding to the order of Cartesian components in 'cart'.
+        units : str
+            Tensor units.
+        name : str
+            Tensor name.
+        descr : str or list
+            Description of tensor.
 
     Args:
-        arg : np.ndarray, list or tuple
+        arg : numpy.ndarray, list or tuple
             Contains elements of Cartesian tensor in the molecular frame.
+    Kwargs:
+        units : str
+            Tensor units.
+        name : str
+            Tensor name.
+        descr : str or list
+            Description of tensor.
     """
 
     # transformation matrix from Cartesian to spherical-tensor representation
@@ -1795,6 +1819,8 @@ class CartTensor():
             self.name = kwargs['name']
         if 'units' in kwargs:
             self.units = kwargs['units']
+        if 'descr' in kwargs:
+            self.descr = kwargs['descr']
 
 
     def __call__(self, arg):
@@ -1941,8 +1967,8 @@ class CartTensor():
         return res
 
 
-    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, units='au', **kwargs):
-        """Stores matrix elements of Cartesian tensor in richmol HDF5 file.
+    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, **kwargs):
+        """Stores matrix elements of Cartesian tensor in richmol hdf5 file.
 
         Args:
             psi_bra, psi_ket : PsiTableMK
@@ -1951,8 +1977,14 @@ class CartTensor():
                 Name of richmol HDF5 file.
             thresh : float
                 Threshold for storing the matrix elements.
+        Kwargs:
             units : str
-                Units of tensor operator.
+                Tensor units. By default, self.units is used, defined at __init__()
+            tens_name : str
+                Name of tensor, used to generate group name for matrix elements of tensor in hdf5 file.
+                By default, self.name is used, defined at __init__().
+            descr : str or list
+                Description of tensor. By default, self.descr is used, defined at __init__().
         """
         try:
             x = psi_bra.m.table
@@ -1971,6 +2003,7 @@ class CartTensor():
         except AttributeError:
             raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'k'") from None
 
+        # name of tensor
         if 'tens_name' in kwargs:
             tens_name = kwargs['tens_name']
         else:
@@ -1979,12 +2012,25 @@ class CartTensor():
             except AttributeError:
                 raise Exception(f"Please specify name of the tensor, either by passing " + \
                     f"'tens_name' argument to 'store_richmol' or 'name' argument to " + \
-                    f"{retrieve_name(self)} ") from None
+                    f"{retrieve_name(self)}") from None
 
-        try:
-            tens_units = self.units
-        except AttributeError:
-            tens_units = units
+        # description of tensor
+        if 'descr' in kwargs:
+            tens_descr = kwargs['descr']
+        else:
+            try:
+                tens_descr = self.descr
+            except AttributeError:
+                tens_descr = "no description"
+
+        # units of tensor
+        if 'units' in kwargs:
+            tens_units = kwargs['units']
+        else:
+            try:
+                tens_units = self.units
+            except AttributeError:
+                tens_units = "undefined"
 
         # determine J quanta for bra and ket states
 
@@ -2029,7 +2075,7 @@ class CartTensor():
 
         # store K matrix elements in file
 
-        rchm.store(filename, tens_name, J1, J2, units=tens_units)
+        rchm.store(filename, tens_name, J1, J2, units=tens_units, tens_descr=tens_descr)
 
         kmat = [coo_matrix(np.zeros(1)) for irrep in irreps]
         cart0 = self.cart[0]
