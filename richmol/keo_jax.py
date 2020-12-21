@@ -1,5 +1,6 @@
 import jax.numpy as np
 from jax import grad, jacfwd, jacrev, jit
+import jax
 import const
 import functools
 from jax.config import config

@@ -1,4 +1,3 @@
-import numpy as np
 from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
 from mapping import indexmap,gridmap
@@ -12,7 +11,7 @@ from numpy.polynomial.hermite import hermgauss, hermval, hermder
 import scipy.special as ss
 from keo_jax import com, bisector
 import keo_jax
-import jax.numpy as np
+import jax.numpy as jnp
 import poten_h2s_Tyuterev
 from prim import numerov, legcos, herm, laguerre
 import sys
@@ -39,10 +38,10 @@ def init(*args):
 @bisector('zxy')
 def internal_to_cartesian(coords):
     r1, r2, alpha = coords
-    xyz = np.array([[0.0, 0.0, 0.0], \
-                    [ r1 * np.sin(alpha/2), 0.0, r1 * np.cos(alpha/2)], \
-                    [-r2 * np.sin(alpha/2), 0.0, r2 * np.cos(alpha/2)]], \
-                    dtype=np.float64)
+    xyz = jnp.array([[0.0, 0.0, 0.0], \
+                    [ r1 * jnp.sin(alpha/2), 0.0, r1 * jnp.cos(alpha/2)], \
+                    [-r2 * jnp.sin(alpha/2), 0.0, r2 * jnp.cos(alpha/2)]], \
+                    dtype=jnp.float64)
     return xyz #this function can be called from XY2 or molecule module. It does not belong here.
 
 
@@ -81,6 +80,9 @@ def matelem_keo( ivec, jvec, psi_i, dpsi_i, psi_j, dpsi_j, x1,x2,x3,  qgrid_ind)
         qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
         start = time.time()
         G = keo_jax.Gmat(qcoords)
+        G = np.asarray(G)
+        print("type of G")
+        print(type(G))
         end = time.time()
         #print("time for keo_jax.Gmat(qcoords) =  ", str(end-start))
         #print(' '.join(["  %15.8f"%item for item in qcoords]))
@@ -103,31 +105,38 @@ def matelem_keo( ivec, jvec, psi_i, dpsi_i, psi_j, dpsi_j, x1,x2,x3,  qgrid_ind)
 
 
         start = time.time()
-        keo_elem += dpsi_i[qgrid_ind[ipoint,0], 0 ] * psi_i[qgrid_ind[ipoint,1], 1 ] * psi_i[qgrid_ind[ipoint,2], 2 ] * dpsi_j[qgrid_ind[ipoint,0], 0 ] * psi_j[qgrid_ind[ipoint,1], 1] * psi_j[qgrid_ind[ipoint,2], 2] \
-            + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
-            + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * dpsi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ]* dpsi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
-            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ]
+        keo_elem += dpsi_i[qgrid_ind[ipoint,0], 0 ] * psi_i[qgrid_ind[ipoint,1], 1 ] * psi_i[qgrid_ind[ipoint,2], 2 ] * G[0][0]  * dpsi_j[qgrid_ind[ipoint,0], 0 ] * psi_j[qgrid_ind[ipoint,1], 1] * psi_j[qgrid_ind[ipoint,2], 2] \
+            + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[0][1]  * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
+            + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[0][2] * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[1][0] * dpsi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[1][1] * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*dpsi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[1][2]  * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[2][0] * dpsi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[2][1]  * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
+            + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[2][2]  * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ]
         end = time.time()
+        print("type of keo_elem")
+        print(type(keo_elem))
         print("time for jax.ops.index_add =  ", str(end-start))
 
     #jax.ops.index_update(f,ipoint,f_int)
     #print(type(f))
     #keo_elem = np.sum(f)
-    #print(f_int)
+
     print("we are returning value")
 
     return keo_elem
 
 def matelem_pes(ivec, jvec, psi_i, psi_j, x1, x2, x3, qgrid_ind):
     # concatenate points
-    x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1)
-    #qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
-    PES = poten_h2s_Tyuterev.poten(x)
+    x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1) #is ordering of the grid the same as in psi_i_product ?
+    #print(np.shape(x))
+    #print(x)
+
+    qcoords = np.concatenate(np.concatenate(x1[qgrid_ind[:][0]],x2[qgrid_ind[:][1]]),x3[qgrid_ind[:][2]])
+    print(qcoords)
+    PES = poten_h2s_Tyuterev.poten(qcoords)
+    #print(PES)
     psi_i_product = np.multiply(np.multiply(psi_i[:,0], psi_i[:,1]), psi_i[:,2])
     psi_j_product = np.multiply(np.multiply(psi_j[:,0], psi_j[:,1]), psi_j[:,2])
 
@@ -193,6 +202,21 @@ def hmat(bas_ind,qgrid_ind):
     dphi_i = np.zeros((Ngrid,3),dtype = float)
     dphi_j = np.zeros((Ngrid,3),dtype = float)
 
+    #generate G-matrix 
+    keo_jax.init(masses=masses, internal_to_cartesian=internal_to_cartesian)
+    for ipoint in range(np.size(qgrid_ind,axis=0)):
+        qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
+        start = time.time()
+        G = keo_jax.Gmat(qcoords)
+        G = np.asarray(G)
+        print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
+        print('\n')
+        end = time.time()
+        print("time for keo_jax.Gmat(qcoords) =  ", str(end-start))
+    #print(' '.join(["  %15.8f"%item for item in qcoords]))
+    #print(dpsi_i[qgrid_ind[ipoint,0], 0 ] * psi_i[qgrid_ind[ipoint,1], 1 ] * psi_i[qgrid_ind[ipoint,2], 2 ] * G[0][0] * dpsi_j[qgrid_ind[ipoint,0], 0 ] * psi_j[qgrid_ind[ipoint,1], 1] * psi_j[qgrid_ind[ipoint,2], 2])
+    #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
+    exit()
     """calculate the <psi_i | H | psi_j> integral """
     for i in range(Nbas):
 
@@ -220,14 +244,18 @@ def hmat(bas_ind,qgrid_ind):
             dphi_j[:,1] *= np.sqrt(w2[:])
             dphi_j[:,2] *= np.sqrt(w3[:])
             f = matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, x1,x2,x3, qgrid_ind)
-            a = matelem_pes(ivec, jvec, phi_i, phi_j, x1,x2,x3, qgrid_ind)
-            f = matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, x1,x2,x3, qgrid_ind)[0]
-            jax.ops.index_update(hmat,(i,j),f)
+            #a = matelem_pes(ivec, jvec, phi_i, phi_j, x1,x2,x3, qgrid_ind)
+            #f = matelem_keo(ivec, jvec, phi_i, dphi_i, phi_j, dphi_j, x1,x2,x3, qgrid_ind)[0]
+            #print(a)
+            #jax.ops.index_update(hmat,(i,j),a) #assignment issue
+            #hmat[i,j] = a
+            #print(hmat[i,j])
+            #print(a)
 
 
     print(hmat)
-    eval, eigvec = np.linalg.eigh(hmat)
-    print(eval)
+    #eval, eigvec = np.linalg.eigh(hmat)
+    #print(eval)
     return hmat
 
 
