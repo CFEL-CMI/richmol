@@ -1099,6 +1099,7 @@ class PsiTableMK():
                    sym=sym, id=[i for i in range(nstat)], units='1/cm')
 
 
+    @counted
     def store_richmol_old(self, name, append=False):
         """Stores energies of wavefunction set in Richmol energies file (old format)
 
