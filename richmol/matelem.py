@@ -78,20 +78,31 @@ def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
 
     return 0.5 * keo_elem
 
-def matelem_pes(ivec, jvec, psi_i, psi_j, x1, x2, x3, qgrid_ind):
-    # concatenate points
-    x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1) #is ordering of the grid the same as in psi_i_product ?
+def matelem_pes(psi_i, psi_j, x1, x2, x3, qgrid_ind):
+
+    #x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1) #is ordering of the grid the same as in psi_i_product ?
     #print(np.shape(x))
     #print(x)
 
-    qcoords = np.concatenate(np.concatenate(x1[qgrid_ind[:][0]],x2[qgrid_ind[:][1]]),x3[qgrid_ind[:][2]])
-    print(qcoords)
-    PES = poten_h2s_Tyuterev.poten(qcoords)
-    #print(PES)
-    psi_i_product = np.multiply(np.multiply(psi_i[:,0], psi_i[:,1]), psi_i[:,2])
-    psi_j_product = np.multiply(np.multiply(psi_j[:,0], psi_j[:,1]), psi_j[:,2])
+    Ngrid = np.size(qgrid_ind,axis=0)
+    qcoords = np.zeros((np.size(qgrid_ind,axis=0),3))
+    pot_elem = np.zeros((1,))
+    pot_int = np.zeros(Ngrid)
 
-    return np.sum(np.multiply(np.multiply(psi_i_product, psi_j_product), PES))
+    for ipoint in range(Ngrid):
+        qcoords[ipoint,0] = x1[qgrid_ind[ipoint][0]]
+        qcoords[ipoint,1] = x2[qgrid_ind[ipoint][1]]
+        qcoords[ipoint,2] = x3[qgrid_ind[ipoint][2]]
+    #print(np.shape(qcoords))
+    #print(type(qcoords))
+    #print(qcoords)
+
+    pot_int[:] = psi_i[qgrid_ind[:,0],0] * psi_i[qgrid_ind[:,1],1] * psi_i[qgrid_ind[:,2],2] \
+            * psi_j[qgrid_ind[:,0],0] * psi_j[qgrid_ind[:,1],1] * psi_j[qgrid_ind[:,2],2] \
+            * poten_h2s_Tyuterev.poten(qcoords[:,0:4]) 
+    
+    pot_elem = np.sum(pot_int)
+    return pot_elem
 
 def hmat(bas_ind,qgrid_ind):
     """calculate full Hamiltonian Matrix"""
@@ -156,7 +167,8 @@ def hmat(bas_ind,qgrid_ind):
         #print(ivec)
 
         phi_i = psi_r[:,ivec]
-        phi_i[:,0] *= np.sqrt(w1[:]) #compact it outside the loop
+
+        phi_i[:,0] *= np.sqrt(w1[:]) 
         phi_i[:,1] *= np.sqrt(w2[:])
         phi_i[:,2] *= np.sqrt(w3[:])
         dphi_i = dpsi_r[:,ivec]
@@ -175,13 +187,13 @@ def hmat(bas_ind,qgrid_ind):
             dphi_j[:,0] *= np.sqrt(w1[:])
             dphi_j[:,1] *= np.sqrt(w2[:])
             dphi_j[:,2] *= np.sqrt(w3[:])
-            keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
-            #pot = matelem_pes(ivec, jvec, phi_i, phi_j, x1,x2,x3, qgrid_ind)
-            hmat[i,j] = keo #+ pot
+            #keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
+            pot = matelem_pes(phi_i, phi_j, x1,x2,x3, qgrid_ind)
+            hmat[i,j] =  pot
 
 
 
-    print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in hmat]))
+    print('\n'.join([' '.join(["  %15.3f"%item for item in row]) for row in hmat]))
     eval, eigvec = np.linalg.eigh(hmat)
     print(eval)
     return hmat

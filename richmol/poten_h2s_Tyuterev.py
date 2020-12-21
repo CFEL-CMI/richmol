@@ -116,6 +116,7 @@ def poten(coords):
     r1 = np.asfortranarray(coords[:,0])
     r2 = np.asfortranarray(coords[:,1])
     alpha = np.asfortranarray(coords[:,2])
+
     npoints = coords.shape[0]
     npoints_c = c_int(npoints)
     nparams_c = c_int(len(params))
