@@ -18,6 +18,7 @@ Data structure of richmol HDF5 file
   /tens:<tens>.rank                    (rank)
   /tens:<tens>.irreps                  (list of irreducible representations)
   /tens:<tens>.cart                    (list of Cartesian components)
+  /tens:<tens>.descr                   (description of tensor)
    |
    |---/J:<J1>,<J1>                    (H0 basis states, <J1|H0|J1> = E)
    |    |
@@ -102,6 +103,8 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
             Only single Cartesian component of M-matrix (labelled by 'cart') can be stored at a call.
         units : str
             Tensor units.
+        tens_descr : str or list
+            Description of tensor.
         thresh : float
             Threshold for neglecting matrix elements.
     """
@@ -129,7 +132,7 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
         elif all(isinstance(elem, str) for elem in descr):
             data = " ".join(elem for elem in descr)
         else:
-            raise TypeError(f"bad argument type for 'descr'") from None
+            raise TypeError(f"bad argument type for 'descr': '{type(descr)}'") from None
         dset = fl.create_dataset('descr', data=[str.encode(elem) for elem in data])
     except KeyError:
         pass
@@ -190,6 +193,20 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
     try:
         units = kwargs['units']
         tens_grp.attrs['units'] = units
+    except KeyError:
+        pass
+
+    # store tensor description
+
+    try:
+        descr = kwargs['tens_descr']
+        if isinstance(descr, str):
+            data = descr
+        elif all(isinstance(elem, str) for elem in descr):
+            data = " ".join(elem for elem in descr)
+        else:
+            raise TypeError(f"bad argument type for 'tens_descr': '{type(descr)}'") from None
+        tens_grp.attrs['descr'] = data
     except KeyError:
         pass
 
@@ -360,7 +377,7 @@ def inspect_tensors(filename):
         tensors : dict
             Dictionary with keys as names of tensors and values as another dictionaries
             containing rank of tensor ('rank'), list of irreps ('irreps'), list of Cartesian
-            components ('cart'), and list of coupled J quanta ('J_pairs').
+            components ('cart'), tensor description ('descr'), and list of coupled J quanta ('J_pairs').
     """
     fl = h5py.File(filename, 'r')
 
@@ -377,7 +394,7 @@ def inspect_tensors(filename):
 
         tensors[tens] = {'J_pairs':[]}
 
-        for attr in ('rank', 'irreps', 'cart', 'units'):
+        for attr in ('rank', 'irreps', 'cart', 'units', 'descr'):
             try:
                 tensors[tens][attr] = fl[key].attrs[attr]
             except KeyError:
