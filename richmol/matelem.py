@@ -144,7 +144,10 @@ def matelem_pes(ivec, jvec, psi_i, psi_j, x1, x2, x3, qgrid_ind):
 
 def hmat(bas_ind,qgrid_ind):
     """calculate full Hamiltonian Matrix"""
-
+    Ngrid = np.size(qgrid_ind,axis=0)
+    print("number of grid points = " + str(Ngrid))
+    
+    Nbas = np.size(bas_ind,axis=0)
     print("number of basis functions = " + str(Nbas))
 
     """construct the quadrature grid. For now it is direct product Gaussian grid"""
@@ -160,26 +163,8 @@ def hmat(bas_ind,qgrid_ind):
     """ For later improved version: grid_dp = np.array(np.meshgrid(x3, x2, x1, indexing = 'ij')).T.reshape(-1,3)
                                     weights_dp = np.array(np.meshgrid(w3, w2, w1, indexing = 'ij')).T.reshape(-1,3)"""
 
-    #G = np.zeros((Ngrid,9,9))
+
     #initialize the KEO
-
-
-    #print(np.shape(keo_jax.Gmat(icoords))) #need to add here full
-
-
-    #for ipoint in range(Ngrid):
-        #qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
-        #G = keo_jax.Gmat(qcoords)
-        #   print(' '.join(["  %15.8f"%item for item in qcoords]))
-        #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
-    #print(np.shape(G))
-    #exit()
-    #print(qcoords,G)
-
-
-    print("type of bas_ind")
-    print(type(bas_ind))
-
 
     keo_jax.init(masses=masses, internal_to_cartesian=internal_to_cartesian)
 
@@ -203,17 +188,24 @@ def hmat(bas_ind,qgrid_ind):
     dphi_j = np.zeros((Ngrid,3),dtype = float)
 
     #generate G-matrix 
+
+    G = np.zeros((9,9))
+
     keo_jax.init(masses=masses, internal_to_cartesian=internal_to_cartesian)
+    start = time.time()
     for ipoint in range(np.size(qgrid_ind,axis=0)):
         qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
-        start = time.time()
-        G = keo_jax.Gmat(qcoords)
-        G = np.asarray(G)
-        print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
-        print('\n')
-        end = time.time()
-        print("time for keo_jax.Gmat(qcoords) =  ", str(end-start))
+        g = keo_jax.Gmat(qcoords)
+        g = np.asarray(g) 
+        G = np.concatenate((G,g),axis=0)
+    
+    end = time.time()
+    #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
+    #print('\n')
+    print("time for generation of G-matrix on full quadrature grid =  ", str(end-start))
     #print(' '.join(["  %15.8f"%item for item in qcoords]))
+
+
     #print(dpsi_i[qgrid_ind[ipoint,0], 0 ] * psi_i[qgrid_ind[ipoint,1], 1 ] * psi_i[qgrid_ind[ipoint,2], 2 ] * G[0][0] * dpsi_j[qgrid_ind[ipoint,0], 0 ] * psi_j[qgrid_ind[ipoint,1], 1] * psi_j[qgrid_ind[ipoint,2], 2])
     #print('\n'.join([' '.join(["  %15.8f"%item for item in row]) for row in G]))
     exit()
