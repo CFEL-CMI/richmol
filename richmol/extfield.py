@@ -392,8 +392,6 @@ class Tensor():
 
         if len(self.J_pairs) == 0:
             raise NoCouplingError(tens_name, filename)
-            # raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
-            #     f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
 
         for attr in ('rank', 'irreps', 'cart'):
             try:
