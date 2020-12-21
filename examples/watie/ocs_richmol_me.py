@@ -26,7 +26,7 @@ print("rotational constants:", Bx, By, Bz)
 
 # compute rotational energies for J = 0..30
 
-Jmax = 10
+Jmax = 30
 
 wavefunc = {}
 for J in range(Jmax+1):
@@ -38,15 +38,16 @@ for J in range(Jmax+1):
 
 # store rotational energies in Richmol energy file
 for J in range(Jmax+1):
-    wavefunc[J].store_richmol("OCS_energies_j0_j"+str(Jmax)+".h5")
+    wavefunc[J].store_richmol("OCS_j0_j"+str(Jmax)+".h5")
 
 mu = CartTensor(ocs.tensor["dipole moment"], name='mu')
 alpha = CartTensor(ocs.tensor["polarizability"], name='alpha')
 
-Jmax = 10
+Jmax = 30
 for J1 in range(Jmax+1):
     for J2 in range(J1, Jmax + 1):
         if abs(J1-J2)>2: continue
-        alpha.store_richmol(wavefunc[J1], wavefunc[J2], "OCS_energies_j0_j"+str(Jmax)+".h5", thresh=1e-10)
+        mu.store_richmol(wavefunc[J1], wavefunc[J2], "OCS_j0_j"+str(Jmax)+".h5", thresh=1e-10)
+        alpha.store_richmol(wavefunc[J1], wavefunc[J2], "OCS_j0_j"+str(Jmax)+".h5", thresh=1e-10)
         #alpha.store_richmol_old(wavefunc[J1], wavefunc[J2], 'alpha', "OCS_energies", thresh=1e-10)
 
