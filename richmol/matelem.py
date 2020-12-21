@@ -75,32 +75,24 @@ def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
     end = time.time()
     #print("time for KEO =  ", str(end-start))
 
-
     return 0.5 * keo_elem
 
 def matelem_pes(psi_i, psi_j, x1, x2, x3, qgrid_ind):
 
-    #x = np.concatenate((x1.reshape(-1,1),x2.reshape(-1,1),x3.reshape(-1,1)), axis=1) #is ordering of the grid the same as in psi_i_product ?
-    #print(np.shape(x))
-    #print(x)
-
     Ngrid = np.size(qgrid_ind,axis=0)
-    qcoords = np.zeros((np.size(qgrid_ind,axis=0),3))
-    pot_elem = np.zeros((1,))
-    pot_int = np.zeros(Ngrid)
+    qcoords = np.zeros((Ngrid,3))
 
-    for ipoint in range(Ngrid):
-        qcoords[ipoint,0] = x1[qgrid_ind[ipoint][0]]
-        qcoords[ipoint,1] = x2[qgrid_ind[ipoint][1]]
-        qcoords[ipoint,2] = x3[qgrid_ind[ipoint][2]]
-    #print(np.shape(qcoords))
-    #print(type(qcoords))
-    #print(qcoords)
+    pot_int = np.zeros(Ngrid)
+    pot_elem = np.zeros((1,))
+
+    qcoords[:,0] = x1[qgrid_ind[:,0]]
+    qcoords[:,1] = x2[qgrid_ind[:,1]]
+    qcoords[:,2] = x3[qgrid_ind[:,2]]
 
     pot_int[:] = psi_i[qgrid_ind[:,0],0] * psi_i[qgrid_ind[:,1],1] * psi_i[qgrid_ind[:,2],2] \
             * psi_j[qgrid_ind[:,0],0] * psi_j[qgrid_ind[:,1],1] * psi_j[qgrid_ind[:,2],2] \
             * poten_h2s_Tyuterev.poten(qcoords[:,0:4]) 
-    
+
     pot_elem = np.sum(pot_int)
     return pot_elem
 
@@ -114,8 +106,6 @@ def hmat(bas_ind,qgrid_ind):
 
     """construct the quadrature grid. For now it is direct product Gaussian grid"""
     x1, w1 = hermgauss(Nquad1D_herm)
-    x2 = x1
-    w2 = w1
     x3, w3 = leggauss(Nquad1D_leg)
     #print(type(w1))
     """print(x3,w3)
@@ -149,7 +139,7 @@ def hmat(bas_ind,qgrid_ind):
     G = np.zeros((Ngrid,9,9))
     start = time.time()
     for ipoint in range(np.size(qgrid_ind,axis=0)):
-        qcoords = [x1[qgrid_ind[ipoint][0]],x2[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
+        qcoords = [x1[qgrid_ind[ipoint][0]],x1[qgrid_ind[ipoint][1]],x3[qgrid_ind[ipoint][2]]]
         g = keo_jax.Gmat(qcoords)
         g = np.asarray(g)
         G[ipoint,:,:] = g
@@ -164,38 +154,35 @@ def hmat(bas_ind,qgrid_ind):
     for i in range(Nbas):
 
         ivec = [bas_ind[i][0],bas_ind[i][1],bas_ind[i][2]]
-        #print(ivec)
-
         phi_i = psi_r[:,ivec]
-
         phi_i[:,0] *= np.sqrt(w1[:]) 
-        phi_i[:,1] *= np.sqrt(w2[:])
+        phi_i[:,1] *= np.sqrt(w1[:])
         phi_i[:,2] *= np.sqrt(w3[:])
         dphi_i = dpsi_r[:,ivec]
         dphi_i[:,0] *= np.sqrt(w1[:])
-        dphi_i[:,1] *= np.sqrt(w2[:])
+        dphi_i[:,1] *= np.sqrt(w1[:])
         dphi_i[:,2] *= np.sqrt(w3[:])
 
-        for j in range(Nbas):
+        for j in range(i,Nbas):
             print("Element: ", str(i), str(j))
             jvec = [bas_ind[j][0],bas_ind[j][1],bas_ind[j][2]]
             phi_j = psi_r[:,jvec]
             phi_j[:,0] *= np.sqrt(w1[:])
-            phi_j[:,1] *= np.sqrt(w2[:])
+            phi_j[:,1] *= np.sqrt(w1[:])
             phi_j[:,2] *= np.sqrt(w3[:])
             dphi_j = dpsi_r[:,jvec]
             dphi_j[:,0] *= np.sqrt(w1[:])
-            dphi_j[:,1] *= np.sqrt(w2[:])
+            dphi_j[:,1] *= np.sqrt(w1[:])
             dphi_j[:,2] *= np.sqrt(w3[:])
-            #keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
-            pot = matelem_pes(phi_i, phi_j, x1,x2,x3, qgrid_ind)
-            hmat[i,j] =  pot
+            keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
+            pot = matelem_pes(phi_i, phi_j, x1,x1,x3, qgrid_ind)
+            hmat[i,j] = keo + pot
 
 
 
     print('\n'.join([' '.join(["  %15.3f"%item for item in row]) for row in hmat]))
-    eval, eigvec = np.linalg.eigh(hmat)
-    print(eval)
+    eval, eigvec = np.linalg.eigh(hmat,UPLO='U')
+    print(eval-eval[0])
     return hmat
 
 
