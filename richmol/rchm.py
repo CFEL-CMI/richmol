@@ -954,4 +954,3 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
             store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, \
                   tens_descr=tens_descr, units=tens_units)
 
-

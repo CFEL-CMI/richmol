@@ -2462,7 +2462,3 @@ def expecting(offset=0):
     else:
         return 1
 
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
