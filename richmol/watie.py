@@ -1,5 +1,6 @@
-"""Tools for computing rigid-molecule rotational energy levels, wave functions, and matrix elements
-of various rotation-dependent operators, such as laboratory-frame Cartesian tensor operators.
+"""Tools for computing rigid-molecule rotational energy levels and matrix elements
+of various rotation-dependent operators, such as laboratory-frame Cartesian tensor
+operators and arbitrary functions of Euler angles.
 """
 import numpy as np
 import math
@@ -14,6 +15,8 @@ from ctypes import CDLL, c_double, c_int, POINTER, RTLD_GLOBAL
 import warnings
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 from functools import wraps
+from richmol import rchm
+from scipy.sparse import coo_matrix
 
 
 bohr_to_angstrom = 0.529177249    # converts distances from atomic units to Angstrom
@@ -56,8 +59,9 @@ def counted(f):
 
 
 def atom_data_from_label(atom_label):
-    """Given atom label, returns its properties, e.g. mass. Combine atom labels with integer mass
-    numbers to specify different isotopologues, e.g., 'H2' (deuterium), 'C13', 'N15', etc.
+    """Given atom label, returns its properties, e.g. atomic mass.
+    Combine atom labels with integer mass numbers to specify different
+    isotopologues, e.g., 'H2' (deuterium), 'C13', 'N15', etc.
     """
     r = re.compile("([a-zA-Z]+)([0-9]+)")
     m = r.match(atom_label)
@@ -73,8 +77,8 @@ def atom_data_from_label(atom_label):
     try:
         ind = [iso.mass_number for iso in elem.isotopes].index(mass_number)
     except ValueError:
-        raise ValueError(f"Isotope '{mass_number}' of the element '{atom}' is not found in mendeleev " \
-                +f"database") from None
+        raise ValueError(f"Isotope '{mass_number}' of the element '{atom}' " + \
+            f"is not found in mendeleev database") from None
     mass = [iso.mass for iso in elem.isotopes][ind]
     return {"mass":mass}
 
@@ -84,29 +88,7 @@ class RigidMolecule():
 
     @property
     def XYZ(self):
-        """To set and return Cartesian coordinates of atoms in molecule
-
-        >>> d2s = RigidMolecule()
-        >>> d2s.XYZ = ( "angstrom", \
-                        "S",   0.00000000,        0.00000000,        0.10358697, \
-                        "H2", -0.96311715,        0.00000000,       -0.82217544, \
-                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
-        >>> print(d2s.XYZ['mass']) # print masses of atoms
-        [31.97207117  2.01410178  2.01410178]
-        >>> print(d2s.XYZ['label']) # print names of atoms
-        ['S' 'H2' 'H2']
-        >>> print(d2s.XYZ['xyz']) # print Cartesian coordinates of atoms (in Angstrom)
-        [[ 0.          0.          0.10358697]
-         [-0.96311715  0.         -0.82217544]
-         [ 0.96311715  0.         -0.82217544]]
-
-        >>> d2s.frame = "zxy" # change molecular frame where the axes are swapped places, e.g., xyz --> zxy
-        >>> print(d2s.XYZ['xyz'].round(8)) # print Cartesian coordinates of atoms in the new molecular frame
-        [[ 0.10358697  0.          0.        ]
-         [-0.82217544 -0.96311715  0.        ]
-         [-0.82217544  0.96311715  0.        ]]
-
-        """
+        """ To set and return Cartesian coordinates of atoms in molecule """
         try:
             x = self.atoms
         except AttributeError:
@@ -140,9 +122,9 @@ class RigidMolecule():
                 try:
                     x,y,z = (float(ww) for ww in w[1:])
                 except ValueError:
-                    raise ValueError(f"Atom specification '{atom_label}' in the XYZ file {arg} " \
-                            +f"is not followed by the three floating-point values of x, y, and z " \
-                            +f"atom coordinates") from None
+                    raise ValueError(f"Atom specification '{atom_label}' in the XYZ file {arg} " + \
+                        f"is not followed by the three floating-point values of x, y, and z " + \
+                        f"coordinates") from None
                 atom_mass = atom_data_from_label(atom_label.upper())["mass"]
                 xyz.append([x,y,z])
                 mass.append(atom_mass)
@@ -165,9 +147,9 @@ class RigidMolecule():
                         try:
                             x,y,z = (float(val) for val in arg[ielem+1:ielem+4])
                         except ValueError:
-                            raise ValueError(f"Atom specification '{atom_label}' is not followed " \
-                                    +f"by the three floating-point values of x, y, and z " \
-                                    +f"atom coordinates") from None
+                            raise ValueError(f"Atom specification '{atom_label}' is not followed " + \
+                                f"by the three floating-point values of x, y, and z " + \
+                                f"coordinates") from None
                         xyz.append([float(val)*to_angstrom for val in (x,y,z)])
                         mass.append(atom_mass)
                         label.append(atom_label)
@@ -180,39 +162,7 @@ class RigidMolecule():
 
     @property
     def tensor(self):
-        """To set and return molecule-fixed Cartesian tensors
-
-        >>> mol = RigidMolecule()
-        >>> # specify Cartesian coordinates of atoms (water molecule)
-        >>> mol.XYZ = ("angstrom", "O", 0,0,0, "H", 0.8, 0.6, 0, "H", -1,2, 0.6, 0)
-        >>> # add new rank-1 tensor with name "mu"
-        >>> mol.tensor = ("mu", [0.5, -0.1, 0])
-        >>> # add rank-2 tensor with name "ccsd(t) alpha"
-        >>> mol.tensor = ("ccsd(t) alpha", [[10,0,0],[0,20,0],[0,0,30]])
-        >>> print( mol.tensor["mu"] )
-        [ 0.5 -0.1  0. ]
-        >>> print( mol.tensor["ccsd(t) alpha"] )
-        [[10  0  0]
-         [ 0 20  0]
-         [ 0  0 30]]
-
-        >>> # change molecular frame to the principal axes system
-        >>> mol.frame = "pas"
-        >>> # print tensors "mu" and "ccsd(t) alpha" in the new molecular frame
-        >>> print(mol.tensor["mu"].round(6))
-        [-0.299156  0.400636  0.099985]
-        >>> print(mol.tensor["ccsd(t) alpha"].round(6))
-        [[18.865071  3.663798  3.167346]
-         [ 3.663798 12.076468 -1.865857]
-         [ 3.167346 -1.865857 29.058462]]
-
-        >>> # try to add new tensor with the name identical to the one added before
-        >>> mol.tensor = ("ccsd(t) alpha", [[10,1,0],[2,20,0],[3,0,30]])
-        Traceback (most recent call last):
-            ...
-        ValueError: Tensor with the name 'ccsd(t) alpha' already exists
-
-        """
+        """ To set and return molecule-fixed Cartesian tensors """
         try:
             x = self.tens
         except AttributeError:
@@ -224,8 +174,8 @@ class RigidMolecule():
             for name,array in tens.items():
                 ndim = array.ndim
                 if ndim>len(sa):
-                    raise ValueError(f"Number of dimensions for tensor '{name}' = {ndim} " \
-                            +f"exceeds the maximum = {len(sa)}") from None
+                    raise ValueError(f"Number of dimensions for tensor '{name}' = {ndim} " + \
+                        f"exceeds the allowed maximum = {len(sa)}") from None
                 key = "".join(sa[i]+si[i]+"," for i in range(ndim)) \
                     + "".join(si[i] for i in range(ndim)) + "->" \
                     + "".join(sa[i] for i in range(ndim))
@@ -276,62 +226,7 @@ class RigidMolecule():
 
     @property
     def frame(self):
-        """To define and change molecule-fixed frame (embedding)
-
-        >>> d2s = RigidMolecule()
-        >>> d2s.XYZ = ( "angstrom", \
-                        "S",   0.00000000,        0.00000000,        0.10358697, \
-                        "H2", -0.96311715,        0.00000000,       -0.82217544, \
-                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
-        >>> d2s.tensor = ("dipole moment", [0, 0, -9.70662418E-01])
-        >>> d2s.tensor = ("polarizability", [[30, -0.5, 0.03], \
-                                             [-0.5, 20, 1.3], \
-                                             [0.03, 1.3, 35]] )
-        >>> # change frame to principal axes system (PAS)
-        >>> d2s.frame = "pas"
-        >>> # print Cartesian coordinates of atoms in PAS
-        >>> print(d2s.XYZ['xyz'])
-        [[ 0.          0.10358697  0.        ]
-         [-0.96311715 -0.82217544  0.        ]
-         [ 0.96311715 -0.82217544  0.        ]]
-        >>> # print tensor "dipole moment" in PAS
-        >>> print(d2s.tensor['dipole moment'])
-        [ 0.         -0.97066242  0.        ]
-        >>> # print tensor "polarizability" in PAS
-        >>> print(d2s.tensor['polarizability'])
-        [[ 3.0e+01  3.0e-02 -5.0e-01]
-         [ 3.0e-02  3.5e+01  1.3e+00]
-         [-5.0e-01  1.3e+00  2.0e+01]]
-        >>> # print type of frame (str) and rotation matrix
-        >>> frame_type, rotation_matrix = d2s.frame
-        >>> print(frame_type)
-        pas
-        >>> print(rotation_matrix)
-        [[1. 0. 0.]
-         [0. 0. 1.]
-         [0. 1. 0.]]
-
-        >>> # add frame that is rotated to principal axes of tensor "pol"
-        >>> d2s.frame = "pol"
-        Traceback (most recent call last):
-            ...
-        KeyError: "Tensor 'pol' was not initialised"
-        >>> d2s.frame = "polarizability" # wait, we don't have tensor "pol" but "polarizability"
-        >>> # print frame type and total (collective) rotation matrix
-        >>> frame_type, rotation_matrix = d2s.frame
-        >>> print(frame_type)
-        pas,polarizability
-        >>> print(rotation_matrix.round(6))
-        [[-0.049338 -0.99511   0.085563]
-         [ 0.998779 -0.048939  0.006765]
-         [-0.002544  0.085792  0.99631 ]]
-        >>> # check if "polarizability" tensor is diagonal in new frame
-        >>> print(d2s.tensor["polarizability"].round(6))
-        [[19.863432  0.        0.      ]
-         [ 0.       30.024702  0.      ]
-         [ 0.        0.       35.111866]]
-
-        """
+        """ To define and change molecule-fixed frame (embedding) """
         try:
             rotmat = self.frame_rotation
             frame_type = self.frame_type
@@ -399,114 +294,36 @@ class RigidMolecule():
 
     @property
     def B(self):
-        """Returns Bx, By, Bz rotational constants in units of cm^-1
-
-        >>> d2s = RigidMolecule()
-        >>> d2s.XYZ = ( "angstrom", \
-                        "S",   0.00000000,        0.00000000,        0.10358697, \
-                        "H2", -1.26311715,        0.00000000,       -0.82217544, \
-                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
-        >>> Bx, By, Bz = d2s.B
-        Traceback (most recent call last):
-            ...
-        RuntimeError: Can't compute rotational constants inertia tensor is not diagonal = [[ 3.066  -0.     -0.4968]
-         [-0.      8.1376 -0.    ]
-         [-0.4968 -0.      5.0716]], max offdiag = 0.4968
-
-        >>> # to compute rotational constants we must use principal axes frame
-        >>> d2s.frame = "pas"
-        >>> Bx, By, Bz = d2s.B
-        >>> print(round(Bx,4), round(By,4), round(Bz,4))
-        5.715 3.2494 2.0716
-
-        """
+        """ Returns Bx, By, Bz rotational constants in units of cm^-1 """
         imom = self.imom()
         tol = settings.imom_offdiag_tol
         if np.any(np.abs( np.diag(np.diag(imom)) - imom ) > tol):
-            raise RuntimeError("Can't compute rotational constants " \
-                    +f"inertia tensor is not diagonal = {imom.round(4)}, " \
-                    +f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom)).round(4)}") from None
+            raise RuntimeError("Can't compute rotational constants, " + \
+                f"inertia tensor is not diagonal = {imom.round(4)}, " + \
+                f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom)).round(4)}") from None
         convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
         return [convert_to_cm/val for val in np.diag(imom)]
 
 
     @B.setter
     def B(self, val):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.B") from None
+        raise AttributeError(f"Setting {retrieve_name(self)}.B is not permitted") from None
 
 
     @property
     def kappa(self):
-        """Returns asymmtery parameter kappa = (2*B-A-C)/(A-C)
-
-        >>> d2s = RigidMolecule()
-        >>> d2s.XYZ = ( "angstrom", \
-                        "S",   0.00000000,        0.00000000,        0.10358697, \
-                        "H2", -1.26311715,        0.00000000,       -0.82217544, \
-                        "H2",  0.96311715,        0.00000000,       -0.82217544 )
-        >>> d2s.frame = "pas" # to compute rotational constants we must use principal axes frame
-        >>> asymmetry = d2s.kappa
-        >>> print(round(asymmetry,4))
-        -0.3534
-
-        """
+        """ Returns asymmtery parameter kappa = (2*B-A-C)/(A-C) """
         A, B, C = reversed(sorted(self.B))
         return (2*B-A-C)/(A-C)
 
 
     @kappa.setter
     def kappa(self, val):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.kappa") from None
+        raise AttributeError(f"Setting {retrieve_name(self)}.kappa is not permitted") from None
 
 
     def imom(self):
-        """Computes moments of inertia tensor
-
-        >>> camphor = RigidMolecule()
-        >>> camphor.XYZ = ("angstrom", \
-                    "O",     -2.547204,    0.187936,   -0.213755, \
-                    "C",     -1.382858,   -0.147379,   -0.229486, \
-                    "C",     -0.230760,    0.488337,    0.565230, \
-                    "C",     -0.768352,   -1.287324,   -1.044279, \
-                    "C",     -0.563049,    1.864528,    1.124041, \
-                    "C",      0.716269,   -1.203805,   -0.624360, \
-                    "C",      0.929548,    0.325749,   -0.438982, \
-                    "C",      0.080929,   -0.594841,    1.638832, \
-                    "C",      0.791379,   -1.728570,    0.829268, \
-                    "C",      2.305990,    0.692768,    0.129924, \
-                    "C",      0.730586,    1.139634,   -1.733020, \
-                    "H",     -1.449798,    1.804649,    1.756791, \
-                    "H",     -0.781306,    2.571791,    0.321167, \
-                    "H",      0.263569,    2.255213,    1.719313, \
-                    "H",      1.413749,   -1.684160,   -1.316904, \
-                    "H",     -0.928638,   -1.106018,   -2.110152, \
-                    "H",     -1.245108,   -2.239900,   -0.799431, \
-                    "H",      1.816886,   -1.883799,    1.170885, \
-                    "H",      0.276292,   -2.687598,    0.915376, \
-                    "H",     -0.817893,   -0.939327,    2.156614, \
-                    "H",      0.738119,   -0.159990,    2.396232, \
-                    "H",      3.085409,    0.421803,   -0.586828, \
-                    "H",      2.371705,    1.769892,    0.297106, \
-                    "H",      2.531884,    0.195217,    1.071909, \
-                    "H",      0.890539,    2.201894,   -1.536852, \
-                    "H",      1.455250,    0.830868,   -2.487875, \
-                    "H",     -0.267696,    1.035608,   -2.160680)
-        >>> imom = camphor.imom()
-        >>> print(imom.round(6))
-        [[ 3.49280826e+02 -9.59405000e-01  1.09125800e+00]
-         [-9.59405000e-01  4.27045792e+02 -8.05120000e-02]
-         [ 1.09125800e+00 -8.05120000e-02  4.60626510e+02]]
-
-        >>> # rotate to principal axes system
-        >>> camphor.frame = "pas"
-        >>> imom = camphor.imom()
-        >>> # check if moments of inertia tensor is now diagonal
-        >>> print(imom.round(6))
-        [[349.25832    0.         0.      ]
-         [  0.       427.057364   0.      ]
-         [  0.         0.       460.637444]]
-
-        """
+        """ Computes moments of inertia tensor """
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
         cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0) / np.sum(mass)
@@ -526,59 +343,7 @@ class RigidMolecule():
 
 
     def gmat(self):
-        """Rotational kinetic energy matrix
-
-        >>> camphor = RigidMolecule()
-        >>> camphor.XYZ = ("angstrom", \
-                    "O",     -2.547204,    0.187936,   -0.213755, \
-                    "C",     -1.382858,   -0.147379,   -0.229486, \
-                    "C",     -0.230760,    0.488337,    0.565230, \
-                    "C",     -0.768352,   -1.287324,   -1.044279, \
-                    "C",     -0.563049,    1.864528,    1.124041, \
-                    "C",      0.716269,   -1.203805,   -0.624360, \
-                    "C",      0.929548,    0.325749,   -0.438982, \
-                    "C",      0.080929,   -0.594841,    1.638832, \
-                    "C",      0.791379,   -1.728570,    0.829268, \
-                    "C",      2.305990,    0.692768,    0.129924, \
-                    "C",      0.730586,    1.139634,   -1.733020, \
-                    "H",     -1.449798,    1.804649,    1.756791, \
-                    "H",     -0.781306,    2.571791,    0.321167, \
-                    "H",      0.263569,    2.255213,    1.719313, \
-                    "H",      1.413749,   -1.684160,   -1.316904, \
-                    "H",     -0.928638,   -1.106018,   -2.110152, \
-                    "H",     -1.245108,   -2.239900,   -0.799431, \
-                    "H",      1.816886,   -1.883799,    1.170885, \
-                    "H",      0.276292,   -2.687598,    0.915376, \
-                    "H",     -0.817893,   -0.939327,    2.156614, \
-                    "H",      0.738119,   -0.159990,    2.396232, \
-                    "H",      3.085409,    0.421803,   -0.586828, \
-                    "H",      2.371705,    1.769892,    0.297106, \
-                    "H",      2.531884,    0.195217,    1.071909, \
-                    "H",      0.890539,    2.201894,   -1.536852, \
-                    "H",      1.455250,    0.830868,   -2.487875, \
-                    "H",     -0.267696,    1.035608,   -2.160680)
-        >>> gmat = camphor.gmat()
-        >>> for i in range(3):
-        ...     for j in range(3):
-        ...         print("G("+"xyz"[i]+","+"xyz"[j]+") = ", gmat[i,j].round(6))
-        G(x,x) =  0.096529
-        G(x,y) =  0.000217
-        G(x,z) =  -0.000229
-        G(y,x) =  0.000217
-        G(y,y) =  0.07895
-        G(y,z) =  1.3e-05
-        G(z,x) =  -0.000229
-        G(z,y) =  1.3e-05
-        G(z,z) =  0.073195
-
-        >>> # test for linear molecule
-        >>> HF = RigidMolecule()
-        >>> HF.XYZ = ("angstrom", "F", 0,0,0, "H", 0,0,0.91)
-        >>> gmat = HF.gmat()
-        Warning: rotational kinetic energy matrix is singular, singular element index = 2, singular value = 0.0
-        this is fine for linear molecule: set 1/0.0=0
-
-        """
+        """ Computes rotational kinetic energy matrix """
         convert_to_cm = planck * avogno * 1e+16 / (4.0 * np.pi * np.pi * vellgt)
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
@@ -618,17 +383,17 @@ class RigidMolecule():
                 dmat[i,i] = 1.0/sv[i]
             else:
                 no_sing += 1
-                print(f"Warning: rotational kinetic energy matrix is singular, " \
-                        +f"singular element index = {i}, singular value = {sv[i]}")
+                print(f"Warning: rotational kinetic energy matrix is singular, " + \
+                    f"singular element index = {i}, singular value = {sv[i]}")
                 if no_sing==1 and self.linear() is True:
                     print(f"this is fine for linear molecule: set 1/{sv[i]}=0")
                     dmat[i,i] = 0
                 else:
                     ifstop = True
         if ifstop is True:
-            raise RuntimeError(f"Rotational kinetic energy matrix g-small:\n{gsmall}\ncontains " \
-                    +f"singular elements:\n{sv}\nplease check your input geometry " \
-                    +f"in {retrieve_name(self)}.XYZ")
+            raise RuntimeError(f"Rotational kinetic energy matrix g-small:\n{gsmall}\ncontains " + \
+                f"singular elements:\n{sv}\nplease check your input geometry " + \
+                f"in {retrieve_name(self)}.XYZ")
 
         gbig = np.dot(umat, np.dot(dmat, vmat))
         gbig *= convert_to_cm
@@ -652,59 +417,69 @@ class RigidMolecule():
 
 
 class PsiTable():
-    """Basic class to handle operations on rotational wavefunctions, which are represented
-    by a table of superposition coefficients with different primitive basis functions in rows
-    and different states in columns.
+    """Basic class to handle operations on rotational wavefunctions.
+
+    The rotational wavefunctions are represented by a table of superposition
+    coefficients, where different rows correspond to different primitive basis
+    functions (symmetric-top functions), and different columns correspond
+    to different eigenstates.
+
+    Args:
+        prim : list
+            List of primitive quanta, can be list of tuples of many quanta.
+        stat : list
+            List of eigenstate quanta (assignments), can be list of tuples of many quanta.
+        coefs : numpy ndarray (len(prim), len(stat))
+            Wavefunction superposition coefficients.
 
     Attributes:
         table : structured numpy array
-            table['c'][:,:] is a numpy.complex128 matrix, holds wafefunctions' superposition
-            coefficients, with primitive basis functions stored in rows and states in columns.
-            table['prim'][:] is an array of tuples of integer quantum numbers (q1, q2, ...)
-            used for assignment of different primitive basis functions.
-            table['stat'][:] is an array of tuples of U10 quantum numbers (s1, s2, ...)
-            used for assignment of different states.
-        enr : numpy array, enr.shape = table['c'].shape[1]
-            Contains states' energies. This attribute is dynamically added as part of unitary
-            transformation of the wavefunction set in rotate().
-        sym : numpy array, sym.shape = table['c'].shape[1]
-            Contains states' symmetry labels. This attribute is dynamically added as part of ....
+            table['c'][:,:] is a numpy.complex128 matrix containing wavefunction
+                superposition coefficients, with its rows corresponding to different
+                primitive basis functions (symmetric-top functions)
+                and columns - to different eigenstates.
+            table['prim'][:] is an array of tuples of integer quantum numbers
+                (q1, q2, ...) labelling different primitive basis functions.
+            table['stat'][:] is an array of tuples of U10 quantum numbers
+                (s1, s2, ...) labellling different eigenstates.
+        enr : numpy array, enr.dtype = float, enr.shape = table['c'].shape[1]
+            Energies of eigenstates. Added dynamically at a stage of wave
+            function unitary transformation using PsiTable.rotate.
+        sym : numpy array, sym.dtype = str, sym.shape = table['c'].shape[1]
+            Symmetry labels of eigenstates.
     """
 
     def __init__(self, prim, stat, coefs=None):
-        """Initialize PsiTable from the list of primitive quanta 'prim', state assignments 'stat',
-        and, if provided, matrix of superposition coefficients 'coefs' (zero matrix by default).
-        """
+
         if not isinstance(prim, (list, tuple, np.ndarray)):
-            raise TypeError(f"Bad argument type '{type(prim)}' for set of primitive quanta, expected " \
-                    +f"list, tuple or numpy array") from None
+            raise TypeError(f"Bad argument type '{type(prim)}' for 'prim'") from None
         if not isinstance(stat, (list, tuple, np.ndarray)):
-            raise TypeError(f"Bad argument type '{type(stat)}' for set of state quanta, expected " \
-                    +f"list, tuple or numpy array") from None
+            raise TypeError(f"Bad argument type '{type(stat)}' for 'stat'") from None
         try:
             x = [int(val) for elem in prim for val in elem]
         except ValueError:
-            raise ValueError(f"Failed to convert element in 'prim' into integer") from None
+            raise ValueError(f"Failed to convert elements in 'prim' into integers") from None
 
         nprim = len(prim)
         nstat = len(stat)
-        assert (nprim>0), f"Number of primitives = 0"
-        assert (nstat>0), f"Number of states = 0"
-        assert (nprim>=nstat), f"Number of primitives is smaller than number of states, i.e. " \
-                +f"nprim < nstat: {nprim} < {nstat}"
+        assert (nprim>0), f"len(prim) = 0"
+        assert (nstat>0), f"len(stat) = 0"
+        assert (nprim>=nstat), f"len(prim) < len(stat): {nprim} < {nstat}"
 
         nelem_stat = list(set(len(elem) for elem in stat))
         if len(nelem_stat)>1:
-            raise ValueError(f"Different lengths for different elements in 'stat'") from None
+            raise ValueError(f"Inconsistent lengths across elements of 'stat'") from None
         nelem_prim = list(set(len(elem) for elem in prim))
         if len(nelem_prim)>1:
-            raise ValueError(f"Different lengths for different elements in 'prim'") from None
+            raise ValueError(f"Inconsistent lengths across elements of 'prim'") from None
 
-        # check for duplicates in prim and stat
+        # check for duplicates in prim
         if len(list(set(tuple(p) for p in prim))) != len(prim):
-            raise ValueError(f"Found duplicate elements in 'prim'")
+            raise ValueError(f"Duplicate elements in 'prim'")
+
+        # check for duplicates in stat
         # if len(list(set(tuple(s) for s in stat))) != len(stat):
-        #     raise ValueError(f"found duplicate elements in 'stat'")
+        #     raise ValueError(f"Duplicate elements in 'stat'")
 
         dt = [('prim', 'i4', (nelem_prim)), ('stat', 'U10', (nelem_stat)), ('c', np.complex128, [nstat])]
         self.table = np.zeros(nprim, dtype=dt)
@@ -715,20 +490,18 @@ class PsiTable():
             try:
                 shape = coefs.shape
             except AttributeError:
-                raise TypeError(f"Bad argument type '{type(coefs)}' for coefficients matrix, expected " \
-                        +f"numpy array") from None
+                raise TypeError(f"Bad argument type '{type(coefs)}' for 'coefs'") from None
             if any(x!=y for x,y in zip(shape,[nprim,nstat])):
-                raise ValueError(f"Shape of the coefficients matrix = {shape} is not aligned with the " \
-                        +f"number of primitives = {nprim} and number of states = {nstat}") from None
+                raise ValueError(f"Shapes of 'coefs' = {shape}, 'prim' = {nprim} " + \
+                    f"and 'stat' = {nstat} are not aligned: {shape} != ({nprim}, {nstat})") from None
             self.table['c'][:,:] = coefs
 
 
     @classmethod
     def fromPsiTable(cls, arg):
-        """Initialize PsiTable from an argument of PsiTable type using deepcopy
-        """
+        """ Initializes PsiTable from an argument of PsiTable type using deepcopy """
         if not isinstance(arg, PsiTable):
-            raise TypeError(f"Bad argument type '{type(arg)}', expected 'PsiTable'") from None
+            raise TypeError(f"Bad argument type '{type(arg)}'") from None
         cls = copy.deepcopy(arg)
         return cls
 
@@ -740,12 +513,12 @@ class PsiTable():
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under sum have different sets of primitive quanta " \
-                    +f"(table['prim'] attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sum have different sets of primitive quanta " + \
+                f"(table['prim'] attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under sum have different sets of state quanta " \
-                    +f"(table['stat'] attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sum have different sets of state quanta " + \
+                f"(table['stat'] attributes do not match)") from None
 
         nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
@@ -762,12 +535,12 @@ class PsiTable():
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'table'") from None
 
         if not np.array_equal(self.table['prim'], arg.table['prim']):
-            raise ValueError(f"'{type(self)}' objects under subtr have different sets of primitive quanta " \
-                    +f"(table['prim'] attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sub have different sets of primitive quanta " + \
+                f"(table['prim'] attributes do not match)") from None
 
         if not np.array_equal(self.table['stat'], arg.table['stat']):
-            raise ValueError(f"'{type(self)}' objects under subtr have different sets of state quanta " \
-                    +f"(table['stat'] attributes do not match)") from None
+            raise ValueError(f"'{type(self)}' objects under sub have different sets of state quanta " + \
+                f"(table['stat'] attributes do not match)") from None
 
         nprim, nstat = self.table['c'].shape
         prim = self.table['prim']
@@ -785,8 +558,8 @@ class PsiTable():
             coefs = self.table['c'].copy()
             coefs *= arg
         else:
-            raise TypeError(f"Unsupported operand type(s) for '*': '{self.__class__.__name__}' and " \
-                    +f"'{arg.__class__.__name__}'") from None
+            raise TypeError(f"Unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
+                f"'{arg.__class__.__name__}'") from None
         return PsiTable(prim, stat, coefs)
 
 
@@ -796,7 +569,14 @@ class PsiTable():
 
 
     def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
-        """ Appends two wavefunction sets together """
+        """Appends two wavefunction sets together: self + arg.
+
+        If requested:
+            'del_duplicate_stat' = True: deletes duplicate states.
+            'del_zero_stat' = True: deletes states with all coefficients below 'thresh'.
+            'del_zero_prim' = True: deletes primitive functions that have negligible
+                contribution (below 'thresh') to all states.
+        """
         try:
             x = arg.table
         except AttributeError:
@@ -809,12 +589,9 @@ class PsiTable():
         prim2 = [tuple(x) for x in arg.table['prim']]
         stat2 = [tuple(x) for x in arg.table['stat'][:nstat2]]
 
-        if len(stat1[0]) != len(stat2[0]):
-            raise ValueError(f"Two sets in append have different length of the elements in 'stat'") \
-                    from None
-        if len(prim1[0]) != len(prim2[0]):
-            raise ValueError(f"Two sets in append have different length of the elements in 'prim'") \
-                    from None
+        if len(stat1[0]) != len(stat2[0]) or len(prim1[0]) != len(prim2[0]):
+            raise ValueError(f"Shapes of wavefunction sets are not aligned: " +\
+                +f"{(len(prim1[0]), len(stat1[0]))} != {(len(prim2[0]), len(stat2[0]))}") from None
 
         prim = list(set(prim1 + prim2))
         stat = stat1 + stat2
@@ -841,19 +618,13 @@ class PsiTable():
 
         # check for duplicates in 'stat'
         if len(list(set(tuple(s) for s in stat))) != len(stat):
-            raise ValueError(f"Two sets in append have overlapping 'stat' elements that correspond " \
-                    +f"to different coefficient vectors, try option 'del_duplicate_stat=True'") from None
+            raise ValueError(f"Found duplicate eigenstates after adding two wavefunction sets") from None
 
         return PsiTable(prim, stat, coefs)
 
 
     def overlap(self, arg):
-        """Computes overlap < self | arg >
-
-        Args:
-            arg : PsiTable
-                Wavefunction set to compute overlap with
-        """
+        """ Computes overlap < self | arg > """
         try:
             x = arg.table
         except AttributeError:
@@ -874,20 +645,19 @@ class PsiTable():
 
 
     def rotate(self, arg, stat=None):
-        """Applies unitary transformation to wavefunction set
+        """Applies unitary transformation.
 
         Args:
-            arg : numpy.ndarray or tuple (numpy.ndarray, numpy.ndarray)
-                Contains unitary transformation matrix and, if provided, a set of associated
-                state energies (second in tuple).
-                The number of columns in unitary transformation matrix must be equal to
-                the number of states self.table['c'].shape[1].
+            arg : numpy 2D array or tuple (numpy 2D array, 1D array)
+                Unitary transformation matrix (2D array) and, if provided,
+                a set of eigenstate energies (1D array)
             stat : list
-                User-defined assignments for resulting unitary-transformed wavefunctions.
+                Custom eigenstate assignments for unitary-transformed wavefunctions.
 
         Returns:
-            Resulting unitary-transformed wavefunction set as PsiTable object.
-            If state energies are provided in 'arg', they are stored in self.enr.
+            PsiTable
+                Unitary-transformed wavefunction set. If energies are provided,
+                these are stored in PsiTable.enr.
         """
         try:
             rotmat, enr = arg
@@ -898,30 +668,28 @@ class PsiTable():
         try:
             shape = rotmat.shape
         except AttributeError:
-            raise AttributeError(f"Bad argument type '{type(rotmat)}' for rotation matrix, expected " \
-                    +f"numpy array") from None
+            raise AttributeError(f"Bad argument type '{type(rotmat)}' for rotation matrix") from None
 
         if enr is None:
             pass
         elif isinstance(enr, (list, tuple, np.ndarray)):
             if shape[0] != len(enr):
-                raise ValueError(f"Number of elements in the energy array = {len(enr)} is not aligned " \
-                        +f"with the number of rows in the rotation matrix = {shape[0]}") from None
+                raise ValueError(f"Shapes of rotation matrix = {shape} and energy array " + \
+                    f"= {len(enr)} are not aligned: {shape[0]} != {len(enr)}") from None
         else:
-            raise ValueError(f"Bad argument type '{type(enr)}' for a set of associated energies, " \
-                    +f"expected list, tuple, numpy array") from None
+            raise ValueError(f"Bad argument type '{type(enr)}' for energy array") from None
 
         nstat = self.table['c'].shape[1]
         if shape[1] != nstat:
-            raise ValueError(f"Number of columns in the rotation matrix = {shape[1]} is not aligned " \
-                    +f"with the number ofstates = {nstat}") from None
+            raise ValueError(f"Shapes of rotation matrix = {shape} and eigenstate vector " + \
+                f"= {self.table['c'].shape} are no aligned, {shape[1]} != {nstat}") from None
 
         if np.all(np.abs(rotmat) < settings.rotmat_small_elem):
-            raise ValueError(f"Rotation matrix has all its elements equal to zero") from None
+            raise ValueError(f"All elements of rotation matrix are zero (< {settings.rotmat_small_elem})") from None
         if np.any(np.abs(rotmat) > settings.rotmat_large_elem):
-            raise ValueError(f"Rotation matrix has too large values of its elements") from None
+            raise ValueError(f"Some/all of rotation matrix elements are too large (> {settings.rotmat_large_elem})") from None
         if np.any(np.isnan(rotmat)):
-            raise ValueError(f"Rotation matrix has some values of its elements equal to NaN") from None
+            raise ValueError(f"Some/all of rotation matrix elements are NaN") from None
 
         coefs = np.dot(self.table['c'][:,:], rotmat.T)
 
@@ -938,8 +706,8 @@ class PsiTable():
                 ll = [ elem for i in range(len(ind)) for elem in list(elem_stat[i])+[c2[i]] ]
                 stat.append(ll)
         elif len(stat) != rotmat.shape[0]:
-            raise ValueError(f"Number of elements in the state assignment = {len(stat)} is not aligned " \
-                    +f"with the number of rows in the rotation matrix = {rotmat.shape[0]}") from None
+            raise ValueError(f"Shapes of rotation matrix = {rotmat.shape} and 'stat' = {len(stat)} " + \
+                f"are not aligned: {rotmat.shape[0]} != {len(stat)}") from None
         prim = [elem for elem in self.table['prim']]
         res = PsiTable(prim, stat, coefs)
 
@@ -959,8 +727,7 @@ class PsiTable():
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
         else:
-            raise ValueError(f"Expecting either all 'prim', 'stat', and 'coefs' arguments " \
-                    +f"to be defined or none of them") from None
+            raise ValueError(f"Expecting zero or at least three arguments 'prim', 'stat', and 'coefs'") from None
         nstat = coefs.shape[1]
         ind = [istat for istat in range(nstat) if all(abs(val) < thresh for val in coefs[:,istat])]
         coefs2 = np.delete(coefs, ind, 1)
@@ -981,8 +748,7 @@ class PsiTable():
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
         else:
-            raise ValueError(f"Expecting either all 'prim', 'stat', and 'coefs' arguments " \
-                    +f"to be defined or none of them") from None
+            raise ValueError(f"Expecting zero or at least three arguments 'prim', 'stat', and 'coefs'") from None
         nprim = coefs.shape[0]
         nstat = coefs.shape[1]
         ind = [iprim for iprim in range(nprim) if all(abs(val) < thresh for val in coefs[iprim,:])]
@@ -1004,8 +770,7 @@ class PsiTable():
         elif all(x is not None for x in (prim,stat,coefs)):
             freturn = lambda prim, stat, coefs: (prim, stat, coefs)
         else:
-            raise ValueError(f"Expecting either all 'prim', 'stat', and 'coefs' arguments " \
-                    +f"to be defined or none of them") from None
+            raise ValueError(f"Expecting zero or at least three arguments 'prim', 'stat', and 'coefs'") from None
         nstat = coefs.shape[1]
         ind = []
         for istat in range(nstat):
@@ -1021,34 +786,35 @@ class PsiTable():
 
 
 class PsiTableMK():
-    """Basic class to handle operations on rotational wavefunctions, which are represented
-    by two tables of superposition coefficients (PsiTable class), one for k-subset and one for
-    m-subset of quantum numbers.
+    """Basic class to handle operations on rotational wavefunctions, which are
+    represented by two tables of superposition coefficients (PsiTable class),
+    one for molecule-fixed quanta K (K-subspace) and another for laboratory-frame
+    quanta M (M-subspace).
 
     Attributes:
-        k : PsiTable  class
-            Holds table of superposition coefficients for k-subset.
-        m : PsiTable  class
-            Holds table of superposition coefficients for m-subset.
+        k : PsiTable
+            Table of superposition coefficients for the K-subspace.
+        m : PsiTable
+            Table of superposition coefficients for the M-subspace.
     """
 
     def __init__(self, psik, psim):
         if not isinstance(psik, PsiTable):
-            raise TypeError(f"Bad argument type '{type(psik)}', expected 'PsiTable'")
+            raise TypeError(f"Bad argument type '{type(psik)}'")
         if not isinstance(psim, PsiTable):
-            raise TypeError(f"Bad argument type '{type(psim)}', expected 'PsiTable'")
+            raise TypeError(f"Bad argument type '{type(psim)}'")
 
         # initialize using PsiTable.__init__
         # this way some of the attributes (added dynamically) in psik and psim will be lost
-        #
-        # nstat = psim.table['c'].shape[1]
-        # self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
-        # nstat = psik.table['c'].shape[1]
-        # self.k = PsiTable(psik.table['prim'], psik.table['stat'][:nstat], psik.table['c'])
+        '''
+        nstat = psim.table['c'].shape[1]
+        self.m = PsiTable(psim.table['prim'], psim.table['stat'][:nstat], psim.table['c'])
+        nstat = psik.table['c'].shape[1]
+        self.k = PsiTable(psik.table['prim'], psik.table['stat'][:nstat], psik.table['c'])
+        '''
 
         # initialize using PsiTable.fromPsiTable
         # this way psik and psim will be deep-copied keeping all dynamically added attributes
-        #
         self.m = PsiTable.fromPsiTable(psim)
         self.k = PsiTable.fromPsiTable(psik)
 
@@ -1094,48 +860,17 @@ class PsiTableMK():
 
 
     def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
-        """Appends two wavefunction sets together
+        """Appends two wavefunction sets together: self + arg.
 
-        If requested, can delete duplicate states ('del_duplicate_stat' = True),
-        delete states with all coefficients below 'thresh' ('del_zero_stat' = True),
-        and delete primitive functions that have negligible contribution (below 'thresh')
-        to all states ('del_zero_prim' = True)
+        If requested:
+            'del_duplicate_stat' = True: deletes duplicate states.
+            'del_zero_stat' = True: deletes states with all coefficients below 'thresh'.
+            'del_zero_prim' = True: deletes primitive functions that have negligible
+                contribution (below 'thresh') to all states.
 
         Args:
-            arg : PsiTableMK class
-                Wavefunction set to be appended to the current set
-
-        Examples:
-
-        >>> J1 = 2
-        >>> J2 = 3
-        >>> bas1 = SymtopBasis(J1) # initialize basis, PsiTableMK type
-        >>> bas2 = SymtopBasis(J2)
-        >>> bas = bas1.append(bas1) # try to add two sets bas1 and bas2 that have identical states
-        Traceback (most recent call last):
-            ...
-        ValueError: Two sets in append have overlapping 'stat' elements that correspond to different coefficient vectors, try option 'del_duplicate_stat=True'
-
-        >>> # to avoid this problem, we ask to delete all duplicate states in the resulting set 'bas'
-        >>> bas = bas1.append(bas1, del_duplicate_stat=True)
-        >>> # since we expect that 'bas' == 'bas1', the number of state and primitive functions must be equal in two sets
-        >>> no_prim, no_states = bas.k.table['c'].shape
-        >>> no_prim1, no_states1 = bas1.k.table['c'].shape
-        >>> print(no_prim, no_states, no_prim1, no_states1)
-        5 5 5 5
-
-        >>> # append different sets of functions 'bas1' and 'bas2'
-        >>> bas = bas1.append(bas2)
-        >>> no_prim, no_states = bas.k.table['c'].shape
-        >>> no_prim1, no_states1 = bas1.k.table['c'].shape
-        >>> no_prim2, no_states2 = bas2.k.table['c'].shape
-        >>> print(no_prim1, no_states1)
-        5 5
-        >>> print(no_prim2, no_states2)
-        7 7
-        >>> print(no_prim, no_states)
-        12 12
-
+            arg : PsiTableMK
+                Appended wavefunction set.
         """
         try:
             x = arg.m
@@ -1151,33 +886,21 @@ class PsiTableMK():
 
 
     def overlap(self, arg):
-        """Computes overlap between wavefunction sets < self | arg >
+        """Computes overlap < self | arg >.
 
-        If one return value is requested, computes only overlap between the k-subspaces,
-        in case of two requested return values, computes overlaps between both k- and m-subspaces
+        If one return value is requested, the function computes overlap for
+        K-subspaces only, when two return values are requested, it computes
+        overlaps for both K- and M-subspaces.
 
         Args:
-            arg : PsiTableMK class
-                Wavefunction set to compute the overlap with
+            arg : PsiTableMK
+                Wavefunction set for overlap.
 
-        Examples:
-
-        >>> J = 10
-        >>> bas1 = SymtopBasis(J) # initialize basis, PsiTableMK type
-        >>> bas2 = SymtopBasis(J)
-        >>> ovlp = bas1.overlap(bas2) # compute overlap between k-subspaces of bas1 and bas2
-        >>> print(np.diag(ovlp).round(6)) # since bas1 == bas2, the overlap must be the identity matrix
-        [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
-         1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
-         1.+0.j]
-
-        >>> # if two return values requested, it returns also overlap between the m-subspaces
-        >>> ovlp, ovlp_m = bas1.overlap(bas2)
-        >>> print(np.diag(ovlp_m).round(6))
-        [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
-         1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
-         1.+0.j]
-
+        Returns:
+            ovlp_k : numpy 2D array
+                Overlap for K-subspace.
+            (optional) ovlp_m : numpy 2D array
+                Overlap for M-subspace.
         """
         howmany = expecting(offset=2)
         try:
@@ -1223,53 +946,27 @@ class PsiTableMK():
 
 
     def rotate(self, krot=None, mrot=None, kstat=None, mstat=None):
-        """Applies unitary transformation to wavefunction sets
+        """Applies unitary transformation.
 
         Args:
-            krot : numpy.ndarray or tuple (numpy.ndarray, numpy.ndarray)
-                Unitary transformation matrix for k-subspace wavefunctions and, if provided,
-                a set of corresponding state energies.
-                The number of columns in unitary transformation matrix must be equal to
-                the number of states self.k.table['c'].shape[1].
-            mrot : numpy.ndarray or tuple (numpy.ndarray, np.ndarray)
-                Unitary transformation matrix for m-subspace wavefunctions and, if provided,
-                a set of corresponding state energies.
-                The number of columns in unitary transformation matrix must be equal to
-                the number of states self.m.table['c'].shape[1].
+            krot : numpy 2D array or tuple (numpy 2D array, 1D array)
+                Unitary transformation matrix (2D array) and, if provided,
+                a set of eigenstate energies (1D array) for the K-subspace.
+            mrot : numpy 2D array or tuple (numpy 2D array, 1D array)
+                Unitary transformation matrix (2D array) and, if provided,
+                a set of eigenstate energies (1D array) for the M-subspace.
             kstat : list
-                User-defined assignment of the resulting unitary-transformed k-subspace wavefunctions.
+                Custom eigenstate assignments for unitary-transformed wavefunctions
+                in the K-subspace.
             mstat : list
-                User-defined assignment of the resulting unitary-transformed m-subspace wavefunctions.
+                Custom eigenstate assignments for unitary-transformed wavefunctions
+                in the M-subspace.
 
         Returns:
-            Unitary-transformed wavefunction set as PsiTableMK object.
-            If state energies are provided in 'krot' or/and 'mrot', they are stored
-            in self.k.enr and self.m.enr, respectively.
-
-        Examples:
-
-        >>> # set up symmetric-top basis for J=10, compute matrix representation
-        >>> # of rigid-rotor Hamiltonian, compute its eigenvalues and eigenvectors
-        >>> J = 10
-        >>> bas = SymtopBasis(J)
-        >>> hamiltonian = 10 * Jxx(bas) + 12 * Jyy(bas) + 14 * Jzz(bas)
-        >>> ham_matrix = bas.overlap(hamiltonian)
-        >>> eigenval, eigenvec = np.linalg.eigh(ham_matrix.real)
-
-        >>> # rotate initial basis 'bas' using Hamiltonian eigenvector matrix
-        >>> bas2 = bas.rotate(krot=(eigenvec.T, eigenval))
-
-        >>> # compute matrix representation of the above Hamiltonian in the new 'rotated'
-        >>> # basis 'bas2', check if it is diagonal, with diagonal elements given by the eigenvalues
-        >>> hamiltonian = 10 * Jxx(bas2) + 12 * Jyy(bas2) + 14 * Jzz(bas2)
-        >>> ham_matrix = bas2.overlap(hamiltonian)
-        >>> diag = np.diag(ham_matrix) # diagonal elements
-        >>> max_off_diag = np.max(np.abs(ham_matrix - np.diag(diag))) # maximal off-diagonal element
-        >>> print(np.abs(eigenval - diag).round(6)) # check if diagonal is equal to eigenvalues
-        [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
-        >>> print(max_off_diag.round(10)) # check if max off-diagonal element is close to zero
-        0.0
-
+            PsiTableMK
+                Unitary-transformed wavefunction set. If energies are provided,
+                these are stored in PsiTableMK.k.enr and PsiTableMK.m.enr
+                for K-, and M-subspaces, respectively.
         """
         if mrot is not None:
             res_m = self.m.rotate(mrot, mstat)
@@ -1284,54 +981,52 @@ class PsiTableMK():
 
     @property
     def nstates(self):
-        """ Returns number of basis states (functions) """
+        """ Returns number of primitive basis functions """
         return self.k.table['c'].shape[1]
 
     @nstates.setter
-    def nstates(self):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.nstates") from None
+    def nstates(self, val):
+        raise AttributeError(f"Setting {retrieve_name(self)}.nstates is not permitted") from None
 
 
     @property
     def enr(self):
-        """ Returns energies of basis states """
+        """ Returns energies of eigenstates """
         nstat = self.k.table['c'].shape[1]
         try:
             enr = self.k.enr
         except AttributeError:
-            raise AttributeError(f"Basis states have no associated energies, these are usually assigned " \
-                    +f"at the step of unitary rotation, see PsiTableMK.rotate") from None
+            raise AttributeError(f"{retrieve_name(self)} has no attribute 'enr', " + \
+                f"use PsiTableMK.rotate to assign the energies") from None
         return enr
 
     @enr.setter
-    def enr(self):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.enr") from None
+    def enr(self, val):
+        raise AttributeError(f"Setting {retrieve_name(self)}.enr is not permitted, " + \
+            f"use PsiTableMK.rotate to assign energies") from None
 
 
     @property
     def assign(self):
-        """Returns assignment of basis states
+        """Returns assignment of eigenstates.
 
-        To control the number of primitive functions printed in the state assignment, change
-        settings.assign_nprim (=1..6), to change the number of significant digits printed
-        for squared modulus of primitive coefficients, change settings.assign_ndig_c2 (=1..10)
+        In order to control the number of primitive functions used for assignment,
+        change settings.assign_nprim (=1..6), to control the number of printed
+        significant digits for coefficients of primitive functions, change
+        settings.assign_ndig_c2 (=1..10)
         """
         nstat = self.k.table['c'].shape[1]
         assign = self.k.table['stat'][:nstat]
-        try:
-            sym = self.k.sym[:nstat]
-        except AttributeError:
-            sym = ["A" for i in range(nstat)]
         return assign
 
     @assign.setter
-    def assign(self):
-        raise AttributeError(f"You can't set {retrieve_name(self)}.assign") from None
+    def assign(self, val):
+        raise AttributeError(f"Setting {retrieve_name(self)}.assign is not permitted") from None
 
 
     @property
     def sym(self):
-        """ Returns symmetry of basis states """
+        """ Returns symmetry of eigenstates """
         nstat = self.k.table['c'].shape[1]
         try:
             sym = self.k.sym[:nstat]
@@ -1345,16 +1040,83 @@ class PsiTableMK():
             nstat = self.k.table['c'].shape[1]
             self.k.sym = np.array([val for istate in range(nstat)])
         else:
-            raise TypeError(f"Bad type for symmetry: '{type(val)}'") from None
+            raise TypeError(f"Bad argument type '{type(val)}' for symmetry") from None
 
 
     @counted
-    def store_richmol(self, name, append=False):
-        """Stores energies of wavefunction set in Richmol energies file
+    def store_richmol(self, filename, append=False, **kwargs):
+        """Stores eigenstate energies in richmol hdf5 file.
 
-        To control the number of primitive functions printed for state assignment, change
-        settings.assign_nprim (=1..6), to change the number of significant digits printed
-        for squared modulus of primitive coefficients, change settings.assign_ndig_c2 (=1..10)
+        In order to control the number of primitive functions used for assignment,
+        change settings.assign_nprim (=1..6), to control the number of printed
+        significant digits for coefficients of primitive functions, change
+        settings.assign_ndig_c2 (=1..10)
+
+        Args:
+            filename : str
+                Name of richmol HDF5 file.
+                The tensor group name for storing energy data is 'h0'.
+            append : bool
+                If True, the existing HDF5 file will be appended, otherwise
+                it will be overwritten in the first call, but appended at subsequent
+                calls.
+        Kwargs:
+            descr : str or list
+                Description of states data.
+        """
+        Jk = list(set(J for J in self.k.table['prim'][:,0]))
+        Jm = list(set(J for J in self.m.table['prim'][:,0]))
+        if len(Jk)>1 or len(Jm)>1:
+            raise ValueError(f"Wavefunction set contains multiple values of J quanta " + \
+                f"= {Jk} and {Jm} in the K- and M-subspaces, respectively, " + \
+                f"therefore it can't be stored in richmol file") from None
+        else:
+            if Jk[0] != Jm[0]:
+                raise ValueError(f"Wavefunction set contains different values  " + \
+                    f"of J quanta = {Jk[0]} and {Jm[0]} in the K- and M-subspaces " + \
+                    f"(no idea how this had happened)") from None
+            J = Jk[0]
+
+        nstat = self.k.table['c'].shape[1]
+        assign = [str(elem) for elem in self.k.table['stat'][:nstat]]
+
+        try:
+            enr = self.k.enr[:nstat]
+        except AttributeError:
+            raise AttributeError(f"{retrieve_name(self)} has no attribute 'enr', " + \
+                f"use PsiTableMK.rotate to assign the energies") from None
+
+        try:
+            sym = self.k.sym[:nstat]
+        except AttributeError:
+            sym = ["A" for i in range(nstat)]
+
+        try:
+            descr = kwargs['descr'] + "\nstate assignment: J, k, tau, |coef|^2, where tau is parity as (-1)^tau"
+        except KeyError:
+            descr = None
+
+        # replace or append file
+        if self.store_richmol.calls == 1:
+            if append == True:
+                replace = False
+            else:
+                replace = True
+        else:
+            replace = False
+
+        rchm.store(filename, 'h0', J, J, replace=replace, enr=enr, assign=assign, \
+                   sym=sym, id=[i for i in range(nstat)], units='1/cm', tens_descr=descr)
+
+
+    @counted
+    def store_richmol_old(self, name, append=False):
+        """Stores energies of wavefunction set in Richmol energies file (old format)
+
+        In order to control the number of primitive functions used for assignment,
+        change settings.assign_nprim (=1..6), to control the number of printed
+        significant digits for coefficients of primitive functions, change
+        settings.assign_ndig_c2 (=1..10)
 
         Args:
             name : str
@@ -1365,14 +1127,14 @@ class PsiTableMK():
         Jk = list(set(J for J in self.k.table['prim'][:,0]))
         Jm = list(set(J for J in self.m.table['prim'][:,0]))
         if len(Jk)>1 or len(Jm)>1:
-            raise ValueError(f"Multiple values of J quanta = {Jk} and {Jm} in the k- and m-parts, " \
-                    +f"because Richmol matrix elements files are generated for different pairs " \
-                    +f"of J quanta, mixing states with different J in the states set is not a good " \
-                    +f"idea when it comes to storing state energies and their ID numbers") from None
+            raise ValueError(f"Wavefunction set contains multiple values of J quanta " + \
+                f"= {Jk} and {Jm} in the K- and M-subspaces, respectively, " + \
+                f"therefore it can't be stored in richmol file") from None
         else:
             if Jk[0] != Jm[0]:
-                raise ValueError(f"Different values of J quanta = {Jk[0]} and {Jm[0]} in the k- " \
-                        +f"and m-parts (no idea how this happened)") from None
+                raise ValueError(f"Wavefunction set contains different values  " + \
+                    f"of J quanta = {Jk[0]} and {Jm[0]} in the K- and M-subspaces " + \
+                    f"(no idea how this had happened)") from None
             J = Jk[0]
 
         nstat = self.k.table['c'].shape[1]
@@ -1381,15 +1143,15 @@ class PsiTableMK():
         try:
             enr = self.k.enr[:nstat]
         except AttributeError:
-            raise AttributeError(f"States set have no associated energies, these are usually assigned " \
-                    +f"at the step of unitary rotation, see PsiTableMK.rotate") from None
+            raise AttributeError(f"{retrieve_name(self)} has no attribute 'enr', " + \
+                f"use PsiTableMK.rotate to assign the energies") from None
 
         try:
             sym = self.k.sym[:nstat]
         except AttributeError:
             sym = ["A" for i in range(nstat)]
 
-        if self.store_richmol.calls == 1:
+        if self.store_richmol_old.calls == 1:
             if append==True:
                 mode = "a+"
             else:
@@ -1406,13 +1168,13 @@ class PsiTableMK():
 
 
 class SymtopBasis(PsiTableMK):
-    """Basis of symmetric top functions for selected J
+    """Basis of symmetric-top functions for selected J.
 
     Args:
         J : int
             Quantum number of the rotational angular momentum.
         linear : bool
-            Set True if molecule is linear, in this case quantum number k is kept at zero.
+            Set to True if molecule is linear, in this case quantum number K = 0.
     """
 
     def __init__(self, J, linear=False):
@@ -1421,7 +1183,7 @@ class SymtopBasis(PsiTableMK):
             self.J = int(round(J))
         except TypeError:
             raise TypeError(f"J = '{J}' is not a number") from None
-        assert (self.J>=0), f"J = {J} is smaller than zero"
+        assert (self.J>=0), f"J = {J} < 0"
 
         # generate keys (j,k) for columns representing primitive functions
         if linear:
@@ -1461,19 +1223,20 @@ class SymtopBasis(PsiTableMK):
 
 
     def wang_coefs(self, j, k, tau):
-        """Wang's symmetrization coefficients c1 and c2 for symmetric-top function in the form
-        |J,k,tau> = c1|J,k> + c2|J,-k>
+        """Wang's symmetrization coefficients c1 and c2 for symmetric-top function
+        in the form |J,k,tau> = c1|J,k> + c2|J,-k>.
 
         Args:
             j, k, tau : int 
-                J, k, and tau quantum numbers, where k can take values between 0 and J
-                and tau=0 or 1 is parity defined as (-1)^tau.
+                Rotational quantum numbers, where k = 0.. J and tau = 0 or 1
+                defines parity as (-1)^tau.
 
         Returns:
             coefs : list
-                Wang's symmetrization coefficients, coefs=[c1,c2] for k>0 and coefs=[c1] for k=0.
+                Wang's symmetrization coefficients, coefs=[c1,c2] for k>0
+                and coefs=[c1] for k=0.
             kval : list
-                List of k-values, kval=[k,-k] for k0 and kval=[k] for k=0.
+                List of k-values, kval=[k,-k] for k>0 and kval=[k] for k=0.
         """
         assert (k>=0), f"k = {k} < 0"
         assert (j>=0), f"J = {j} < 0"
@@ -1499,16 +1262,17 @@ class SymtopBasis(PsiTableMK):
 
 
 def symmetrize(arg, sym="D2", thresh=1e-12):
-    """Returns dictionary of symmetry-adapted objects 'arg' for different irreps (as dict keys)
-    of the symmetry group defined by 'sym'
+    """Given a set of linear combinations of symmetric-top functions 'arg'
+    and symmetry 'sym', the function generates symmetry-adapted set.
 
     Args:
         arg : PsiTableMK
-            Basis of symmetric-top functions.
+            Set of wavefunctions expanded in symmetric-top functions.
         sym : str
-            Point symmetry group, defaults to "D2".
+            Point symmetry group.
         thresh : float
-            Threshold for treating symmetrization and basis-set coefs as zero, defaults to 1e-12.
+            Threshold for treating symmetrisation and wavefunction superposition
+            coefficients as zero.
     """
     try:
         x = arg.k
@@ -1522,7 +1286,7 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     try:
         sym_ = getattr(sys.modules[__name__], sym)
     except:
-        raise NotImplementedError(f"symmetry '{sym}' is not implemented") from None
+        raise NotImplementedError(f"Symmetry '{sym}' is not implemented") from None
 
     # list of J quanta spanned by arg
     Jlist = list(set(j for (j,k) in arg.k.table['prim']))
@@ -1550,9 +1314,9 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
                 ind_p.append(ind)
             except ValueError:
                 if np.any(abs(proj[:,:,ik]) > thresh) or np.any(abs(proj[:,ik,:]) > thresh):
-                    raise ValueError(f"Input set {retrieve_name(arg)} is missing some primitive " \
-                            +f"functions that are required for symmetrization, for example, " \
-                            +f"(J,k) = {(J,k)} is missing") from None
+                    raise ValueError(f"Input set {retrieve_name(arg)} is missing " + \
+                        f"some primitive symmetric-top functions that are necessary " + \
+                        f"for symmetrization, for example, (J,k) = {(J,k)} is missing") from None
 
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
             pmat = np.dot(proj[irrep,:,ind_k], arg.k.table['c'][ind_p,:])
@@ -1569,17 +1333,15 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     # check if the total number of states remains the same
     nstat_sym = sum(elem.k.table['c'].shape[1] for elem in res.values()) 
     if nstat_sym != nstat:
-        raise RuntimeError(f"Total number of states before symmetrization = {nstat} is different " \
-                +f"from the total number of states across all irreps = {nstat_sym}")
+        raise RuntimeError(f"The number of states before symmetrization = {nstat} " + \
+            f"is different from the total number of states across all irreps = {nstat_sym}")
 
     return res
 
 
 
 class SymtopSymmetry():
-    """Basic class to handle symmetry of rotational wavefunctions,
-    generates projection operators for different irreps of chosen symmetry group.
-    """
+    """ Generates symmetry-adapting projection operators for symmetric-top functions """
 
     def __init__(self, J):
 
@@ -1622,6 +1384,7 @@ class SymtopSymmetry():
 
 
     def proj(self):
+        """ Builds projection operators """
         J = self.J
         proj = np.zeros((self.nirrep,2*J+1,2*J+1), dtype=np.complex128)
         for irrep in range(self.nirrep):
@@ -1957,14 +1720,27 @@ class CartTensor():
         tens_flat : 1D array
             Contains elements of Cartesian tensor in the molecular frame, flattened in the order
             corresponding to the order of Cartesian components in 'cart'.
+        units : str
+            Tensor units.
+        name : str
+            Tensor name.
+        descr : str or list
+            Description of tensor.
 
     Args:
-        arg : np.ndarray, list or tuple
+        arg : numpy.ndarray, list or tuple
             Contains elements of Cartesian tensor in the molecular frame.
+    Kwargs:
+        units : str
+            Tensor units.
+        name : str
+            Tensor name.
+        descr : str or list
+            Description of tensor.
     """
 
-    # transformation matrix for tensors of rank in tmat_s.keys()
-    # from Cartesian to spherical-tensor representation
+    # transformation matrix from Cartesian to spherical-tensor representation
+    # for tensors of different ranks (dict keys)
     tmat_s = {1 : np.array([ [np.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0], \
                              [0, 0, 1.0], \
                              [-math.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0] ], dtype=np.complex128),
@@ -1981,11 +1757,12 @@ class CartTensor():
     # inverse spherical-tensor to Cartesian transformation matrix
     tmat_x = {key : np.linalg.pinv(val) for key,val in tmat_s.items()}
 
+    # Cartesian components and irreducible representations for tensors of different ranks
     cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
 
-    def __init__(self, arg):
+    def __init__(self, arg, **kwargs):
 
         # check input tensor
         if isinstance(arg, (tuple, list)):
@@ -1993,10 +1770,9 @@ class CartTensor():
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
         else:
-            raise TypeError(f"Bad argument type '{type(arg)}' for tensor, expected list, tuple, " \
-                    +f"or numpy array") from None
+            raise TypeError(f"Bad argument type '{type(arg)}' for tensor") from None
         if not all(dim==3 for dim in tens.shape):
-            raise ValueError(f"(Cartesian) tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+            raise ValueError(f"Tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
         if np.all(np.abs(tens) < settings.tens_small_elem):
             raise ValueError(f"Tensor has all its elements equal to zero") from None
         if np.any(np.abs(tens) > settings.tens_large_elem):
@@ -2038,20 +1814,28 @@ class CartTensor():
                 self.Ux = np.delete(self.Ux, [1,2,3], 1)
                 self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        if 'units' in kwargs:
+            self.units = kwargs['units']
+        if 'descr' in kwargs:
+            self.descr = kwargs['descr']
+
 
     def __call__(self, arg):
-        """Computes |psi'> = CartTensor|psi>
+        """Computes projection |psi'> = CartTensor |psi>.
 
         Args:
-            arg : PsiTableMK)
-                |psi>, set of linear combinations of symmetric-top functions.
+            arg : PsiTableMK
+                Set of linear combinations of symmetric-top functions |psi>.
 
         Returns:
-            res : dict of PsiTableMK
-                |psi'>, resulting tensor-projected set of linear combinations of symmetric-top
-                functions for different laboratory-frame Cartesian components and different
-                irreducible components of the tensor as dict keys (cart,irrep),
-                where cart is in self.cart and irrep is in set(omega for (omega,sigma) in self.os).
+            res : dict with elements PsiTableMK and keys (cart,irrep)
+                Resulting tensor-projected set of linear combinations of symmetric-top
+                functions |psi'>, computed for different Cartesian and different
+                irreducible representation components of the tensor, which are
+                saved as dict keys (cart,irrep). Here cart is in self.cart
+                and irrep is in set(omega for (omega,sigma) in self.os).
         """
         try:
             jm_table = arg.m.table
@@ -2124,7 +1908,8 @@ class CartTensor():
 
 
     def me(self, psi_bra, psi_ket):
-        """Computes matrix elements of Cartesian tensor operator < psi_bra | CartTensor | psi_ket >
+        """Computes matrix elements of Cartesian tensor operator
+        < psi_bra | CartTensor | psi_ket >
 
         Args:
             psi_bra, psi_ket : PsiTableMK
@@ -2132,11 +1917,12 @@ class CartTensor():
 
         Returns:
             res : dict of 4D arrays
-                Matrix elements between states in psi_bra and psi_ket sets of functions, for different
-                laboratory-frame Cartesian components of the tensor (in self.cart) as dict keys.
+                Matrix elements between states in psi_bra and psi_ket, for different
+                Cartesian components of the tensor (in self.cart) as dict keys.
                 For each Cartesian component, matrix elements are stored in a 4D matrix
-                [k2,m2,k1,m1], where k2 and k1 are the k-state indices in psi_bra and psi_ket
-                respectively, and m2 and m1 are the corresponding m-state indices.
+                [k1,m1,k2,m2], where k1 and k2 are the K-subspace indices in psi_bra
+                and psi_ket, respectively, and m1 and m2 are the corresponding
+                M-subspace indices.
         """
         try:
             x = psi_bra.m.table
@@ -2180,9 +1966,150 @@ class CartTensor():
         return res
 
 
-    def store_richmol(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
-        """Stores tensor matrix elements in Richmol file
+    def store_richmol(self, psi_bra, psi_ket, filename, thresh=1e-12, **kwargs):
+        """Stores matrix elements of Cartesian tensor in richmol hdf5 file.
 
+        Args:
+            psi_bra, psi_ket : PsiTableMK
+                Set of linear combinations of symmetric-top functions.
+            filename : str
+                Name of richmol HDF5 file.
+            thresh : float
+                Threshold for storing the matrix elements.
+        Kwargs:
+            units : str
+                Tensor units. By default, self.units is used, defined at __init__()
+            name : str
+                Name of tensor, used to generate group name for matrix elements of tensor in hdf5 file.
+                By default, self.name is used, defined at __init__().
+            descr : str or list
+                Description of tensor. By default, self.descr is used, defined at __init__().
+        """
+        try:
+            x = psi_bra.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_bra.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_bra.__class__.__name__}' has no attribute 'k'") from None
+        try:
+            x = psi_ket.m.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'm'") from None
+        try:
+            x = psi_ket.k.table
+        except AttributeError:
+            raise AttributeError(f"'{psi_ket.__class__.__name__}' has no attribute 'k'") from None
+
+        # name of tensor
+        if 'name' in kwargs:
+            tens_name = kwargs['name']
+        else:
+            try:
+                tens_name = self.name
+            except AttributeError:
+                raise Exception(f"Please specify name of the tensor, either by passing " + \
+                    f"'name' argument to 'store_richmol' or '{retrieve_name(self)}'") from None
+
+        # description of tensor
+        if 'descr' in kwargs:
+            tens_descr = kwargs['descr']
+        else:
+            try:
+                tens_descr = self.descr
+            except AttributeError:
+                tens_descr = None
+
+        # units of tensor
+        if 'units' in kwargs:
+            tens_units = kwargs['units']
+        else:
+            try:
+                tens_units = self.units
+            except AttributeError:
+                tens_units = None
+
+        # determine J quanta for bra and ket states
+
+        Jk_bra = list(set(J for J in psi_bra.k.table['prim'][:,0]))
+        Jm_bra = list(set(J for J in psi_bra.m.table['prim'][:,0]))
+        if len(Jk_bra)>1 or len(Jm_bra)>1:
+            raise ValueError(f"Wavefunction set {retrieve_name(psi_bra)} contains multiple " + \
+                f"values of J quanta = {Jk_bra} and {Jm_bra} in the K- and M-subspaces, " + \
+                f"therefore matrix elements can't be stored in richmol file") from None
+        else:
+            if Jk_bra[0] != Jm_bra[0]:
+                raise ValueError(f"Wavefunction set {retrieve_name(psi_bra)} contains " + \
+                    f"different values of J quanta = {Jk_bra[0]} and {Jm_bra[0]}" + \
+                    f"in the K- and M-subspaces (no idea how this had happened)") from None
+            J1 = Jk_bra[0]
+
+        Jk_ket = list(set(J for J in psi_ket.k.table['prim'][:,0]))
+        Jm_ket = list(set(J for J in psi_ket.m.table['prim'][:,0]))
+        if len(Jk_ket)>1 or len(Jm_ket)>1:
+            raise ValueError(f"Wavefunction set {retrieve_name(psi_ket)} contains multiple " + \
+                f"values of J quanta = {Jk_ket} and {Jm_ket} in the K- and M-subspaces, " + \
+                f"therefore matrix elements can't be stored in richmol file") from None
+        else:
+            if Jk_ket[0] != Jm_ket[0]:
+                raise ValueError(f"Wavefunction set {retrieve_name(psi_ket)} contains " + \
+                    f"different values of J quanta = {Jk_ket[0]} and {Jm_ket[0]}" + \
+                    f"in the K- and M-subspaces (no idea how this had happened)") from None
+            J2 = Jk_ket[0]
+
+        # compute matrix elements for M and K tensors
+
+        tens_psi = self(psi_ket)
+
+        dim_bra_k = psi_bra.k.table['c'].shape[1]
+        dim_ket_k = psi_ket.k.table['c'].shape[1]
+        dim_bra_m = psi_bra.m.table['c'].shape[1]
+        dim_ket_m = psi_ket.m.table['c'].shape[1]
+
+        irreps = list(set(omega for (omega,sigma) in self.os))
+        nirrep = len(irreps)
+        ncart = len(self.cart)
+
+        # store K matrix elements in file
+
+        rchm.store(filename, tens_name, J1, J2, units=tens_units, tens_descr=tens_descr)
+
+        kmat = [coo_matrix(np.zeros(1)) for irrep in irreps]
+        cart0 = self.cart[0]
+        for (cart, irrep), val in tens_psi.items():
+            if cart == cart0:
+                me = psi_bra.overlap_k(val)
+                # set to zero elements with absolute values smaller than a threshold
+                me[np.abs(me) < thresh] = 0
+                sme = coo_matrix(me)
+                #sme.eliminate_zeros() # this may be unnecessary
+                irrep_ind = irreps.index(irrep)
+                kmat[irrep_ind] = sme
+
+        rchm.store(filename, tens_name, J1, J2, kmat=kmat, irreps=irreps)
+
+        # store M matrix elements in file
+
+        for cart in self.cart:
+            mmat = [coo_matrix(np.zeros(1)) for irrep in irreps]
+            for irrep in irreps:
+                try:
+                    val = tens_psi[(cart, irrep)]
+                    me = psi_bra.overlap_m(val)
+                    # set to zero elements with absolute values smaller than a threshold
+                    me[np.abs(me) < thresh] = 0
+                    sme = coo_matrix(me)
+                    #sme.eliminate_zeros() # this may be unnecessary
+                    irrep_ind = irreps.index(irrep)
+                    mmat[irrep_ind] = sme
+                except KeyError:
+                    continue
+            rchm.store(filename, tens_name, J1, J2, mmat=mmat, irreps=irreps, cart=cart)
+
+
+    def store_richmol_old(self, psi_bra, psi_ket, name=None, fname=None, thresh=1e-12):
+        """Stores tensor matrix elements in Richmol file
         Args:
             psi_bra, psi_ket : PsiTableMK)
                 Set of linear combinations of symmetric-top functions.
@@ -2535,7 +2462,3 @@ def expecting(offset=0):
     else:
         return 1
 
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()

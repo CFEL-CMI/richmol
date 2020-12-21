@@ -1,0 +1,249 @@
+
+All output from the Fortran TDSE module will be printed into file: fortran.log
+
+
+Initialize tdse module
+
+   initial time: 0.0 ps
+   terminal time: 0.0 ps
+   time step: 0.01 ps
+
+   Use Planck constant for time units ps and energy units cm^-1, hbar = 5.30883730500664
+
+   Initialize grid of time-points
+   Number of points: 1
+
+   TDSE solver: split_zhexpv
+   Requested accuracy of solution: 1e-12
+   Number of Krylov vectors: 10
+
+
+Initialize field-free basis
+
+   States file: ../cmi-richmol_watie/ocs_energies_j0_j30.rchm
+   State filters: {'emax': 60000, 'fmax': 30, 'fmin': 0, 'mmin': -30, 'mmax': 30, 'dm': 1, 'df': 1}
+
+   selected F quanta: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+         F   no.levels
+       0.0        1
+       1.0        1
+       2.0        1
+       3.0        1
+       4.0        1
+       5.0        1
+       6.0        1
+       7.0        1
+       8.0        1
+       9.0        1
+      10.0        1
+      11.0        1
+      12.0        1
+      13.0        1
+      14.0        1
+      15.0        1
+      16.0        1
+      17.0        1
+      18.0        1
+      19.0        1
+      20.0        1
+      21.0        1
+      22.0        1
+      23.0        1
+      24.0        1
+      25.0        1
+      26.0        1
+      27.0        1
+      28.0        1
+      29.0        1
+      30.0        1
+
+         F   no.levels (incl. degeneracies)
+       0.0        1
+       1.0        1
+       2.0        1
+       3.0        1
+       4.0        1
+       5.0        1
+       6.0        1
+       7.0        1
+       8.0        1
+       9.0        1
+      10.0        1
+      11.0        1
+      12.0        1
+      13.0        1
+      14.0        1
+      15.0        1
+      16.0        1
+      17.0        1
+      18.0        1
+      19.0        1
+      20.0        1
+      21.0        1
+      22.0        1
+      23.0        1
+      24.0        1
+      25.0        1
+      26.0        1
+      27.0        1
+      28.0        1
+      29.0        1
+      30.0        1
+
+   selected M quanta: [-30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+   total number of basis functions: 961
+
+   Initialize Fortran TDSE module ...
+   ... done
+
+
+Add tensor operator
+
+   Matrix element files template: ../cmi-richmol_watie/ocs_matelem_mu_j<j1>_j<j2>.rchm
+
+   Rank: 1
+   Index symmetry: none
+   Number of unique Cartesian components: 3
+     1    x      1
+     2    y      1
+     3    z      1
+
+   Scan matrix element files
+       F1     F2 transposed?    filename
+      0.0    1.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j0_j1.rchm
+      1.0    0.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j0_j1.rchm
+      1.0    2.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j1_j2.rchm
+      2.0    1.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j1_j2.rchm
+      2.0    3.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j2_j3.rchm
+      3.0    2.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j2_j3.rchm
+      3.0    4.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j3_j4.rchm
+      4.0    3.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j3_j4.rchm
+      4.0    5.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j4_j5.rchm
+      5.0    4.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j4_j5.rchm
+      5.0    6.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j5_j6.rchm
+      6.0    5.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j5_j6.rchm
+      6.0    7.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j6_j7.rchm
+      7.0    6.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j6_j7.rchm
+      7.0    8.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j7_j8.rchm
+      8.0    7.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j7_j8.rchm
+      8.0    9.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j8_j9.rchm
+      9.0    8.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j8_j9.rchm
+      9.0   10.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j9_j10.rchm
+     10.0    9.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j9_j10.rchm
+     10.0   11.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j10_j11.rchm
+     11.0   10.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j10_j11.rchm
+     11.0   12.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j11_j12.rchm
+     12.0   11.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j11_j12.rchm
+     12.0   13.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j12_j13.rchm
+     13.0   12.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j12_j13.rchm
+     13.0   14.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j13_j14.rchm
+     14.0   13.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j13_j14.rchm
+     14.0   15.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j14_j15.rchm
+     15.0   14.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j14_j15.rchm
+     15.0   16.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j15_j16.rchm
+     16.0   15.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j15_j16.rchm
+     16.0   17.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j16_j17.rchm
+     17.0   16.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j16_j17.rchm
+     17.0   18.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j17_j18.rchm
+     18.0   17.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j17_j18.rchm
+     18.0   19.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j18_j19.rchm
+     19.0   18.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j18_j19.rchm
+     19.0   20.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j19_j20.rchm
+     20.0   19.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j19_j20.rchm
+     20.0   21.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j20_j21.rchm
+     21.0   20.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j20_j21.rchm
+     21.0   22.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j21_j22.rchm
+     22.0   21.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j21_j22.rchm
+     22.0   23.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j22_j23.rchm
+     23.0   22.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j22_j23.rchm
+     23.0   24.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j23_j24.rchm
+     24.0   23.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j23_j24.rchm
+     24.0   25.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j24_j25.rchm
+     25.0   24.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j24_j25.rchm
+     25.0   26.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j25_j26.rchm
+     26.0   25.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j25_j26.rchm
+     26.0   27.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j26_j27.rchm
+     27.0   26.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j26_j27.rchm
+     27.0   28.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j27_j28.rchm
+     28.0   27.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j27_j28.rchm
+     28.0   29.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j28_j29.rchm
+     29.0   28.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j28_j29.rchm
+     29.0   30.0       False    ../cmi-richmol_watie/ocs_matelem_mu_j29_j30.rchm
+     30.0   29.0        True    ../cmi-richmol_watie/ocs_matelem_mu_j29_j30.rchm
+
+   Tensor name: mu
+   Number of irreps: 1
+   Number of unique Cartesian components: 3
+
+   Add new tensor in Fortran TDSE module ...
+   Threshold for neglecting mtrix elements: 1e-12
+   ... done
+
+   Current tensor index: 1
+
+
+Add electric field
+
+   Number of time-points: 1
+
+   Initialize field from input formula: ['edc0', '0', '0']
+   Parameters: {'edc0': 100000}
+
+   Convert electric field from v/cm to V/m using factor: 100.0
+Store stationary state no. 0 at a time = 0.0 into file wavefunc.0
+
+Initial wavepacket
+
+   Total number of basis functions: 961
+   Number of initial coefficients: 45
+
+   #basis func    M    F   ID ideg   coefficient
+           253   -8    8    1    1   5.99872053e-08   1.18007020e-19i
+           276   -7    7    1    1  -8.64705217e-19  -1.42790727e-06i
+           300   -6    6    1    1   2.68687791e-05   2.92709426e-18i
+           302   -6    8    1    1  -4.38084592e-08  -3.54747803e-18i
+           325   -5    5    1    1  -5.34377793e-18  -3.88017903e-04i
+           327   -5    7    1    1  -4.13813989e-18   1.04779748e-06i
+           351   -4    4    1    1   4.14209627e-03   5.29985825e-18i
+           353   -4    6    1    1  -1.98439085e-05   1.87235486e-17i
+           355   -4    8    1    1   3.93714103e-08  -1.27415506e-18i
+           378   -3    3    1    1  -2.79839326e-17  -3.11295433e-02i
+           380   -3    5    1    1  -3.11841822e-18   2.89211469e-04i
+           382   -3    7    1    1  -1.81843301e-18  -9.47768479e-07i
+           406   -2    2    1    1   1.54288970e-01   3.19750124e-17i
+           408   -2    4    1    1  -3.13113047e-03   2.14175789e-17i
+           410   -2    6    1    1   1.81149272e-05  -9.27643508e-20i
+           412   -2    8    1    1  -3.75391669e-08   4.60354100e-20i
+           435   -1    1    1    1   4.45217095e-17  -4.60287339e-01i
+           437   -1    3    1    1  -1.08305495e-17   2.41128406e-02i
+           439   -1    5    1    1  -9.12142042e-19  -2.67757792e-04i
+           441   -1    7    1    1   3.23226087e-20   9.11990646e-07i
+           465    0    0    1    1   7.13881353e-01   1.32560781e-16i
+           467    0    2    1    1  -1.25976416e-01  -1.29617578e-16i
+           469    0    4    1    1   2.97045119e-03   3.47628037e-18i
+           471    0    6    1    1  -1.76783588e-05   6.41070465e-20i
+           473    0    8    1    1   3.70141179e-08  -3.08853764e-22i
+           496    1    1    1    1  -3.03934493e-17   4.60287339e-01i
+           498    1    3    1    1   1.73195318e-17  -2.41128406e-02i
+           500    1    5    1    1  -2.55820338e-19   2.67757792e-04i
+           502    1    7    1    1  -2.38298909e-21  -9.11990646e-07i
+           526    2    2    1    1   1.54288970e-01   2.34504694e-18i
+           528    2    4    1    1  -3.13113047e-03  -1.57971179e-18i
+           530    2    6    1    1   1.81149272e-05   2.01711246e-20i
+           532    2    8    1    1  -3.75391668e-08   9.64822824e-23i
+           555    3    3    1    1   8.36788668e-19   3.11295433e-02i
+           557    3    5    1    1   1.12026680e-19  -2.89211469e-04i
+           559    3    7    1    1  -1.07611272e-21   9.47768479e-07i
+           583    4    4    1    1   4.14209627e-03  -1.72776495e-19i
+           585    4    6    1    1  -1.98439085e-05  -5.69725285e-21i
+           587    4    8    1    1   3.93714103e-08   3.88451970e-23i
+           610    5    5    1    1   1.61500766e-20   3.88017903e-04i
+           612    5    7    1    1   2.41136451e-22  -1.04779748e-06i
+           636    6    6    1    1   2.68687791e-05  -6.93902581e-22i
+           638    6    8    1    1  -4.38084611e-08  -7.83825625e-24i
+           661    7    7    1    1   3.62729107e-23   1.42790727e-06i
+           685    8    8    1    1   5.99872062e-08  -1.31731567e-24i
+
+   Normalize coefficient vector by 1/sqrt( 1.0000000000000018 )
