@@ -13,6 +13,7 @@ richmol_file = '../watie/OCS_j0_j30.h5'
 tens = rchm.inspect_tensors(richmol_file)
 for key in tens.keys():
     print("\n", key, tens[key])
+# sys.exit()
 
 # Z-electric field strengths
 field_z = 100000 * 100 # 100 kV/cm in units V/m
