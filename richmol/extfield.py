@@ -1,5 +1,5 @@
 import numpy as np
-import rchm
+from richmol import rchm
 import warnings
 from scipy.sparse import coo_matrix, csr_matrix, kron
 import sys
@@ -382,7 +382,7 @@ class Tensor():
 
         if len(self.J_pairs) == 0:
             raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
-                +f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
+                f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
 
         for attr in ('rank', 'irreps', 'cart'):
             try:
