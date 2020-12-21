@@ -305,6 +305,16 @@ class States():
 
 
 
+class NoCouplingError(Exception): 
+    def __init__(self, tens_name, file_name):
+        self.tens_name = tens_name
+        self.file_name = file_name
+    def __str__(self):
+        return f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
+               f"and coupled by tensor {self.tens_name} at the same time, reading file {self.file_name}"
+
+
+
 class Tensor():
     """Matrix elements of molecular laboratory-frame Cartesian tensor operator.
 
@@ -381,8 +391,9 @@ class Tensor():
                         if (J1, J2) in J_pairs or (J2, J1) in J_pairs]
 
         if len(self.J_pairs) == 0:
-            raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
-                f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
+            raise NoCouplingError(tens_name, filename)
+            # raise Exception(f"Can't find any pair of J quanta that is spanned by bra and ket basis functions " + \
+            #     f"and coupled by tensor {tens_name} at the same time, reading file {filename}") from None
 
         for attr in ('rank', 'irreps', 'cart'):
             try:
