@@ -790,12 +790,12 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
     for J, elem in map_id_to_istate.items():
         elem[:] = -1
     states = {}
-    nstates = {}
+    nstates = {J : 0 for J in maxid.keys()}
     for line in fl:
         w = line.split()
         J = round(float(w[0]),1)
         id = np.int64(w[1])
-        sym = w[2].upper()
+        sym = w[2]
         ndeg = int(w[3])
         enr = float(w[4])
         qstr = ' '.join([w[i] for i in range(5,len(w))])
@@ -808,11 +808,8 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
         except (IndexError, KeyError):
             states[J] = []
         for ideg in range(ndeg):
-            states[J].append((id, sym, ideg, enr, qstr))
-            try:
-                nstates[J] += 1
-            except KeyError:
-                nstates[J] = 1
+            states[J].append((nstates[J], sym, ideg, enr, qstr))
+            nstates[J] += 1
     fl.close()
 
     # store states data
