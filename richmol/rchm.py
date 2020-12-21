@@ -125,6 +125,8 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
     try:
         descr = kwargs['descr']
+        if descr is None:
+            raise KeyError()
         if 'descr' in fl:
             del fl['descr']
         if isinstance(descr, str):
@@ -192,6 +194,8 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
     try:
         units = kwargs['units']
+        if units is None:
+            raise KeyError()
         tens_grp.attrs['units'] = units
     except KeyError:
         pass
@@ -200,6 +204,8 @@ def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
 
     try:
         descr = kwargs['tens_descr']
+        if descr is None:
+            raise KeyError()
         if isinstance(descr, str):
             data = descr
         elif all(isinstance(elem, str) for elem in descr):
@@ -695,7 +701,7 @@ def read_states(filename, tens, J):
 
 
 def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, store_states=True, \
-                       me_tol=1e-40, descr=None):
+                       me_tol=1e-40, **kwargs):
     """Converts richmol old formatted text file format into to new hdf5 file format.
 
     Args:
@@ -721,10 +727,21 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
             data. The states file however need to be loaded for every new tensor.
         me_tol : float
             Threshold for neglecting matrix elements.
+    Kwargs:
         descr : str or list
             Description of richmol data. Old richmol file format does not contain description
             of the data, this can be added into hdf5 file by passing a string or list of strings
-            in descr variable.
+            in descr variable. The description can be added only if store_states=True.
+        tens_descr : str or list
+            Description of tensor.
+        tens_units : str
+            Tensor units.
+        enr_units : str
+            Energy units.
+        tens_name : str
+            If provided, the name of tensor read from richmol file will be replaced with tens_name.
+            Tensor name is used to generate data group name for matrix elements of tensor in hdf5 file.
+            For state energies, the data group name is 'h0'.
     """
     if replace == True:
         store_states_ = True
@@ -736,10 +753,30 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
     uinfo  = f"Created {time.asctime(time.localtime(time.time()))}, System: {uname.system}, " + \
              f"Node Name: {uname.node}, Release: {uname.release}, Version: {uname.version}, " + \
              f"Machine: {uname.machine}, Processor: {uname.processor}"
-    if descr is None:
-        descr_ = uinfo
-    else:
-        descr_ = descr + "\n" + uinfo
+    try:
+        descr = kwargs['descr'] + '\n' + uinfo
+    except KeyError:
+        descr = None
+
+    try:
+        tens_descr = kwargs['tens_descr']
+    except KeyError:
+        tens_descr = None
+
+    try:
+        tens_units = kwargs['tens_units']
+    except KeyError:
+        tens_units = None
+
+    try:
+        enr_units = kwargs['enr_units']
+    except KeyError:
+        enr_units = None
+
+    try:
+        tens_name = kwargs['tens_name']
+    except KeyError:
+        tens_name = None
 
     # read states data
     print(f"Read states data from richmol formatted text file {states_file}")
@@ -786,14 +823,14 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
     # store states data
     if store_states_ == True:
         print(f"Write states data into richmol hdf5 file {h5_file}, replace={replace}")
-        for J in states.keys():
+        for iJ, J in enumerate(states.keys()):
             id = [elem[0] for elem in states[J]]
             sym = [elem[1] for elem in states[J]]
             ideg = [elem[2] for elem in states[J]]
             enr = [elem[3] for elem in states[J]]
             qstr = [elem[4] for elem in states[J]]
             store(h5_file, 'h0', J, J, enr=enr, id=id, sym=sym, ideg=ideg, assign=qstr, \
-                  replace=replace, descr=descr_)
+                  replace=(replace if iJ == 0 else False), descr=descr, units=enr_units)
 
     # read matrix elements data and store into hdf5 file
     print(f"Convert richmol matrix elements data {tens_file} --> {h5_file}, tol={me_tol}")
@@ -837,7 +874,8 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
 
                 if iline==1:
                     w = strline.split()
-                    name = w[0]
+                    if tens_name is None:
+                        tens_name = w[0]
                     nomega = int(w[1])
                     ncart = int(w[2])
                     iline+=1
@@ -914,13 +952,14 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
                 ind_omega = [iomega for iomega in range(nomega) if len(mvec[cart][iomega]) > 0]
                 mat = [ coo_matrix((mvec[cart][iomega], (im2[cart][iomega], im1[cart][iomega])), \
                             shape=(int(2*J2+1), int(2*J1+1)) ) for iomega in ind_omega ]
-                store(h5_file, name, J2, J1, thresh=me_tol, irreps=ind_omega, cart=cart, mmat=mat)
+                store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, cart=cart, mmat=mat)
 
             # write K-matrix into hdf5 file
             print(f"    K-tensor, irreps = {ind_omega}")
             ind_omega = [iomega for iomega in range(nomega) if len(kvec[iomega]) > 0]
             mat = [ coo_matrix((kvec[iomega], (ik2[iomega], ik1[iomega])), shape=(nstates[J2], nstates[J1]) ) \
                     for iomega in ind_omega ]
-            store(h5_file, name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, descr=descr_)
+            store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, \
+                  tens_descr=tens_descr, units=tens_units)
 
 
