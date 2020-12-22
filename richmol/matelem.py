@@ -92,34 +92,11 @@ def matelem_pes(psi_i, psi_j, x1,  x3, qgrid_ind):
     pot_elem = np.zeros((1,))
 
 
-    # use finite-differences (7-point) to compute frequency
-    fdf_h=0.001
-    fdf_steps = np.array([3*fdf_h, 2*fdf_h, fdf_h, 0.0, -fdf_h, -2*fdf_h, -3*fdf_h], dtype=np.float64)
-    fdf_coefs = np.array([2.0, -27.0, 270.0, -490.0, 270.0, -27.0, 2.0], dtype=np.float64)
-    fdf_denom = 180.0
-    coords = np.array(np.broadcast_to(ref_coords, (len(fdf_steps),len(ref_coords))))
-
-
-    G = keo_jax.Gmat(ref_coords)[0, 0]
-    
-    coords[:,0] = [ref_coords[0] + st for st in fdf_steps]
-    
-    test_coords = np.asarray(ref_coords)
-    V = poten_h2s_Tyuterev.poten(coords)
-    
-    
-
-
-    freq = np.dot(V, fdf_coefs) / (fdf_denom * fdf_h * fdf_h)
-    # scaling of x
-    xmap = np.sqrt(np.sqrt( 2.0 * np.abs(freq) / np.abs(G) ))
-    r = x1 / xmap + ref_coords[0]
-
     #print("Harmonic frequency")
     #print(freq)
 
-    qcoords[:,0] = r[qgrid_ind[:,0]]
-    qcoords[:,1] = r[qgrid_ind[:,1]]
+    qcoords[:,0] = x1[qgrid_ind[:,0]]
+    qcoords[:,1] = x1[qgrid_ind[:,1]]
     qcoords[:,2] = x3[qgrid_ind[:,2]]
 
     pot_int[:] = psi_i[qgrid_ind[:,0],0] * psi_i[qgrid_ind[:,1],1] * psi_i[qgrid_ind[:,2],2] \
@@ -164,10 +141,10 @@ def hmat(bas_ind,qgrid_ind):
 
 
     hmat = np.zeros((Nbas, Nbas), dtype = float)
-    phi_i = np.zeros((Ngrid,3),dtype = float)
-    phi_j = np.zeros((Ngrid,3),dtype = float)
-    dphi_i = np.zeros((Ngrid,3),dtype = float)
-    dphi_j = np.zeros((Ngrid,3),dtype = float)
+    phi_i = np.zeros((Nquad1D_herm,3),dtype = float)
+    phi_j = np.zeros((Nquad1D_herm,3),dtype = float)
+    dphi_i = np.zeros((Nquad1D_herm,3),dtype = float)
+    dphi_j = np.zeros((Nquad1D_herm,3),dtype = float)
 
     #generate G-matrix 
     G = np.zeros((Ngrid,9,9))
@@ -184,43 +161,61 @@ def hmat(bas_ind,qgrid_ind):
     #print('\n')
     print("time for generation of G-matrix on full quadrature grid =  ", str(end-start))
 
+    # use finite-differences (7-point) to compute frequency
+    fdf_h=0.001
+    fdf_steps = np.array([3*fdf_h, 2*fdf_h, fdf_h, 0.0, -fdf_h, -2*fdf_h, -3*fdf_h], dtype=np.float64)
+    fdf_coefs = np.array([2.0, -27.0, 270.0, -490.0, 270.0, -27.0, 2.0], dtype=np.float64)
+    fdf_denom = 180.0
+    coords = np.array(np.broadcast_to(ref_coords, (len(fdf_steps),len(ref_coords))))
+
+    G_ref = keo_jax.Gmat(ref_coords)[0, 0]
+    coords[:,0] = [ref_coords[0] + st for st in fdf_steps]
+    test_coords = np.asarray(ref_coords)
+    V = poten_h2s_Tyuterev.poten(coords)
+    freq = np.dot(V, fdf_coefs) / (fdf_denom * fdf_h * fdf_h)
+    # scaling of x
+    xmap = np.sqrt(np.sqrt( 2.0 * np.abs(freq) / np.abs(G_ref) ))
+    r = x1 / xmap + ref_coords[0]
+
+
     """calculate the <psi_i | H | psi_j> integral """
 
 
     for i in range(Nbas):
-        start = time.time()
+        #start = time.time()
         ivec = [bas_ind[i][0],bas_ind[i][1],bas_ind[i][2]]
-        phi_i = psi_r[:,ivec]
-        phi_i[:,0] *= np.sqrt(w1[:]) 
-        phi_i[:,1] *= np.sqrt(w1[:])
-        phi_i[:,2] *= np.sqrt(w3[:])
-        dphi_i = dpsi_r[:,ivec]
-        dphi_i[:,0] *= np.sqrt(w1[:])
-        dphi_i[:,1] *= np.sqrt(w1[:])
-        dphi_i[:,2] *= np.sqrt(w3[:])
+
+        phi_i[:,0] = np.sqrt(w1[:]) * psi_r[:,ivec[0]]
+        phi_i[:,1] = np.sqrt(w1[:]) * psi_r[:,ivec[1]]
+        phi_i[:,2] = np.sqrt(w3[:]) * psi_theta[:,ivec[2]]
+        
+        dphi_i[:,0] = np.sqrt(w1[:]) * dpsi_r[:,ivec[0]]
+        dphi_i[:,1] = np.sqrt(w1[:]) * dpsi_r[:,ivec[1]]
+        dphi_i[:,2] = np.sqrt(w3[:]) * dpsi_theta[:,ivec[2]]
 
         for j in range(i,Nbas):
             print("Element: ", str(i), str(j))
             jvec = [bas_ind[j][0],bas_ind[j][1],bas_ind[j][2]]
-            phi_j = psi_r[:,jvec]
-            phi_j[:,0] *= np.sqrt(w1[:])
-            phi_j[:,1] *= np.sqrt(w1[:])
-            phi_j[:,2] *= np.sqrt(w3[:])
-            dphi_j = dpsi_r[:,jvec]
-            dphi_j[:,0] *= np.sqrt(w1[:])
-            dphi_j[:,1] *= np.sqrt(w1[:])
-            dphi_j[:,2] *= np.sqrt(w3[:])
+
+            phi_j[:,0] = np.sqrt(w1[:]) * psi_r[:,jvec[0]]
+            phi_j[:,1] = np.sqrt(w1[:]) * psi_r[:,jvec[1]]
+            phi_j[:,2] = np.sqrt(w3[:]) * psi_theta[:,jvec[2]]
+            
+            dphi_j[:,0] = np.sqrt(w1[:]) * dpsi_r[:,jvec[0]]
+            dphi_j[:,1] = np.sqrt(w1[:]) * dpsi_r[:,jvec[1]]
+            dphi_j[:,2] = np.sqrt(w3[:]) * dpsi_theta[:,jvec[2]]
+
             keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
-            pot = matelem_pes(phi_i, phi_j, x1,x3, qgrid_ind)
+            pot = matelem_pes(phi_i, phi_j, r ,x3, qgrid_ind)
             hmat[i,j] = keo + pot
-            end = time.time()
-            print("time per matrix element =  ", str(end-start))
+            #end = time.time()
+            #print("time per matrix element =  ", str(end-start))
 
 
    
     end = time.time()
     print("time for calculation of matrix elements =  ", str(end-start))
-    print('\n'.join([' '.join(["  %12.3f"%item for item in row]) for row in hmat]))
+    #print('\n'.join([' '.join(["  %12.3f"%item for item in row]) for row in hmat]))
     eval, eigvec = np.linalg.eigh(hmat,UPLO='U')
     #print(eval-eval[0])
     return eval-eval[0]
@@ -233,18 +228,15 @@ if __name__=="__main__":
     masses=[31.97207070, 1.00782505, 1.00782505]
 
     """generate mapping function"""
-    b = 8 #basis set pruning parameters
+    b = 12 #basis set pruning parameters
 
     simpleMap = indexmap(b,'simple',3)
     #bas_ind = np.asarray(simpleMap.gen_map())
     bas_ind = simpleMap.gen_map()
-    print(type(simpleMap.gen_map()))
-
+    print(bas_ind)
     Nbas = np.size(bas_ind , axis =0)
-    #print(bas_ind)
-    print(type(bas_ind))
-    Nquad1D_herm = 10
-    Nquad1D_leg = 10
+    Nquad1D_herm = 12
+    Nquad1D_leg = 12
     grid_type = 'dp'
 
     """Grid types:
