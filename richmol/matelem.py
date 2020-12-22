@@ -62,11 +62,35 @@ def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
     Returns:
     keo_elem: matrix element of the KEO
     """
+    k1 = qgrid_ind[:,0]
+    k2 = qgrid_ind[:,1]
+    k3 = qgrid_ind[:,2]
+    #print(np.shape( dpsi_j ))
 
     keo_elem = np.zeros((1,))
     start = time.time()
     """ lame way of calculating KEO """
-    for ipoint in range(Ngrid):
+    Ti1 = dpsi_i[k1[:], 0 ] * psi_i[k2[:], 1 ] * psi_i[k3[:], 2 ]
+    Ti2 = psi_i[k1[:], 0 ]*dpsi_i[k2[:], 1]*psi_i[k3[:], 2 ] 
+    Ti3 = psi_i[k1[:], 0 ]*psi_i[k2[:], 1]*dpsi_i[k3[:], 2 ]
+    Tj1 = dpsi_j[k1[:], 0 ] * psi_j[k2[:], 1] * psi_j[k3[:], 2]
+    Tj2 = psi_j[k1[:], 0 ]*dpsi_j[k2[:], 1]*psi_j[k3[:], 2 ] 
+    Tj3 = psi_j[k1[:], 0 ]*psi_j[k2[:], 1]*dpsi_j[k3[:], 2 ]
+    #print(np.shape(Ti1))
+    #print(np.shape(G[:,0,0] ))
+    #exit()
+    keo_int = Ti1[:] * G[:,0,0]  *  Tj1[:] \
+            + Ti1[:]  * G[:,0,1]  * Tj1[:] \
+            + Ti1[:]  * G[:,0,2] * Tj1[:] \
+            + Ti2[:]  * G[:,1,0] * Tj2[:]\
+            + Ti2[:]  * G[:,1,1] * Tj2[:] \
+            + Ti2[:]  * G[:,1,2]  * Tj2[:]\
+            + Ti3[:]  * G[:,2,0] * Tj3[:]\
+            + Ti3[:]  * G[:,2,1]  * Tj3[:] \
+            + Ti3[:]  * G[:,2,2]  * Tj3[:]
+
+    keo_elem = np.sum(keo_int)
+    """for ipoint in range(Ngrid):
         keo_elem += dpsi_i[qgrid_ind[ipoint,0], 0 ] * psi_i[qgrid_ind[ipoint,1], 1 ] * psi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][0][0]  * dpsi_j[qgrid_ind[ipoint,0], 0 ] * psi_j[qgrid_ind[ipoint,1], 1] * psi_j[qgrid_ind[ipoint,2], 2] \
             + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][0][1]  * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
             + dpsi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*psi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][0][2] * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ] \
@@ -76,11 +100,11 @@ def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
             + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][2][0] * dpsi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
             + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][2][1]  * psi_j[qgrid_ind[ipoint,0], 0 ]*dpsi_j[qgrid_ind[ipoint,1], 1]*psi_j[qgrid_ind[ipoint,2], 2 ] \
             + psi_i[qgrid_ind[ipoint,0], 0 ]*psi_i[qgrid_ind[ipoint,1], 1]*dpsi_i[qgrid_ind[ipoint,2], 2 ] * G[ipoint][2][2]  * psi_j[qgrid_ind[ipoint,0], 0 ]*psi_j[qgrid_ind[ipoint,1], 1]*dpsi_j[qgrid_ind[ipoint,2], 2 ]
-   
+    """
     end = time.time()
     #print("time for KEO =  ", str(end-start))
 
-    return 0.5 * keo_elem
+    return keo_elem
 
 @jit
 def matelem_pes(psi_i, psi_j, x1,  x3, qgrid_ind):
@@ -228,21 +252,17 @@ if __name__=="__main__":
     masses=[31.97207070, 1.00782505, 1.00782505]
 
     """generate mapping function"""
-    b = 12 #basis set pruning parameters
+    b = 10 #basis set pruning parameters
 
     simpleMap = indexmap(b,'simple',3)
     #bas_ind = np.asarray(simpleMap.gen_map())
     bas_ind = simpleMap.gen_map()
     print(bas_ind)
     Nbas = np.size(bas_ind , axis =0)
-    Nquad1D_herm = 12
-    Nquad1D_leg = 12
+    Nquad1D_herm = 20
+    Nquad1D_leg = 20
     grid_type = 'dp'
 
-    """Grid types:
-                    'dp': direct product Nquad1D_herm x Nquad1D_herm x Nquad1D_leg
-                    'ndp_weights': non-direct product with pruning based on product weights (w_tol)
-    """
 
     w_tol =  1e-15 #threshold value for keeping 3D quadrature product-weights
 
