@@ -16,7 +16,11 @@ import poten_h2s_Tyuterev
 from prim import numerov, legcos, herm, laguerre
 import sys
 import jax
+from jax import jit
 import time
+from jax.config import config
+config.update("jax_enable_x64", True)
+from numba import jit
 #import scipy.special.eval_genlaguerre
 #import scipy.special.roots_genlaguerre as laggauss
 singular_tol = 1e-10 # tolerance for considering matrix singular
@@ -43,6 +47,7 @@ def internal_to_cartesian(coords):
                     dtype=jnp.float64)
     return xyz #this function can be called from XY2 or molecule module. It does not belong here.
 
+@jit
 def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
     """
     This routine calculates the matrix element of the kinetic energy operator.
@@ -77,7 +82,8 @@ def matelem_keo(psi_i, dpsi_i, psi_j, dpsi_j, qgrid_ind, G):
 
     return 0.5 * keo_elem
 
-def matelem_pes(psi_i, psi_j, x1, x2, x3, qgrid_ind):
+@jit
+def matelem_pes(psi_i, psi_j, x1,  x3, qgrid_ind):
 
     Ngrid = np.size(qgrid_ind,axis=0)
     qcoords = np.zeros((Ngrid,3))
@@ -95,13 +101,22 @@ def matelem_pes(psi_i, psi_j, x1, x2, x3, qgrid_ind):
 
 
     G = keo_jax.Gmat(ref_coords)[0, 0]
-
+    
     coords[:,0] = [ref_coords[0] + st for st in fdf_steps]
+    
+    test_coords = np.asarray(ref_coords)
     V = poten_h2s_Tyuterev.poten(coords)
+    
+    
+
+
     freq = np.dot(V, fdf_coefs) / (fdf_denom * fdf_h * fdf_h)
     # scaling of x
     xmap = np.sqrt(np.sqrt( 2.0 * np.abs(freq) / np.abs(G) ))
     r = x1 / xmap + ref_coords[0]
+
+    #print("Harmonic frequency")
+    #print(freq)
 
     qcoords[:,0] = r[qgrid_ind[:,0]]
     qcoords[:,1] = r[qgrid_ind[:,1]]
@@ -114,6 +129,7 @@ def matelem_pes(psi_i, psi_j, x1, x2, x3, qgrid_ind):
     pot_elem = np.sum(pot_int)
     return pot_elem
 
+@jit
 def hmat(bas_ind,qgrid_ind):
     """calculate full Hamiltonian Matrix"""
     Ngrid = np.size(qgrid_ind,axis=0)
@@ -169,8 +185,10 @@ def hmat(bas_ind,qgrid_ind):
     print("time for generation of G-matrix on full quadrature grid =  ", str(end-start))
 
     """calculate the <psi_i | H | psi_j> integral """
-    for i in range(Nbas):
 
+
+    for i in range(Nbas):
+        start = time.time()
         ivec = [bas_ind[i][0],bas_ind[i][1],bas_ind[i][2]]
         phi_i = psi_r[:,ivec]
         phi_i[:,0] *= np.sqrt(w1[:]) 
@@ -193,11 +211,15 @@ def hmat(bas_ind,qgrid_ind):
             dphi_j[:,1] *= np.sqrt(w1[:])
             dphi_j[:,2] *= np.sqrt(w3[:])
             keo = matelem_keo(phi_i, dphi_i, phi_j, dphi_j, qgrid_ind, G)
-            pot = matelem_pes(phi_i, phi_j, x1,x1,x3, qgrid_ind)
+            pot = matelem_pes(phi_i, phi_j, x1,x3, qgrid_ind)
             hmat[i,j] = keo + pot
+            end = time.time()
+            print("time per matrix element =  ", str(end-start))
 
 
-
+   
+    end = time.time()
+    print("time for calculation of matrix elements =  ", str(end-start))
     print('\n'.join([' '.join(["  %12.3f"%item for item in row]) for row in hmat]))
     eval, eigvec = np.linalg.eigh(hmat,UPLO='U')
     #print(eval-eval[0])
@@ -211,7 +233,7 @@ if __name__=="__main__":
     masses=[31.97207070, 1.00782505, 1.00782505]
 
     """generate mapping function"""
-    b = 4 #basis set pruning parameters
+    b = 8 #basis set pruning parameters
 
     simpleMap = indexmap(b,'simple',3)
     #bas_ind = np.asarray(simpleMap.gen_map())
@@ -221,8 +243,8 @@ if __name__=="__main__":
     Nbas = np.size(bas_ind , axis =0)
     #print(bas_ind)
     print(type(bas_ind))
-    Nquad1D_herm = 8
-    Nquad1D_leg = 8
+    Nquad1D_herm = 10
+    Nquad1D_leg = 10
     grid_type = 'dp'
 
     """Grid types:
