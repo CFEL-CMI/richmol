@@ -111,13 +111,13 @@ class States():
                 raise Exception(f"File {filename} does not contain states' energies ('enr' dataset) for J = {J}") from None
             if id is None:
                 raise Exception(f"File {filename} does not contain states' IDs ('id' dataset) for J = {J}") from None
-            if ideg is None:
-                warnings.warn(f"File {filename} does not contain states' degeneracy indices ('ideg' dataset) for J = {J}", stacklevel=2)
-            if sym is None:
-                warnings.warn(f"File {filename} does not contain states' symmetries ('sym' dataset) for J = {J}", stacklevel=2)
-            if assign is None:
-                warnings.warn(f"File {filename} does not contain states' assignments ('assign' dataset) for J = {J}", stacklevel=2)
-            ind = [ i for i in range(len(enr))]
+            # if ideg is None:
+            #     warnings.warn(f"File {filename} does not contain states' degeneracy indices ('ideg' dataset) for J = {J}", stacklevel=2)
+            # if sym is None:
+            #     warnings.warn(f"File {filename} does not contain states' symmetries ('sym' dataset) for J = {J}", stacklevel=2)
+            # if assign is None:
+            #     warnings.warn(f"File {filename} does not contain states' assignments ('assign' dataset) for J = {J}", stacklevel=2)
+            ind = (np.array([ i for i in range(len(enr))]))
             if 'emin' in kwargs:
                 ind = np.where(enr >= kwargs['emin'])
             if 'emax' in kwargs:
@@ -172,8 +172,8 @@ class States():
                 print(f"    J = {J}, no. states = {len(self.enr[J])}, m = {[m for m in self.m_list[J]] if len(self.m_list[J]) > 0 else None}")
 
         J_out = [J for J in self.J_list if len(self.m_list[J]) == 0]
-        if len(J_out) > 0:
-            warnings.warn(f"m-quanta selection filters cast out all molecular states with J = {J_out}", stacklevel=2)
+        # if len(J_out) > 0:
+        #     warnings.warn(f"m-quanta selection filters cast out all molecular states with J = {J_out}", stacklevel=2)
         self.J_list = [J for J in self.J_list if len(self.m_list[J]) > 0]
         self.J_pairs = [(J,J) for J in self.J_list]
 
