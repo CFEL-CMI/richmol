@@ -6,6 +6,8 @@ import sys
 import itertools
 import copy
 import inspect
+import random
+import string
 
 # allow for repetitions of warning for the same source location
 warnings.simplefilter('always', UserWarning)
@@ -24,29 +26,28 @@ c_vac = 299792458 # m/s
 class States():
     """Molecular field-free states.
 
-    The full basis is represented as a kronecker product of k-subspace and m-subspace functions.
+    The full basis is represented as a Kronecker product of k-subspace and m-subspace functions.
     The k-subspace functions are molecular rovibrational states, read from a richmol hdf5 file.
-    The m-subspace functions are spanned by different values of m quantum number.
+    The m-subspace functions are spanned by different values of m=-J..J quantum number.
 
     Args:
         filename : str
             Name of richmol hdf5 file.
         tens_name : str
             Name of field-free Hamiltonian as stored in richmol hdf5 file.
-            Use rchm.inspect_tensors(filename) to extract information about different tensors
-            stored in file.
+            Use rchm.inspect_tensors(filename) to extract information about different tensors stored in file.
         J_list : list
             List of J - quantum numbers of the total angular momentum - spanned by basis.
     Kwargs:
-        Additional set of parameters controlling basis set.
+        Additional set of parameters to control basis set.
         emin, emax : float
-            Minimal and maximal energy of states.
+            Minimal and maximal energy of states. By default all energies are considered.
         sym : list of str
-            List of selected symmetries of states. By default all symmetries are included.
+            List of selected symmetries of states. By default all symmetries are considered.
         m_list : list
-            List of selected m quantum numbers. By default, m = -J .. J
+            List of selected m quantum numbers. By default, m = -J..J
         verbose : bool
-            Set to True to print some log.
+            Set True to print some log.
 
     Attributes:
         enr : dict
@@ -77,6 +78,8 @@ class States():
             Dimension of k-subspace (dict.values) for different J (dict.keys).
         prefac : scalar
             Prefactor, used to multiply state energies with a scalar and to convert units.
+        name : str
+            Randomly generated string identifier for current states basis.
     """
 
     def __init__(self, filename, tens_name, J_list, verbose=False, **kwargs):
@@ -84,6 +87,9 @@ class States():
 
         if verbose == True:
             print(f"\nLoad states of {tens_name} from file {filename} ... ")
+
+        # generate random string identifier for states basis
+        self.name = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
 
         self.prefac = 1
         self.enr = {}
@@ -186,9 +192,6 @@ class States():
                 self.id_to_istate[J][id] = istate
             self.dim_k[J] = max(self.id_to_istate[J]) + 1
 
-        self.dim_k1 = self.dim_k
-        self.dim_k2 = self.dim_k
-
         # mapping int(m + J) -> ind_m
         self.mJ_to_im = {}
         self.dim_m = {}
@@ -198,35 +201,29 @@ class States():
                 self.mJ_to_im[J][int(m+J)] = im
             self.dim_m[J] = max(self.mJ_to_im[J]) + 1
 
+        # some redundant initializations to make States behave as Tensor and Hamiltonian
+        self.states1_name = self.name
+        self.states2_name = self.name
+        self.J1_list = self.J_list
+        self.J2_list = self.J_list
+        self.dim_k1 = self.dim_k
+        self.dim_k2 = self.dim_k
         self.dim_m1 = self.dim_m
         self.dim_m2 = self.dim_m
-
-        # generate basis set indices
-        #for J in self.J_list:
-        #    for m in self.m_list[J]:
-        #        for istate in range(len(self.enr[J])):
-        #            pass
-        #            #print(J, m, istate, self.enr[J][istate])
+        self.dim1 = {J : self.dim_m1[J] * self.dim_k1[J] for J in self.J_list}
+        self.dim2 = {J : self.dim_m2[J] * self.dim_k2[J] for J in self.J_list}
 
 
-    def ind_assign(self, ind, Jlist):
-        """Returns assignment of states by their indices in the total basis set.
-
-        Args:
-            ind : scalar or list
-                Index(es) of states in the total basis, i.e., basis formed by coupling of all
-                J, m, and rovibrational state quanta.
-            Jlist : list
-                List of J quanta (order matters!).
-        Returns:
-            List of (J, m, energy, symmetry, assignment) for each state index in 'ind'.
+    def ind_assign(self, ind):
+        """Assignment of states by their indices in full basis set.
+        Returns list of (J, m, energy, symmetry, assignment) for each state index in 'ind'.
         """
         try:
             x = ind[0]
             ind_list = ind
         except IndexError:
             ind_list = [ind]
-        quanta = [(J, m, enr, sym, assign) for J in Jlist \
+        quanta = [(J, m, enr, sym, assign) for J in self.J_list \
                                            for m in self.m_list[J] \
                                            for enr, sym, assign in zip(self.enr[J], self.sym[J], self.assign[J])]
         return [quanta[i] for i in ind_list]
@@ -241,39 +238,53 @@ class States():
             raise TypeError(f"Unsupported argument type '{type(arg)}'") from None
 
 
-    def tomat(self, form='dict'):
-        """Returns full diagonal matrix representation.
+    def tomat(self, form='blocks'):
+        """Returns diagonal matrix representation.
 
-        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
-        as elements for pairs of J quanta (J, J) as keys.
-        If form = 'mat', the first output variable is a numpy array with full matrix.
-        The second output variable is a list of J quanta spanned by matrix elements.
+        If form='blocks', returns dictionary with elements as matrix blocks for different pairs of
+        bra and ket J quanta (J, J) as keys. If form='full', returns full matrix.
         """
-        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
+        assert (form in ('blocks', 'full')), f"Illegal value of argument 'form' = '{form}'"
         mat = {}
         for J in self.J_list:
             diag = [enr * self.prefac for m in self.m_list[J] for enr in self.enr[J]]
             mat[(J,J)] = np.diag(diag)
-        if form == 'mat':
-            dim = {J_pair[0] : mat[J_pair].shape[0] for J_pair in mat.keys()}
-            dim.update( {J_pair[1] : mat[J_pair].shape[1] for J_pair in mat.keys()} )
-            mat = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
-                             else np.zeros((dim[J1], dim[J2])) \
-                             for J2 in self.J_list] for J1 in self.J_list])
-        return mat, self.J_list
+        if form == 'full':
+            mat = self.block(mat)
+        return mat
+
+
+    def block(self, mat):
+        """ Converts block representation of tensor matrix into a full matrix form """
+        res = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
+                         else np.zeros((self.dim1[J1], self.dim2[J2])) \
+                         for J2 in self.J2_list] for J1 in self.J1_list])
+        return res
+
+
+    def split(self, mat, axis=None):
+        """ Converts full matrix representation of tensor into a block form """
+        ind0 = np.cumsum([self.dim1[J] for J in self.J1_list])
+        ind1 = np.cumsum([self.dim2[J] for J in self.J2_list])
+        if axis == 0:
+            mat = np.split(mat, ind0, axis=0)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J1_list, range(len(self.J1_list)))}
+        elif axis == 1:
+            mat = np.split(mat, ind1, axis=1)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J2_list, range(len(self.J2_list)))}
+        elif axis is None:
+            mat = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat, ind0, axis=0)[:-1]]
+            res = {(J1, J2) : mat[i][j] for J1, i in zip(self.J1_list, range(len(self.J1_list))) \
+                    for J2, j in zip(self.J2_list, range(len(self.J2_list)))}
+        else:
+            raise ValueError(f"Illegal value of argument 'axis' = {axis}") from None
+        return res
 
 
     def vec(self, vec):
-        """Computes product of diagonal matrix representation with vector.
-
-        Args:
-            vec : dict
-                Parts of the vector (dict.values) for different values of J, rounded to the first
-                decimal (dict.keys). The dict.values must be numpy.ndarray with dimensions
-                equal to basis dimensions for corresponding J.
-        """
+        """Computes product of diagonal matrix representation with vector """
         if not isinstance(vec, dict):
-            raise TypeError(f"Unsupported argument type '{type(vec)}'") from None
+            raise TypeError(f"Unsupported type of argument 'vec': '{type(vec)}'") from None
         vec_new = {}
         for J in self.J_list:
             try:
@@ -327,7 +338,6 @@ class Tensor():
             Field-free basis of bra functions.
         states2 : States
             Field-free basis of ket functions.
-    Kwargs:
         verbose : bool
             Set to True to print some log.
 
@@ -342,14 +352,26 @@ class Tensor():
             Tensor units.
         J_pairs : list
             List of pairs of J quanta coupled by tensor.
+        states1_name : str
+            Bra basis string identifier.
+        states2_name : str
+            Ket basis string identifier.
+        J1_list : list
+            List of J quanta spanned by bra basis.
+        J2_list : list
+            List of J quanta spanned by ket basis.
         dim_m1 : dict
-            states1.dim_m
+            states1.dim_m, dimension of m-subspace of bra basis, for different J in dict.keys.
         dim_k1 : dict
-            states1.dim_k
+            states1.dim_k, dimension of k-subspace of bra basis, for different J in dict.keys.
         dim_m2 : dict
-            states2.dim_m
+            states2.dim_m, dimension of m-subspace of ket basis, for different J in dict.keys.
         dim_k2 : dict
-            states2.dim_k
+            states2.dim_k, dimension of k-subspace of ket basis, for different J in dict.keys.
+        dim1 : dict
+            dim_k1 * dim_m1, total dimension of bra basis, for different J in dict.keys.
+        dim2 : dict
+            dim_k2 * dim_m2, total dimension of ket basis, for different J in dict.keys.
         mmat : dict
             Keys are pairs of J quanta (J1, J2) coupled by tensor.
             Values are elements of M-matrix for different Cartesian components and irreps of tensor.
@@ -370,7 +392,7 @@ class Tensor():
         prefac : scalar
             Prefactor, used to multiply tensor with a scalar and to convert units.
     """
-    def __init__(self, filename, tens_name, states1, states2, verbose=False, **kwargs):
+    def __init__(self, filename, tens_name, states1, states2, verbose=False):
 
         if verbose == True:
             print(f"\nLoad matrix elements for tensor {tens_name} from file {filename} ... ")
@@ -403,11 +425,6 @@ class Tensor():
         except KeyError:
             self.units = None
 
-        self.dim_m1 = {J : states1.dim_m[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
-        self.dim_k1 = {J : states1.dim_k[J] for J in set(J_pair[0] for J_pair in self.J_pairs)}
-        self.dim_m2 = {J : states2.dim_m[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
-        self.dim_k2 = {J : states2.dim_k[J] for J in set(J_pair[1] for J_pair in self.J_pairs)}
-
         if verbose == True:
             print(f"pairs of coupled J quanta: {self.J_pairs}")
             print(f"selection rules |J-J'|: {list(set(abs(J1 - J2) for (J1, J2) in self.J_pairs))}")
@@ -416,7 +433,19 @@ class Tensor():
             print(f"irreps ({len(self.irreps)}): {self.irreps}")
             print(f"units: {self.units}")
 
-        # read M-matrix
+        # copy some states data
+        self.states1_name = states1.name
+        self.states2_name = states2.name
+        self.J1_list = states1.J_list
+        self.J2_list = states2.J_list
+        self.dim_m1 = states1.dim_m
+        self.dim_k1 = states1.dim_k
+        self.dim1 = {J : self.dim_m1[J] * self.dim_k1[J] for J in self.J1_list}
+        self.dim_m2 = states2.dim_m
+        self.dim_k2 = states2.dim_k
+        self.dim2 = {J : self.dim_m2[J] * self.dim_k2[J] for J in self.J2_list}
+
+        # read M-matrix fro richmol file
 
         self.mmat = {}
 
@@ -459,7 +488,7 @@ class Tensor():
                     mat = [coo_matrix((d, (r, c)), shape=(dim1, dim2)).tocsr() for d,r,c in zip(data_,row_,col_)]
                 self.mmat[J_pair].append((cart_ind, {irrep:m for irrep,m in zip(irreps,mat)}))
 
-        # read K-matrix
+        # read K-matrix from richmol file
 
         self.kmat = {}
 
@@ -507,7 +536,6 @@ class Tensor():
 
     def field(self, field, field_tol=1e-12):
         """ Multiplies tensor with field and contracts over Cartesian components """
-
         try:
             fx, fy, fz = field[:3]
             fxyz = np.array([fx, fy, fz])
@@ -517,15 +545,12 @@ class Tensor():
                 f"field's X, Y, and Z components") from None
 
         # screen out small field components
-
         field_prod = {comb : np.prod(fxyz[list(comb)]) \
                       for comb in itertools.product((0,1,2), repeat=self.rank) \
                       if abs(np.prod(fxyz[list(comb)])) >= field_tol}
 
         # contract M-tensor with field
-
         self.mfmat = {}
-
         for (J1, J2), mmat in self.mmat.items():
             for (cart_ind, mat) in mmat:
                 try:
@@ -540,20 +565,13 @@ class Tensor():
 
 
     def vec(self, vec):
-        """Computes product of tensor with vector.
-
-        Args:
-            vec : dict
-                Parts of the vector (dict.values) for different values of J, rounded to the first
-                decimal (dict.keys). The dict.values must be numpy.ndarray with dimensions
-                equal to basis set dimensions for corresponding J.
-        """
+        """ Computes product of tensor with vector """
         try:
             x = self.mfmat
         except AttributeError:
             raise AttributeError("You need to multiply tensor with field before applying it to a vector") from None
         if not isinstance(vec, dict):
-            raise TypeError(f"Unsupported argument type '{type(vec)}'") from None
+            raise TypeError(f"Unsupported type of argument 'vec': '{type(vec)}'") from None
         vec_new = {}
         for J_pair in list(set(self.mfmat.keys()) & set(self.kmat.keys())):
             mfmat = self.mfmat[J_pair]
@@ -561,7 +579,7 @@ class Tensor():
             J1, J2 = J_pair
             dim1 = self.dim_m2[J2]
             dim2 = self.dim_k2[J2]
-            dim = self.dim_m1[J1] * self.dim_k1[J1]
+            dim = self.dim1[J1]
             try:
                 vecT = np.transpose(vec[J2].reshape(dim1, dim2))
             except KeyError:
@@ -576,31 +594,27 @@ class Tensor():
         return {key : val * self.prefac for key,val in vec_new.items()}
 
 
-    def tomat(self, form='dict', **kwargs):
-        """Returns dense-matrix representation of tensor contracted with external field,
-        or of its selected Cartesian component.
+    def tomat(self, form='blocks', **kwargs):
+        """Returns matrix representation of tensor.
 
-        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
-        as elements for different pairs of J quanta (J1, J2) as keys.
-        If form = 'mat', the first output variable is a numpy array with full matrix.
-        The second output variable is a list of J quanta spanned by matrix elements.
+        If form='blocks', returns dictionary with elements as matrix blocks for different pairs of
+        bra and ket J quanta (J1, J2) as keys. If form='full', returns full matrix.
         """
-        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
+        assert (form in ('blocks', 'full')), f"Illegal value of argument 'form' = '{form}'"
         if 'cart' in kwargs:
             cart = kwargs['cart']
             ifcart = True
             try:
                 cart_ind = tuple('xyz'.index(elem.lower()) for elem in cart)
             except ValueError:
-                raise ValueError(f"Illegal label for Cartesian component of tensor = '{cart}'") from None
+                raise ValueError(f"Illegal value of argument 'cart' = '{cart}'") from None
         else:
             ifcart = False
             try:
                 x = self.mfmat
             except AttributeError:
                 raise AttributeError(f"You need to multiply tensor with field before computing " + \
-                    f"its matrix representation, or provide as argument a label for selected " + \
-                    f"Cartesian component of tensor") from None
+                    f"its matrix representation, or provide input argument 'cart'") from None
 
         mat = {}
         for J_pair in list(set(self.mmat.keys()) & set(self.kmat.keys())):
@@ -609,7 +623,6 @@ class Tensor():
                 try:
                     ind = [elem[0] for elem in self.mmat[J_pair]].index(cart_ind)
                 except ValueError:
-                    print(f"Note: matrix elements <J={J1}|{retrieve_name(self)}({cart})|J={J2}> = 0")
                     continue
                 mmat = self.mmat[J_pair][ind][1]
             else:
@@ -622,14 +635,36 @@ class Tensor():
                     mat[J_pair] = kron(mmat[irrep], kmat[irrep]).todense()
         mat = {key : val * self.prefac for key,val in mat.items()}
 
-        Jlist = list(set([J1 for (J1, J2) in mat.keys()] + [J2 for (J1, J2) in mat.keys()]))
-        if form == 'mat':
-            dim = {J_pair[0] : mat[J_pair].shape[0] for J_pair in mat.keys()}
-            dim.update( {J_pair[1] : mat[J_pair].shape[1] for J_pair in mat.keys()} )
-            mat = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
-                             else np.zeros((dim[J1], dim[J2])) \
-                             for J2 in Jlist] for J1 in Jlist])
-        return mat, Jlist
+        if form == 'full':
+            mat = self.block(mat)
+        return mat
+
+
+    def block(self, mat):
+        """ Converts block representation of tensor matrix into a full matrix form """
+        res = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
+                         else np.zeros((self.dim1[J1], self.dim2[J2])) \
+                         for J2 in self.J2_list] for J1 in self.J1_list])
+        return res
+
+
+    def split(self, mat, axis=None):
+        """ Converts full matrix representation of tensor into a block form """
+        ind0 = np.cumsum([self.dim1[J] for J in self.J1_list])
+        ind1 = np.cumsum([self.dim2[J] for J in self.J2_list])
+        if axis == 0:
+            mat = np.split(mat, ind0, axis=0)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J1_list, range(len(self.J1_list)))}
+        elif axis == 1:
+            mat = np.split(mat, ind1, axis=1)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J2_list, range(len(self.J2_list)))}
+        elif axis is None:
+            mat = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat, ind0, axis=0)[:-1]]
+            res = {(J1, J2) : mat[i][j] for J1, i in zip(self.J1_list, range(len(self.J1_list))) \
+                    for J2, j in zip(self.J2_list, range(len(self.J2_list)))}
+        else:
+            raise ValueError(f"Illegal value of argument 'axis' = {axis}") from None
+        return res
 
 
     def __mul__(self, arg):
@@ -665,7 +700,7 @@ class Hamiltonian():
             if isinstance(val, (Tensor, States)):
                 self.tensors[key] = val
             else:
-                raise TypeError(f"Unsupported '{key}' argument type '{type(val)}'") from None
+                raise TypeError(f"Unsupported type of argument '{key}': '{type(val)}'") from None
 
         for key, tens in self.tensors.items():
             if isinstance(tens, Tensor):
@@ -675,66 +710,69 @@ class Hamiltonian():
                     raise AttributeError(f"You need to multiply tensor '{key}' with field before " + \
                         f"passing it to Hamiltonian") from None
 
-        # check consistency of dimensions
-        dim_m1 = {}
-        dim_m2 = {}
-        dim_k1 = {}
-        dim_k2 = {}
-        past_keys = []
-        for key,tens in self.tensors.items():
-            for J_pair in tens.J_pairs:
-                J1, J2 = J_pair
-                # check m-dimensions
-                dim1 = tens.dim_m1[J1]
-                dim2 = tens.dim_m2[J2]
-                try:
-                    if (dim1, dim2) != (dim_m1[J1], dim_m2[J2]):
-                        raise ValueError(f"Shape of the M-part of tensor '{key}' = {(dim1, dim2)} " + \
-                            f"is not aligned with the shape of tensor(s) {past_keys} = " + \
-                            f"{(dim_m1[J1], dim_m2[J2])}, for J1, J2 = {J1}, {J2}") from None
-                except KeyError:
-                    dim_m1[J1] = dim1
-                    dim_m2[J2] = dim2
-                # check k-dimensions
-                dim1 = tens.dim_k1[J1]
-                dim2 = tens.dim_k2[J2]
-                try:
-                    if (dim1, dim2) != (dim_k1[J1], dim_k2[J2]):
-                        raise ValueError(f"Shape of the K-part of tensor '{key}' = {(dim1, dim2)} " + \
-                            f"is not aligned with the shape of tensor(s) {past_keys} = " + \
-                            f"{(dim_k1[J1], dim_k2[J2])}, for J1, J2 = {J1}, {J2}") from None
-                except KeyError:
-                    dim_k1[J1] = dim1
-                    dim_k2[J2] = dim2
-            past_keys.append(key)
+        state1_names = [tens.states1_name for tens in self.tensors.values()]
+        state2_names = [tens.states2_name for tens in self.tensors.values()]
+        if not all(state1_names[0] == name for name in state1_names):
+            raise ValueError(f"Some tensors in {[key for key in kwargs.keys()]} have different bra state identifiers") from None
+        if not all(state2_names[0] == name for name in state2_names):
+            raise ValueError(f"Some tensors in {[key for key in kwargs.keys()]} have different ket state identifiers") from None
 
+        key0 = list(self.tensors.keys())[0]
+        self.J1_list = self.tensors[key0].J1_list
+        self.J2_list = self.tensors[key0].J2_list
+        self.dim_m1 = self.tensors[key0].dim_m1
+        self.dim_m2 = self.tensors[key0].dim_m2
+        self.dim_k1 = self.tensors[key0].dim_k1
+        self.dim_k2 = self.tensors[key0].dim_k2
+        self.dim1 = self.tensors[key0].dim1
+        self.dim2 = self.tensors[key0].dim2
 
 
     def tomat(self, form='dict'):
-        """Returns dense matrix representation of the sum of tensors.
+        """Returns matrix representation of sum of tensors.
 
-        If form = 'dict' (default), the first output variable is a dictionary containing matrix blocks
-        as elements for different pairs of J quanta (J1, J2) as keys.
-        If form = 'mat', the first output variable is a numpy array with full matrix.
-        The second output variable is a list of J quanta spanned by matrix elements.
+        If form='blocks', returns dictionary with elements as matrix blocks for different pairs of
+        bra and ket J quanta (J1, J2) as keys. If form='full', returns full matrix.
         """
-        assert (form in ('dict', 'mat')), f"Illegal value of argument 'form' = '{form}', use 'dict' or 'mat'"
+        assert (form in ('blocks', 'full')), f"Illegal value of argument 'form' = '{form}'"
         res = {}
         for key, tens in self.tensors.items():
-            mat, _ = tens.tomat()
+            mat = tens.tomat()
             for J_pair, elem in mat.items():
                 try:
                     res[J_pair] = res[J_pair] + elem
                 except KeyError:
                     res[J_pair] = elem
-        Jlist = list(set([J1 for (J1, J2) in res.keys()] + [J2 for (J1, J2) in res.keys()]))
-        if form == 'mat':
-            dim = {J_pair[0] : res[J_pair].shape[0] for J_pair in res.keys()}
-            dim.update( {J_pair[1] : res[J_pair].shape[1] for J_pair in res.keys()} )
-            res = np.block([[res[(J1, J2)] if (J1, J2) in res.keys() \
-                             else np.zeros((dim[J1], dim[J2])) \
-                             for J2 in Jlist] for J1 in Jlist])
-        return res, Jlist
+        if form == 'full':
+            res = self.block(res)
+        return res
+
+
+    def block(self, mat):
+        """ Converts block representation of tensor matrix into a full matrix form """
+        res = np.block([[mat[(J1, J2)] if (J1, J2) in mat.keys() \
+                         else np.zeros((self.dim1[J1], self.dim2[J2])) \
+                         for J2 in self.J2_list] for J1 in self.J1_list])
+        return res
+
+
+    def split(self, mat, axis=None):
+        """ Converts full matrix representation of tensor into a block form """
+        ind0 = np.cumsum([self.dim1[J] for J in self.J1_list])
+        ind1 = np.cumsum([self.dim2[J] for J in self.J2_list])
+        if axis == 0:
+            mat = np.split(mat, ind0, axis=0)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J1_list, range(len(self.J1_list)))}
+        elif axis == 1:
+            mat = np.split(mat, ind1, axis=1)[:-1]
+            res = {J : mat[i] for J, i in zip(self.J2_list, range(len(self.J2_list)))}
+        elif axis is None:
+            mat = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat, ind0, axis=0)[:-1]]
+            res = {(J1, J2) : mat[i][j] for J1, i in zip(self.J1_list, range(len(self.J1_list))) \
+                    for J2, j in zip(self.J2_list, range(len(self.J2_list)))}
+        else:
+            raise ValueError(f"Illegal value of argument 'axis' = {axis}") from None
+        return res
 
 
     def vec(self, vec):
@@ -747,7 +785,6 @@ class Hamiltonian():
                 except KeyError:
                     vec_new[J] = elem
         return vec_new
-
 
 
 def retrieve_name(var):
