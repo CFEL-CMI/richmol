@@ -7,7 +7,7 @@ path = "../cmi-richmol_watie/"
 h0 = States(path + "ocs_energies_j0_j30.rchm",{'emax':60000,'fmax':30,'fmin':0,'mmin':-30,'mmax':30,'dm':1,'df':1})
 mu = Tensor(path + "ocs_matelem_mu_j<j1>_j<j2>.rchm", rank=1, ind_sym="none", units="au", me_thresh=1.0e-12)
 
-edc = Field(form=["0","0","edc0"], params={"edc0":100000}, units="V/cm")
+edc = Field(form=["0","edc0","0"], params={"edc0":100000}, units="V/cm")
 
 ham = -1.0*mu*edc
 
