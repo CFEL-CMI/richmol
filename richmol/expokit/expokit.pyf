@@ -36,9 +36,9 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            double precision, dimension(*), intent(inout), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            double precision, dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(m), intent(inout) :: ipiv
+            integer, dimension(m), intent(in,out) :: ipiv
             integer, intent(out) :: iexph
             integer, intent(out) :: ns
             integer, intent(out) :: iflag
@@ -50,9 +50,9 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            double precision, dimension(*), intent(inout), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            double precision, dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(m), intent(inout) :: ipiv
+            integer, dimension(m), intent(in,out) :: ipiv
             integer, intent(out) :: iexph
             integer, intent(out) :: ns
             integer, intent(out) :: iflag
@@ -64,9 +64,9 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            complex(16), dimension(*), intent(inout), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            complex(16), dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(m), intent(inout) :: ipiv
+            integer, dimension(m), intent(in,out) :: ipiv
             integer, intent(out) :: iexph
             integer, intent(out) :: ns
             integer, intent(out) :: iflag
@@ -78,9 +78,9 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            complex(16), dimension(*), intent(inout), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            complex(16), dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(m), intent(inout) :: ipiv
+            integer, dimension(m), intent(in,out) :: ipiv
             integer, intent(out) :: iexph
             integer, intent(out) :: ns
             integer, intent(out) :: iflag
@@ -91,7 +91,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            double precision, dimension(m), intent(inout) :: y
+            double precision, dimension(m), intent(in,out) :: y
             complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
             integer, dimension(m), intent(in) :: iwsp
             integer, intent(out) :: iflag
@@ -102,7 +102,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            double precision, dimension(m), intent(inout) :: y
+            double precision, dimension(m), intent(in,out) :: y
             complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
             integer, dimension(m), intent(in) :: iwsp
             integer, intent(out) :: iflag
@@ -113,7 +113,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            complex(16), dimension(m), intent(inout) :: y
+            complex(16), dimension(m), intent(in,out) :: y
             complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
             integer, dimension(m), intent(in) :: iwsp
             integer, intent(out) :: iflag
@@ -124,7 +124,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            double precision, dimension(m), intent(inout) :: y
+            double precision, dimension(m), intent(in,out) :: y
             complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
         end subroutine dnchbv
 
@@ -133,7 +133,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(*,*), intent(in) :: h
             integer, intent(hide), depend(h) :: ldh=shape(h,0)
-            complex(16), dimension(m), intent(inout) :: y
+            complex(16), dimension(m), intent(in,out) :: y
             complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
         end subroutine znchbv
 
@@ -150,7 +150,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(n), intent(in) :: v
             double precision, dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -168,7 +168,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             double precision, dimension(n), intent(in) :: v
             double precision, dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -186,7 +186,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(n), intent(in) :: v
             complex(16), dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -204,7 +204,7 @@ python module expokit ! in
             double precision, intent(in) :: t
             complex(16), dimension(n), intent(in) :: v
             complex(16), dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -223,7 +223,7 @@ python module expokit ! in
             double precision, dimension(n), intent(in) :: u
             double precision, dimension(n), intent(in) :: v
             double precision, dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -242,7 +242,7 @@ python module expokit ! in
             double precision, dimension(n), intent(in) :: u
             double precision, dimension(n), intent(in) :: v
             double precision, dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -261,7 +261,7 @@ python module expokit ! in
             complex(16), dimension(n), intent(in) :: u
             complex(16), dimension(n), intent(in) :: v
             complex(16), dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
@@ -280,7 +280,7 @@ python module expokit ! in
             complex(16), dimension(n), intent(in) :: u
             complex(16), dimension(n), intent(in) :: v
             complex(16), dimension(n), intent(out) :: w
-            double precision, intent(inout) :: tol
+            double precision, intent(in,out) :: tol
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
