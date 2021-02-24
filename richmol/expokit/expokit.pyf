@@ -5,7 +5,7 @@ python module real__user__routines
           double precision, dimension(n), intent(in) :: x
           double precision, dimension(n), intent(out) :: y
         end subroutine
-    end iterface
+    end interface
 end python module real__user__routines
 
 
@@ -16,7 +16,7 @@ python module complex__user__routines
           complex(16), dimension(n), intent(in) :: x
           complex(16), dimension(n), intent(out) :: y
         end subroutine
-    end iterface
+    end interface
 end python module complex__user__routines
 
 
@@ -154,7 +154,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+2) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -172,7 +172,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+2) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -190,7 +190,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+2) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -208,7 +208,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+2) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -227,7 +227,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+3) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -265,7 +265,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+3) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace
@@ -284,7 +284,7 @@ python module expokit ! in
             double precision, intent(in) :: anorm
             complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
             integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
-            integer, dimension(*), intent(in), check(len(iwsp)>m+3) :: iwsp
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
             integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
             external :: matvec
             integer intent(in) :: itrace

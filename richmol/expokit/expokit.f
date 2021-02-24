@@ -62,8 +62,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+2
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -238,7 +239,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          do i = 1,j
             hij = DDOT( n, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
             call DAXPY( n, -hij, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
@@ -260,7 +261,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DNRM2( n, wsp(j1v),1 )
 *
 *---  set 1 for the 2-corrected scheme ...
@@ -1677,8 +1678,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+2
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -1845,7 +1847,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          do i = 1,j
             hij = DDOT( n, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
             call DAXPY( n, -hij, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
@@ -1867,7 +1869,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DNRM2( n, wsp(j1v),1 )
 *
 *---  set 1 for the 2-corrected scheme ...
@@ -2057,8 +2059,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+2
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -2226,7 +2229,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          if ( j.gt.1 )
      .     call DAXPY(n,-wsp(ih+(j-1)*mh+j-2),wsp(j1v-2*n),1,wsp(j1v),1)
          hjj = DDOT( n, wsp(j1v-n),1, wsp(j1v),1 )
@@ -2249,7 +2252,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DNRM2( n, wsp(j1v),1 )
 *
 *---  set 1 for the 2-corrected scheme ...
@@ -2441,8 +2444,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+2
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        complex*16 x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        complex*16 x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -2614,7 +2618,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          do i = 1,j
             hij = ZDOTC( n, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
             call ZAXPY( n, -hij, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
@@ -2636,7 +2640,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DZNRM2( n, wsp(j1v),1 )
 *
 *---  set 1 for the 2-corrected scheme ...
@@ -2826,8 +2830,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+2
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        complex*16 x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        complex*16 x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -3000,7 +3005,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          if ( j.gt.1 )
      .     call ZAXPY(n,-wsp(ih+(j-1)*mh+j-2),wsp(j1v-2*n),1,wsp(j1v),1)
          hjj = ZDOTC( n, wsp(j1v-n),1, wsp(j1v),1 )
@@ -3023,7 +3028,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DZNRM2( n, wsp(j1v),1 )
 *
 *---  set 1 for the 2-corrected scheme ...
@@ -3215,8 +3220,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+3
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -3348,7 +3354,7 @@
  100  if ( t_now.ge.t_out ) goto 500
 
       nmult =  nmult + 1
-      call matvec( w, wsp(iv) )
+      call matvec(n, w, wsp(iv) )
       call DAXPY( n, 1.0d0, u,1, wsp(iv),1 )
       beta = DNRM2( n, wsp(iv),1 )
       if ( beta.eq.0.0d0 ) goto 500
@@ -3373,7 +3379,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          do i = 1,j
             hij = DDOT( n, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
             call DAXPY( n, -hij, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
@@ -3395,7 +3401,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DNRM2( n, wsp(j1v),1 )
 *
 *---  set 1's for the 3-extended scheme ...
@@ -3573,8 +3579,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+3
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -3706,7 +3713,7 @@
  100  if ( t_now.ge.t_out ) goto 500
 
       nmult =  nmult + 1
-      call matvec( w, wsp(iv) )
+      call matvec(n, w, wsp(iv) )
       call DAXPY( n, 1.0d0, u,1, wsp(iv),1 )
       beta = DNRM2( n, wsp(iv),1 )
       if ( beta.eq.0.0d0 ) goto 500
@@ -3731,7 +3738,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          if ( j.gt.1 )
      .     call DAXPY(n,-wsp(ih+(j-1)*mh+j-2),wsp(j1v-2*n),1,wsp(j1v),1)
          hjj = DDOT( n, wsp(j1v-n),1, wsp(j1v),1 )
@@ -3754,7 +3761,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DNRM2( n, wsp(j1v),1 )
 *
 *---  set 1's for the 3-extended scheme ...
@@ -3939,8 +3946,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+3
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -4076,7 +4084,7 @@
  100  if ( t_now.ge.t_out ) goto 500
 
       nmult =  nmult + 1
-      call matvec( w, wsp(iv) )
+      call matvec(n, w, wsp(iv) )
       call ZAXPY( n, ONE, u,1, wsp(iv),1 )
       beta = DZNRM2( n, wsp(iv),1 )
       if ( beta.eq.0.0d0 ) goto 500
@@ -4101,7 +4109,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          do i = 1,j
             hij = ZDOTC( n, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
             call ZAXPY( n, -hij, wsp(iv+(i-1)*n),1, wsp(j1v),1 )
@@ -4123,7 +4131,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DZNRM2( n, wsp(j1v),1 )
 *
 *---  set 1's for the 3-extended scheme ...
@@ -4307,8 +4315,9 @@
 * iwsp(liwsp): (workspace) liwsp .ge. m+3
 *
 *     matvec : external subroutine for matrix-vector multiplication.
-*              synopsis: matvec( x, y )
-*                        double precision x(*), y(*)
+*              synopsis: matvec(n, x, y )
+*                        integer n
+*                        double precision x(n), y(n)
 *              computes: y(1:n) <- A*x(1:n)
 *                        where A is the principal matrix.
 *
@@ -4444,7 +4453,7 @@
  100  if ( t_now.ge.t_out ) goto 500
 
       nmult =  nmult + 1
-      call matvec( w, wsp(iv) )
+      call matvec(n, w, wsp(iv) )
       call ZAXPY( n, ONE, u,1, wsp(iv),1 )
       beta = DZNRM2( n, wsp(iv),1 )
       if ( beta.eq.0.0d0 ) goto 500
@@ -4469,7 +4478,7 @@
       j1v = iv + n
       do 200 j = 1,m
          nmult = nmult + 1
-         call matvec( wsp(j1v-n), wsp(j1v) )
+         call matvec(n, wsp(j1v-n), wsp(j1v) )
          if ( j.gt.1 )
      .     call ZAXPY(n,-wsp(ih+(j-1)*mh+j-2),wsp(j1v-2*n),1,wsp(j1v),1)
          hjj = ZDOTC( n, wsp(j1v-n),1, wsp(j1v),1 )
@@ -4491,7 +4500,7 @@
          j1v = j1v + n
  200  continue
       nmult = nmult + 1
-      call matvec( wsp(j1v-n), wsp(j1v) )
+      call matvec(n, wsp(j1v-n), wsp(j1v) )
       avnorm = DZNRM2( n, wsp(j1v),1 )
 *
 *---  set 1's for the 3-extended scheme ...
