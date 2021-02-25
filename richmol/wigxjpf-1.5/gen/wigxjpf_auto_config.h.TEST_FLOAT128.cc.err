@@ -1,4 +1,0 @@
-src/test_cc_dbl.c:31:10: fatal error: 'quadmath.h' file not found
-#include "quadmath.h"
-         ^~~~~~~~~~~~
-1 error generated.
