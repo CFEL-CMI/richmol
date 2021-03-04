@@ -56,7 +56,7 @@ if __name__ == "__main__":
         license             = "GPL",
         packages            = ["richmol"],
         cmdclass            = {'build': Build},
-        package_data        = {"richmol":["symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
+        package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
         scripts             = [],
         ext_modules         = [expokit],
         long_description    = read("README.md"),

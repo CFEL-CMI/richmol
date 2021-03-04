@@ -21,9 +21,7 @@ however the computationally critical parts are implemented with Fortran and C ro
    theory.rst
    version.rst
    installation.rst
-   watie_tutorial.rst
-   tdtools_tutorial.rst
-   hyfor_tutorial.rst
+   getting_started.rst
    richmol_database.rst
    education.rst
 

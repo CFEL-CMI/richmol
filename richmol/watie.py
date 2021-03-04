@@ -1,7 +1,3 @@
-"""Tools for computing rigid-molecule rotational energy levels and matrix elements
-of various rotation-dependent operators, such as laboratory-frame Cartesian tensor
-operators and arbitrary functions of Euler angles.
-"""
 import numpy as np
 import math
 import sys
@@ -58,10 +54,9 @@ def counted(f):
     return wrapped
 
 
-def atom_data_from_label(atom_label):
-    """Given atom label, returns its properties, e.g. atomic mass.
-    Combine atom labels with integer mass numbers to specify different
-    isotopologues, e.g., 'H2' (deuterium), 'C13', 'N15', etc.
+def atom_mass_from_label(atom_label):
+    """Given atom label, returns its mass.
+    To specify different isotopologues: 'H2' (deuterium), 'C13', 'N15', etc.
     """
     r = re.compile("([a-zA-Z]+)([0-9]+)")
     m = r.match(atom_label)
@@ -83,336 +78,97 @@ def atom_data_from_label(atom_label):
     return {"mass":mass}
 
 
+def imom(self):
+    """ Computes moments of inertia tensor """
+    xyz = self.XYZ['xyz']
+    mass = self.XYZ['mass']
+    cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0) / np.sum(mass)
+    xyz0 = xyz - cm[np.newaxis,:]
+    imat = np.zeros((3,3), dtype=np.float64)
+    natoms = xyz0.shape[0]
+    # off-diagonals
+    for i in range(3):
+        for j in range(3):
+            if i==j: continue
+            imat[i,j] = -np.sum([ xyz0[iatom,i]*xyz0[iatom,j]*mass[iatom] for iatom in range(natoms) ])
+    # diagonals
+    imat[0,0] = np.sum([ (xyz0[iatom,1]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
+    imat[1,1] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
+    imat[2,2] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,1]**2)*mass[iatom] for iatom in range(natoms) ])
+    return imat
 
-class RigidMolecule():
 
-    @property
-    def XYZ(self):
-        """ To set and return Cartesian coordinates of atoms in molecule """
-        try:
-            x = self.atoms
-        except AttributeError:
-            raise AttributeError(f"'{retrieve_name(self)}.XYZ' was not initialized") from None
-        res = self.atoms.copy()
-        try:
-            res['xyz'] = np.dot(res['xyz'], np.transpose(self.frame_rotation))
-        except AttributeError:
-            pass
-        return res
+def gmat(self):
+    """ Computes rotational kinetic energy matrix """
+    convert_to_cm = planck * avogno * 1e+16 / (4.0 * np.pi * np.pi * vellgt)
+    xyz = self.XYZ['xyz']
+    mass = self.XYZ['mass']
+    natoms = xyz.shape[0]
 
+    # Levi-Civita tensor
+    levi_civita = np.zeros((3,3,3),dtype=np.float64)
+    levi_civita[0,1,2] = 1
+    levi_civita[0,2,1] =-1
+    levi_civita[1,0,2] =-1
+    levi_civita[1,2,0] = 1
+    levi_civita[2,0,1] = 1
+    levi_civita[2,1,0] =-1
 
-    @XYZ.setter
-    def XYZ(self, arg):
-        to_angstrom = 1 # default distance units are Angstrom
-        xyz = []
-        mass = []
-        label = []
+    # rotational t-vector
+    tvec = np.zeros((3,natoms*3), dtype=np.float64)
+    tvec_m = np.zeros((natoms*3,3), dtype=np.float64)
+    for irot in range(3):
+        ialpha = 0
+        for iatom in range(natoms):
+            for alpha in range(3):
+                tvec[irot,ialpha] = np.dot(levi_civita[alpha,irot,:], xyz[iatom,:])
+                tvec_m[ialpha,irot] = tvec[irot,ialpha] * mass[iatom]
+                ialpha+=1
 
-        if isinstance(arg, str):
+    # rotational g-matrix
+    gsmall = np.dot(tvec, tvec_m)
 
-            # read from XYZ file
+    # invert g-matrix to obtain rotational G-matrix
+    umat, sv, vmat = np.linalg.svd(gsmall, full_matrices=True)
 
-            fl = open(arg, 'r')
-            line = fl.readline()
-            natoms = float(line.split()[0])
-            comment = fl.readline()
-            for line in fl:
-                w = line.split()
-                atom_label = w[0]
-                try:
-                    x,y,z = (float(ww) for ww in w[1:])
-                except ValueError:
-                    raise ValueError(f"Atom specification '{atom_label}' in the XYZ file {arg} " + \
-                        f"is not followed by the three floating-point values of x, y, and z " + \
-                        f"coordinates") from None
-                atom_mass = atom_data_from_label(atom_label.upper())["mass"]
-                xyz.append([x,y,z])
-                mass.append(atom_mass)
-                label.append(atom_label)
-            fl.close()
-
-        elif isinstance(arg, (list, tuple)):
-
-            # read from input iterable
-
-            for ielem,elem in enumerate(arg):
-                if isinstance(elem, str):
-                    if elem[:4].lower()=="bohr":
-                        to_angstrom = bohr_to_angstrom
-                    elif elem[:4].lower()=="angs":
-                        to_angstrom = 1
-                    else:
-                        atom_label = elem
-                        atom_mass = atom_data_from_label(atom_label.upper())["mass"]
-                        try:
-                            x,y,z = (float(val) for val in arg[ielem+1:ielem+4])
-                        except ValueError:
-                            raise ValueError(f"Atom specification '{atom_label}' is not followed " + \
-                                f"by the three floating-point values of x, y, and z " + \
-                                f"coordinates") from None
-                        xyz.append([float(val)*to_angstrom for val in (x,y,z)])
-                        mass.append(atom_mass)
-                        label.append(atom_label)
+    dmat = np.zeros((3,3), dtype=np.float64)
+    no_sing = 0
+    ifstop = False
+    for i in range(len(sv)):
+        if sv[i] > settings.gmat_svd_small:
+            dmat[i,i] = 1.0/sv[i]
         else:
-            raise TypeError(f"Bad argument type '{type(arg)}' for atoms' specification") from None
-
-        self.atoms = np.array( [(lab, mass, cart) for lab,mass,cart in zip(label,mass,xyz)], \
-                               dtype=[('label','U10'),('mass','f8'),('xyz','f8',(3))] )
-
-
-    @property
-    def tensor(self):
-        """ To set and return molecule-fixed Cartesian tensors """
-        try:
-            x = self.tens
-        except AttributeError:
-            raise AttributeError(f"'{retrieve_name(self)}.tensor' was not initialized") from None
-        tens = copy.deepcopy(self.tens)
-        try:
-            sa = "abcdefgh"
-            si = "ijklmnop"
-            for name,array in tens.items():
-                ndim = array.ndim
-                if ndim>len(sa):
-                    raise ValueError(f"Number of dimensions for tensor '{name}' = {ndim} " + \
-                        f"exceeds the allowed maximum = {len(sa)}") from None
-                key = "".join(sa[i]+si[i]+"," for i in range(ndim)) \
-                    + "".join(si[i] for i in range(ndim)) + "->" \
-                    + "".join(sa[i] for i in range(ndim))
-                rot_mat = [self.frame_rotation for i in range(ndim)]
-                tens[name] = np.einsum(key, *rot_mat, array)
-        except AttributeError:
-            pass
-        return tens
-
-
-    @tensor.setter
-    def tensor(self, arg):
-        # check if input is (name, tensor)
-        try:
-            name, tens = arg
-            name = name.strip()
-        except ValueError:
-            raise ValueError(f"Pass an iterable with two items, tensor = ('name', tensor)") from None
-        # check if name and tensor have proper types
-        if not isinstance(name, str):
-            raise TypeError(f"Bad argument type '{type(name)}' for tensor name") from None
-        if isinstance(tens, (tuple, list)):
-            tens = np.array(tens)
-        elif isinstance(tens, (np.ndarray,np.generic)):
-            pass
-        else:
-            raise TypeError(f"Bad argument type '{type(tens)}' for tensor values ") from None
-        # check if name and tensor have proper values
-        if "," in name or len(name) == 0:
-            raise ValueError(f"Illegal tensor name '{name}'")
-        if not all(dim==3 for dim in tens.shape):
-            raise ValueError(f"Cartesian tensor has bad shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-        if np.all(np.abs(tens) < settings.tens_small_elem):
-            raise ValueError(f"Tensor has all its elements equal to zero") from None
-        if np.any(np.abs(tens) > settings.tens_large_elem):
-            raise ValueError(f"Tensor has too large values of its elements") from None
-        if np.any(np.isnan(tens)):
-            raise ValueError(f"Tensor has some values of its elements equal to NaN") from None
-        # save tensor
-        try:
-            x = self.tens
-        except AttributeError:
-            self.tens = {}
-        if name in self.tens:
-            raise ValueError(f"Tensor with the name '{name}' already exists") from None
-        self.tens[name] = tens
-
-
-    @property
-    def frame(self):
-        """ To define and change molecule-fixed frame (embedding) """
-        try:
-            rotmat = self.frame_rotation
-            frame_type = self.frame_type
-        except AttributeError:
-            rotmat = np.eye(3, dtype=np.float64)
-            frame_type = "I"
-        return frame_type, rotmat
-
-
-    @frame.setter
-    def frame(self, arg):
-        if isinstance(arg, str):
-            try:
-                x = self.frame_rotation
-            except AttributeError:
-                self.frame_rotation = np.eye(3, dtype=np.float64)
-
-            for fr in reversed([v.strip() for v in arg.split(',')]):
-
-                assert (len(fr)>0), f"Illegal frame type specification: '{arg}'"
-
-                if fr.lower()=="pas":
-                    # principal axes system
-                    try:
-                        diag, rotmat = np.linalg.eigh(self.imom())
-                    except np.linalg.LinAlgError:
-                        raise RuntimeError("Eigenvalues did not converge") from None
-                    self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
-
-                elif "".join(sorted(fr.lower())) == "xyz":
-                    # axes permutation
-                    ind = [("x","y","z").index(s) for s in list(fr.lower())]
-                    rotmat = np.zeros((3,3), dtype=np.float64)
-                    for i in range(3):
-                        rotmat[i,ind[i]] = 1.0
-                    self.frame_rotation = np.dot(rotmat, self.frame_rotation)
-
-                else:
-                    # axes system defined by to-diagonal rotation of arbitrary rank-2 (3x3) tensor
-                    # the tensor must be initialized before, with the name matching fr
-                    try:
-                        tens = self.tensor[fr]
-                    except KeyError:
-                        raise KeyError(f"Tensor '{fr}' was not initialised") from None
-                    if tens.ndim != 2:
-                        raise ValueError(f"Tensor '{fr}' has inappropriate rank: {tens.ndim} " \
-                                +f"is not equal to 2") from None
-                    if np.any(np.abs(tens - tens.T) > settings.tens_symm_tol):
-                        raise ValueError(f"Tensor '{fr}' is not symmetric") from None
-                    try:
-                        diag, rotmat = np.linalg.eigh(tens)
-                    except np.linalg.LinAlgError:
-                        raise RuntimeError("Eigenvalues did not converge") from None
-                    self.frame_rotation = np.dot(np.transpose(rotmat), self.frame_rotation)
-
-        else:
-            raise TypeError(f"Bad argument type '{type(arg)}' for frame specification") from None
-
-        # update string that keeps track of all frame rotations
-        try:
-            self.frame_type += "," + arg
-        except AttributeError:
-            self.frame_type = arg
-
-
-    @property
-    def B(self):
-        """ Returns Bx, By, Bz rotational constants in units of cm^-1 """
-        imom = self.imom()
-        tol = settings.imom_offdiag_tol
-        if np.any(np.abs( np.diag(np.diag(imom)) - imom ) > tol):
-            raise RuntimeError("Can't compute rotational constants, " + \
-                f"inertia tensor is not diagonal = {imom.round(4)}, " + \
-                f"max offdiag = {np.max(np.abs(np.diag(np.diag(imom))-imom)).round(4)}") from None
-        convert_to_cm = planck * avogno * 1e+16 / (8.0 * np.pi * np.pi * vellgt) 
-        return [convert_to_cm/val for val in np.diag(imom)]
-
-
-    @B.setter
-    def B(self, val):
-        raise AttributeError(f"Setting {retrieve_name(self)}.B is not permitted") from None
-
-
-    @property
-    def kappa(self):
-        """ Returns asymmtery parameter kappa = (2*B-A-C)/(A-C) """
-        A, B, C = reversed(sorted(self.B))
-        return (2*B-A-C)/(A-C)
-
-
-    @kappa.setter
-    def kappa(self, val):
-        raise AttributeError(f"Setting {retrieve_name(self)}.kappa is not permitted") from None
-
-
-    def imom(self):
-        """ Computes moments of inertia tensor """
-        xyz = self.XYZ['xyz']
-        mass = self.XYZ['mass']
-        cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0) / np.sum(mass)
-        xyz0 = xyz - cm[np.newaxis,:]
-        imat = np.zeros((3,3), dtype=np.float64)
-        natoms = xyz0.shape[0]
-        # off-diagonals
-        for i in range(3):
-            for j in range(3):
-                if i==j: continue
-                imat[i,j] = -np.sum([ xyz0[iatom,i]*xyz0[iatom,j]*mass[iatom] for iatom in range(natoms) ])
-        # diagonals
-        imat[0,0] = np.sum([ (xyz0[iatom,1]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
-        imat[1,1] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,2]**2)*mass[iatom] for iatom in range(natoms) ])
-        imat[2,2] = np.sum([ (xyz0[iatom,0]**2+xyz0[iatom,1]**2)*mass[iatom] for iatom in range(natoms) ])
-        return imat
-
-
-    def gmat(self):
-        """ Computes rotational kinetic energy matrix """
-        convert_to_cm = planck * avogno * 1e+16 / (4.0 * np.pi * np.pi * vellgt)
-        xyz = self.XYZ['xyz']
-        mass = self.XYZ['mass']
-        natoms = xyz.shape[0]
-
-        # Levi-Civita tensor
-        levi_civita = np.zeros((3,3,3),dtype=np.float64)
-        levi_civita[0,1,2] = 1
-        levi_civita[0,2,1] =-1
-        levi_civita[1,0,2] =-1
-        levi_civita[1,2,0] = 1
-        levi_civita[2,0,1] = 1
-        levi_civita[2,1,0] =-1
-
-        # rotational t-vector
-        tvec = np.zeros((3,natoms*3), dtype=np.float64)
-        tvec_m = np.zeros((natoms*3,3), dtype=np.float64)
-        for irot in range(3):
-            ialpha = 0
-            for iatom in range(natoms):
-                for alpha in range(3):
-                    tvec[irot,ialpha] = np.dot(levi_civita[alpha,irot,:], xyz[iatom,:])
-                    tvec_m[ialpha,irot] = tvec[irot,ialpha] * mass[iatom]
-                    ialpha+=1
-
-        # rotational g-matrix
-        gsmall = np.dot(tvec, tvec_m)
-
-        # invert g-matrix to obtain rotational G-matrix
-        umat, sv, vmat = np.linalg.svd(gsmall, full_matrices=True)
-
-        dmat = np.zeros((3,3), dtype=np.float64)
-        no_sing = 0
-        ifstop = False
-        for i in range(len(sv)):
-            if sv[i] > settings.gmat_svd_small:
-                dmat[i,i] = 1.0/sv[i]
+            no_sing += 1
+            print(f"Warning: rotational kinetic energy matrix is singular, " + \
+                f"singular element index = {i}, singular value = {sv[i]}")
+            if no_sing==1 and self.linear() is True:
+                print(f"this is fine for linear molecule: set 1/{sv[i]}=0")
+                dmat[i,i] = 0
             else:
-                no_sing += 1
-                print(f"Warning: rotational kinetic energy matrix is singular, " + \
-                    f"singular element index = {i}, singular value = {sv[i]}")
-                if no_sing==1 and self.linear() is True:
-                    print(f"this is fine for linear molecule: set 1/{sv[i]}=0")
-                    dmat[i,i] = 0
-                else:
-                    ifstop = True
-        if ifstop is True:
-            raise RuntimeError(f"Rotational kinetic energy matrix g-small:\n{gsmall}\ncontains " + \
-                f"singular elements:\n{sv}\nplease check your input geometry " + \
-                f"in {retrieve_name(self)}.XYZ")
+                ifstop = True
+    if ifstop is True:
+        raise RuntimeError(f"Rotational kinetic energy matrix g-small:\n{gsmall}\ncontains " + \
+            f"singular elements:\n{sv}\nplease check your input geometry " + \
+            f"in {retrieve_name(self)}.XYZ")
 
-        gbig = np.dot(umat, np.dot(dmat, vmat))
-        gbig *= convert_to_cm
-        return gbig
+    gbig = np.dot(umat, np.dot(dmat, vmat))
+    gbig *= convert_to_cm
+    return gbig
 
 
-    def linear(self):
-        """ Returns True/False if molecule is linear/non-linear """
-        xyz = self.XYZ['xyz']
-        imom = self.imom()
-        d, rotmat = np.linalg.eigh(imom)
-        xyz2 = np.dot(xyz, rotmat)
-        tol = 1e-14
-        if (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,1])<tol)) or \
-            (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,2])<tol)) or \
-            (np.all(abs(xyz2[:,1])<tol) and np.all(abs(xyz2[:,2])<tol)):
-            return True
-        else:
-            return False
+def linear(self):
+    """ Returns True/False if molecule is linear/non-linear """
+    xyz = self.XYZ['xyz']
+    imom = self.imom()
+    d, rotmat = np.linalg.eigh(imom)
+    xyz2 = np.dot(xyz, rotmat)
+    tol = 1e-14
+    if (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,1])<tol)) or \
+        (np.all(abs(xyz2[:,0])<tol) and np.all(abs(xyz2[:,2])<tol)) or \
+        (np.all(abs(xyz2[:,1])<tol) and np.all(abs(xyz2[:,2])<tol)):
+        return True
+    else:
+        return False
 
 
 
