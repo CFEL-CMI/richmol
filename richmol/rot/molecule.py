@@ -2,6 +2,7 @@ from richmol.rot import mol_frames
 from richmol.rot import mol_tens
 from richmol.rot import atomdata
 from richmol.rot import constants as const
+import symmetry
 import numpy as np
 import string
 import random
@@ -258,7 +259,7 @@ class Molecule:
             self.check_B()
             return self.B_exp
         except AttributeError:
-            return self.ABC_calc[1]
+            return self.B_calc
 
 
     @B.setter
@@ -281,6 +282,7 @@ class Molecule:
                              for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_calc) )
             raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
                 f"        exp          calc       exp-calc\n" + err) from None
+        return
 
 
     def check_B(self):
@@ -297,6 +299,21 @@ class Molecule:
                              for abc,e,c in zip(("B"), B_exp, B_calc) )
             raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
                 f"        exp          calc       exp-calc\n" + err) from None
+        return
+
+
+    @property
+    def sym(self):
+        try:
+            return self.symmetry
+        except AttributeError:
+            return symmetry.group("C1")
+
+
+    @sym.setter
+    def sym(self, val: str = "C1"):
+        self.symmetry = symmetry.group(val)
+
 
 
 def mol_tensor(val):
@@ -334,6 +351,7 @@ def mol_tensor(val):
 
 if __name__ == '__main__':
     import sys
+    from richmol import symtop
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
@@ -365,11 +383,13 @@ if __name__ == '__main__':
             "H",      1.455250,    0.830868,   -2.487875, \
             "H",     -0.267696,    1.035608,   -2.160680)
     camphor.store_xyz("camphor.xyz", "some random comment")
-    sys.exit()
 
     camphor.dip = [1.21615, -0.30746, 0.01140]
     camphor.pol = [[115.80434, -0.58739, 0.03276], \
                    [-0.58739, 112.28245, 1.36146], \
                    [0.03276, 1.36146, 108.47809]]
 
-
+    print(camphor.dip)
+    camphor.sym = "D2"
+    print(dir(symtop.symtop))
+    # print(dir(richmol))

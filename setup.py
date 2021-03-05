@@ -39,6 +39,18 @@ expokit = Extension(name = 'expokit',
                                 'expokit/lapack.f',
                                 'expokit/blas.f'])
 
+symtop = Extension(name = 'richmol.symtop',
+                    sources = ['richmol/symtop/symtop.pyf',
+                               'richmol/symtop/accuracy.f90',
+                               'richmol/symtop/dffs_m.f90',
+                               'richmol/symtop/djmk.f90',
+                               'richmol/symtop/wigner_d.f90',
+                               'richmol/symtop/symtop.f90',
+                               ],
+                    extra_link_args = ["-llapack", "-lblas"],
+                    extra_compile_args = ["-O3"] 
+                    )
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
 
@@ -58,6 +70,6 @@ if __name__ == "__main__":
         cmdclass            = {'build': Build},
         package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
         scripts             = [],
-        ext_modules         = [expokit],
+        ext_modules         = [expokit, symtop],
         long_description    = read("README.md"),
 )
