@@ -351,7 +351,7 @@ def mol_tensor(val):
 
 if __name__ == '__main__':
     import sys
-    from richmol import symtop
+    from solution import solve
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
@@ -382,7 +382,7 @@ if __name__ == '__main__':
             "H",      0.890539,    2.201894,   -1.536852, \
             "H",      1.455250,    0.830868,   -2.487875, \
             "H",     -0.267696,    1.035608,   -2.160680)
-    camphor.store_xyz("camphor.xyz", "some random comment")
+    # camphor.store_xyz("camphor.xyz", "some random comment")
 
     camphor.dip = [1.21615, -0.30746, 0.01140]
     camphor.pol = [[115.80434, -0.58739, 0.03276], \
@@ -391,5 +391,4 @@ if __name__ == '__main__':
 
     print(camphor.dip)
     camphor.sym = "D2"
-    print(dir(symtop.symtop))
-    # print(dir(richmol))
+    solve(camphor, Jmin=10, Jmax=10)

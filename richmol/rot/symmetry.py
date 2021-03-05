@@ -1,4 +1,11 @@
+"""
+Functions for symmetrization of linear combinations of symmetric-top functions
+theory details can be found here: S. N. Yurchenko, A. Yachmenev, R. I. Ovsyannikov, J. Chem. Theory Comput. 2017, 13, 9, 4368–4381
+"""
 import numpy as np
+from wigner import symtop
+import copy
+
 
 _SYMMETRIES = dict()
 
@@ -50,7 +57,7 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     prim = [tuple(x) for x in arg.k.table['prim']]
 
     for J in Jlist:
-        symmetry = sym_(J)
+        symmetry = sym(J)
         proj = symmetry.proj()
 
         # mapping between (J,k) quanta in arg.k.table and k=-J..J in symmetry.proj array
@@ -74,7 +81,7 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     # remove states with zero coefficients
     remove = []
     for sym_lab,elem in res.items():
-        elem.k = elem.k.del_zero_stat(thresh=1e-12)
+        elem.k = elem.k.del_zero_stat(thresh=thresh)
         if elem.k is None:
             remove.append(sym_lab)
     for sym_lab in remove: del res[sym_lab]
@@ -101,35 +108,10 @@ class SymtopSymmetry():
         assert (self.J>=0), f"J = {J} < 0"
 
         # compute symmetrization coefficients for symmetric-top functions
-
         jmin = J
         jmax = J
         npoints = self.noper
-        npoints_c = c_int(npoints)
-        grid = np.asfortranarray(self.euler_rotation, dtype=np.float64)
-
-        jmin_c = c_int(jmin)
-        jmax_c = c_int(jmax)
-        symtop_grid_r = np.asfortranarray(np.zeros((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1), dtype=np.float64))
-        symtop_grid_i = np.asfortranarray(np.zeros((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1), dtype=np.float64))
-
-        fsymtop.symtop_3d_grid.argtypes = [ \
-            c_int, \
-            c_int, \
-            c_int, \
-            np.ctypeslib.ndpointer(np.float64, ndim=2, flags='F'), \
-            np.ctypeslib.ndpointer(np.float64, ndim=4, flags='F'), \
-            np.ctypeslib.ndpointer(np.float64, ndim=4, flags='F') ]
-
-        fsymtop.symtop_3d_grid.restype = None
-        fsymtop.symtop_3d_grid(npoints_c, jmin_c, jmax_c, grid, symtop_grid_r, symtop_grid_i)
-
-        self.coefs = symtop_grid_r.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1)) \
-                   - symtop_grid_i.reshape((npoints,2*jmax+1,2*jmax+1,jmax-jmin+1))*1j
-
-        # Wigner D-functions [D_{m,k}^{(j)}]^* from symmetric-top functions |j,k,m>
-        for j in range(jmin,jmax+1):
-            self.coefs[:,:,:,j-jmin] = self.coefs[:,:,:,j-jmin] / np.sqrt((2*j+1)/(8.0*np.pi**2))
+        self.coefs = symtop.threed_grid(J, J, self.euler_rotation, int(True), npoints)
 
 
     def proj(self):
@@ -145,6 +127,26 @@ class SymtopSymmetry():
                         proj[irrep,k1+J,k2+J] += fac * self.coefs[ioper,k1+J,k2+J,0]
         return proj
 
+
+@register_sym
+class C1(SymtopSymmetry):
+    def __init__(self, J):
+
+        self.noper = 1
+        self.nirrep = 1
+        self.ndeg = [1]
+
+        self.characters = np.zeros((self.nirrep,self.noper), dtype=np.float64)
+        self.euler_rotation = np.zeros((3,self.noper), dtype=np.float64)
+
+        self.characters[0,0] = 1 # A
+
+        self.sym_lab = ['A']
+
+        pi = np.pi
+        self.euler_rotation[:,0] = [0,0,0] # E
+
+        SymtopSymmetry.__init__(self, J)
 
 
 @register_sym
@@ -218,7 +220,6 @@ class D2h(SymtopSymmetry):
         SymtopSymmetry.__init__(self, J)
 
 
-
 @register_sym
 class C2v(SymtopSymmetry):
     def __init__(self, J):
@@ -246,3 +247,4 @@ class C2v(SymtopSymmetry):
         self.euler_rotation[:,3] = [0.5*pi,pi,1.5*pi]  # C2(x)
 
         SymtopSymmetry.__init__(self, J)
+

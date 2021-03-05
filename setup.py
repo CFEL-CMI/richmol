@@ -35,17 +35,19 @@ class Build(build):
 # expokit set of Fortran functions for computing matrix exponential
 expokit = Extension(name = 'expokit',
                      sources = ['expokit/expokit.pyf',
-                                'expokit/expokit.f',
-                                'expokit/lapack.f',
-                                'expokit/blas.f'])
+                                'expokit/expokit.f'
+                                ],
+                     extra_link_args = ["-llapack", "-lblas"]
+                     )
 
-symtop = Extension(name = 'richmol.symtop',
-                    sources = ['richmol/symtop/symtop.pyf',
-                               'richmol/symtop/accuracy.f90',
-                               'richmol/symtop/dffs_m.f90',
-                               'richmol/symtop/djmk.f90',
-                               'richmol/symtop/wigner_d.f90',
-                               'richmol/symtop/symtop.f90',
+# modules for computing Wigner functions and symmetric-top functions
+wigner = Extension(name = 'wigner',
+                    sources = ['wigner/symtop.pyf',
+                               'wigner/accuracy.f90',
+                               'wigner/dffs_m.f90',
+                               'wigner/djmk.f90',
+                               'wigner/wigner_d.f90',
+                               'wigner/symtop.f90',
                                ],
                     extra_link_args = ["-llapack", "-lblas"],
                     extra_compile_args = ["-O3"] 
@@ -70,6 +72,6 @@ if __name__ == "__main__":
         cmdclass            = {'build': Build},
         package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
         scripts             = [],
-        ext_modules         = [expokit, symtop],
+        ext_modules         = [expokit, wigner],
         long_description    = read("README.md"),
 )

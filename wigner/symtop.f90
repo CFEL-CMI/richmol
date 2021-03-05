@@ -7,7 +7,8 @@ module symtop
 
   contains
 
-  ! Computes symmetric-top functions |J,k,m> on a three-dimensional grid of Euler angles.
+  ! Computes symmetric-top functions |J,k,m> (or Wigner functions D_{m,k}^{(J)})
+  ! on a three-dimensional grid of Euler angles.
   !
   ! Parameters
   ! ----------
@@ -15,23 +16,26 @@ module symtop
   !   Number of grid points.
   ! Jmin, Jmax : integer
   !   Min and max value of J quantum number spanned by the list of symmetric-top functions.
-  ! grid(3,npoints) : double precision
+  ! grid(3,npoints) : real(8)
   !   3D grid of different values of Euler angles, grid(1:3,ipoint) = (/phi,theta,chi/),
   !   where "chi" and "phi" are Euler angles associated with "k" and "m" quantum numbers, respectively.
+  ! wig : bool
+  !   If False (True), symmetric-top (Wigner) functions will be returned.
   !
   ! Returns
   ! -------
-  ! val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax) : complex(16)
-  !   Values of symmetric-top functions on grid, |j,k,m> = val(ipoint,m,k,j), where ipoint=1..npoints
+  ! val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax) : complex(8)
+  !   Values of symmetric-top (or Wigner) functions on grid, |j,k,m> = val(ipoint,m,k,j), where ipoint=1..npoints
 
   ! There are three versions of the code, each using different approach to compute small-d matrix
 
-  subroutine threed_grid(npoints, Jmin, Jmax, grid, val)
+  subroutine threed_grid(npoints, Jmin, Jmax, grid, wig, val)
 
-    integer(ik), intent(in) :: npoints
-    real(rk), intent(in) :: grid(3,npoints)
-    integer(ik), intent(in) :: Jmin, Jmax
-    complex(rk), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
+    integer, intent(in) :: npoints
+    real(8), intent(in) :: grid(3,npoints)
+    integer, intent(in) :: Jmin, Jmax
+    logical, intent(in) :: wig
+    complex(8), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
 
     integer(ik) :: info, j, m, k, ipoint, iounit
     real(rk) :: fac
@@ -43,7 +47,11 @@ module symtop
 
     do j=Jmin, Jmax
 
-      fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      if (wig .eqv. .true.) then
+        fac = 1.0_rk
+      else
+        fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      endif
 
       do m=-j, j
         do k=-j, j
@@ -60,12 +68,13 @@ module symtop
 
   end subroutine threed_grid
 
-  subroutine threed_grid_dffs(npoints, Jmin, Jmax, grid, val)
+  subroutine threed_grid_dffs(npoints, Jmin, Jmax, grid, wig, val)
 
-    integer(ik), intent(in) :: npoints
-    real(rk), intent(in) :: grid(3,npoints)
-    integer(ik), intent(in) :: Jmin, Jmax
-    complex(rk), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
+    integer, intent(in) :: npoints
+    real(8), intent(in) :: grid(3,npoints)
+    integer, intent(in) :: Jmin, Jmax
+    logical, intent(in) :: wig
+    complex(8), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
 
     integer(ik) :: info, j, m, k, ipoint, iounit
     real(rk) :: fac
@@ -80,7 +89,11 @@ module symtop
 
     do j=Jmin, Jmax
 
-      fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      if (wig .eqv. .true.) then
+        fac = 1.0_rk
+      else
+        fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      endif
 
       do m=-j, j
         do k=-j, j
@@ -97,12 +110,13 @@ module symtop
 
   end subroutine threed_grid_dffs
 
-  subroutine threed_grid_wigd(npoints, Jmin, Jmax, grid, val)
+  subroutine threed_grid_wigd(npoints, Jmin, Jmax, grid, wig, val)
 
-    integer(ik), intent(in) :: npoints
-    real(rk), intent(in) :: grid(3,npoints)
-    integer(ik), intent(in) :: Jmin, Jmax
-    complex(rk), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
+    integer, intent(in) :: npoints
+    real(8), intent(in) :: grid(3,npoints)
+    integer, intent(in) :: Jmin, Jmax
+    logical, intent(in) :: wig
+    complex(8), intent(out) :: val(npoints,-Jmax:Jmax,-Jmax:Jmax,Jmin:Jmax)
 
     integer(ik) :: info, j, m, k, ipoint, iounit
     real(rk), allocatable :: wd_matrix(:,:,:), diffwd_matrix(:,:)
@@ -124,7 +138,11 @@ module symtop
 
     do j=Jmin, Jmax
 
-      fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      if (wig .eqv. .true.) then
+        fac = 1.0_rk
+      else
+        fac = sqrt(real(2*j+1,rk)/(8.0_rk*pi**2))
+      endif
 
       do ipoint=1, npoints
         call Wigner_dmatrix(real(j,rk), grid(2,ipoint), wd_matrix(ipoint,1:2*j+1,1:2*j+1), &
