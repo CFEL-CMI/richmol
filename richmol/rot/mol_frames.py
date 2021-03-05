@@ -33,12 +33,6 @@ def orthogonality_check(frame, mat):
 
 def rotmat(frame, *args, **kwargs):
     """Returns rotation matrix to molecular frame specified by 'frame'"""
-    # check if frame rotation is blocked
-    for arg in args:
-        if hasattr(arg, "block_frame"):
-            if arg.block_frame[0] == True:
-                raise ValueError(f"changing molecular frame is blocked, reason - {arg.block_frame[1]}")
-
     if frame in _FRAMES:
         return orthogonality_check(frame, _FRAMES[frame](*args, **kwargs))
     else:

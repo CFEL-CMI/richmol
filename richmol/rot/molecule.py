@@ -10,7 +10,7 @@ import random
 _diag_tol = 1e-12 # for treating off-diagonal elements as zero
 _sing_tol = 1e-12 # for treating singular value as zero
 _xyz_tol = 1e-12 # for treating Cartesian coordinate as zero
-_abc_tol = 0.1 # maximal allowed difference (in cm^-1) between the input (experimental)
+_abc_tol = 0.5 # maximal allowed difference (in cm^-1) between the input (experimental)
                # and calculated (from molecular geometry) rotational constants
 
 _USER_TENSORS = dict()
@@ -194,7 +194,7 @@ class Molecule:
 
     @property
     def kappa(self):
-        """Returns asymmtery parameter kappa = (2*B-A-C)/(A-C)"""
+        """Returns asymmetry parameter kappa = (2*B-A-C)/(A-C)"""
         A, B, C = self.ABC
         return (2*B-A-C)/(A-C)
 
@@ -204,24 +204,31 @@ class Molecule:
         raise AttributeError(f"setting kappa is not permitted") from None
 
 
+    @property
     def ABC_calc(self):
-        """Returns rotational constants in units of cm^-1 calculated from inertia tensor"""
+        """Returns rotational constants in units of cm^-1 calculated from the inertia tensor"""
         itens = self.inertia
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
             raise Exception(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
                 f"max offdiag = {np.max(np.abs(np.diag(np.diag(itens))-itens)).round(16)}") from None
         convert_to_cm = const.planck * const.avogno * 1e+16 / (8.0 * np.pi * np.pi * const.vellgt) 
         abc = [convert_to_cm/val for val in np.diag(itens)]
-        return [val for val in reversed(sorted(abc))]
+        return [val for val in abc]
+
+
+    @ABC_calc.setter
+    def ABC_calc(self, val):
+        raise AttributeError(f"setting calculated rotational constants is not permitted") from None
 
 
     @property
     def ABC(self):
         """Returns experimental rotational constants if available, otherwise - calculated once"""
         try:
+            self.check_ABC()
             return self.ABC_exp
         except AttributeError:
-            return self.ABC_calc()
+            return self.ABC_calc
 
 
     @ABC.setter
@@ -229,52 +236,67 @@ class Molecule:
         """Set experimental rotational constants, in units of cm^-1"""
         try:
             A, B, C = val
-        except valueError:
-            raise ValueError(f"please specify rotational constants in a tuple (A, B, C)") from None
+        except TypeError:
+            raise TypeError(f"please specify rotational constants in a tuple (A, B, C)") from None
         self.ABC_exp = [val for val in reversed(sorted([A, B, C]))]
-        # change coordinate system to inertia frame
-        try:
-            # nullify all previous frame rotations and add inertia frame
-            self.frame = "ipas,null"
-            # check for good match between calculated and experimental constants
-            if any(abs(e - c) > _abc_tol for e,c in zip(self.ABC_exp, self.ABC_calc())):
-                err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
-                                 for abc,e,c in zip(("A","B","C"), self.ABC_exp, self.ABC_calc()) )
-                raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
-                    f"        exp          calc       exp-calc\n" + err) from None
-        except TypeError: # 'ipas' is not available
-            # this means that .XYZ is not defined, so we assume that all input molecular tensors
-            # are in the inertia frame, the frame rotation matrix is identity matrix
-            print("remark: assume all input molecular tensors defined with respect to the inertia frame")
-        # block .frame property
-        self.block_frame = [True, "user-defined rotational constants"]
+        self.check_ABC()
+
+
+    @property
+    def B_calc(self):
+        return self.ABC_calc[1]
+
+
+    @B_calc.setter
+    def B_calc(self, val):
+        raise AttributeError(f"setting calculated rotational constants is not permitted") from None
 
 
     @property
     def B(self):
         try:
+            self.check_B()
             return self.B_exp
         except AttributeError:
-            return self.ABC_calc()[1]
+            return self.ABC_calc[1]
 
 
     @B.setter
     def B(self, val):
         self.B_exp = val
-        # change coordinate system to inertia frame
+        self.check_B()
+
+
+    def check_ABC(self):
         try:
-            # nullify all previous frame rotations and add inertia frame
-            self.frame = "ipas,null"
-            # check for good match between calculated and experimental constants
-            if abs(self.B_exp - self.ABC_calc()[1]) > _abc_tol:
-                raise ValueError(f"input experimental rotational constant B = {self.B_exp} differ much " + \
-                    f"from the calculated B = {self.ABC_calc()[1]}") from None
-        except TypeError: # 'ipas' is not available
-            # this means that .XYZ is not defined, so we assume that all input molecular tensors
-            # are in the inertia frame, the frame rotation matrix is identity matrix
-            print("remark: assume all input molecular tensors defined with respect to the inertia frame")
-        # block .frame property
-        self.block_frame = [True, "user-defined rotational constants"]
+            ABC_calc = self.ABC_calc
+        except AttributeError:
+            return
+        try:
+            ABC_exp = self.ABC_exp
+        except AttributeError:
+            return
+        if any(abs(e - c) > _abc_tol for e,c in zip(ABC_exp, ABC_calc)):
+            err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
+                             for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_calc) )
+            raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
+                f"        exp          calc       exp-calc\n" + err) from None
+
+
+    def check_B(self):
+        try:
+            B_calc = self.B_calc
+        except AttributeError:
+            return
+        try:
+            B_exp = self.B_exp
+        except AttributeError:
+            return
+        if any(abs(e - c) > _abc_tol for e,c in zip(B_exp, B_calc)):
+            err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
+                             for abc,e,c in zip(("B"), B_exp, B_calc) )
+            raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
+                f"        exp          calc       exp-calc\n" + err) from None
 
 
 def mol_tensor(val):
@@ -313,13 +335,6 @@ def mol_tensor(val):
 if __name__ == '__main__':
     import sys
 
-    ocs = Molecule()
-    ocs.XYZ = ("O", 0,1,0, "C", 0,-1,0, "S", 0,0,0)
-    print(ocs.ABC)
-    ocs.B = 0.7
-    print(ocs.B)
-    print(ocs.kappa)
-
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
             "O",     -2.547204,    0.187936,   -0.213755, \
@@ -357,30 +372,4 @@ if __name__ == '__main__':
                    [-0.58739, 112.28245, 1.36146], \
                    [0.03276, 1.36146, 108.47809]]
 
-    camphor.vec = cart_tens([1.21615, -0.30746, 0.01140])
-    camphor.mat = cart_tens([[115.80434, -0.58739, 0.03276], \
-                   [-0.58739, 112.28245, 1.36146], \
-                   [0.03276, 1.36146, 108.47809]])
-
-    print(camphor.dip)
-    print(camphor.vec)
-    print(camphor.pol)
-    print(camphor.mat)
-
-    camphor.frame = "diag(inertia)"
-
-    print(camphor.dip)
-    print(camphor.vec)
-    print(camphor.pol)
-    print(camphor.mat)
-    print(camphor.vec)
-    # # print(camphor.XYZ['xyz'])
-    # # print(camphor.itens)
-    # # print(camphor.XYZ['xyz'])
-    # print(camphor.itens)
-    # camphor.frame = "pas"
-    # print(camphor.frame)
-    # print(camphor.itens)
-    # print(camphor.B)
-    print(camphor.kappa)
 
