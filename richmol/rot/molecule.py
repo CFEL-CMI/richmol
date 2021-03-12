@@ -11,8 +11,8 @@ import random
 _diag_tol = 1e-12 # for treating off-diagonal elements as zero
 _sing_tol = 1e-12 # for treating singular value as zero
 _xyz_tol = 1e-12 # for treating Cartesian coordinate as zero
-_abc_tol = 0.5 # maximal allowed difference (in cm^-1) between the input (experimental)
-               # and calculated (from molecular geometry) rotational constants
+_abc_tol_perc = 5 # maximal allowed difference (in percents in units of cm^-1) between the input
+                  # (experimental) and calculated (from molecular geometry) rotational constants
 
 _USER_TENSORS = dict()
 
@@ -210,7 +210,7 @@ class Molecule:
         """Returns rotational constants in units of cm^-1 calculated from the inertia tensor"""
         itens = self.inertia
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
-            raise Exception(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
+            raise ValueError(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
                 f"max offdiag = {np.max(np.abs(np.diag(np.diag(itens))-itens)).round(16)}") from None
         convert_to_cm = const.planck * const.avogno * 1e+16 / (8.0 * np.pi * np.pi * const.vellgt) 
         abc = [convert_to_cm/val for val in np.diag(itens)]
@@ -245,6 +245,8 @@ class Molecule:
 
     @property
     def B_calc(self):
+        if linear == False:
+            raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
         return self.ABC_calc[1]
 
 
@@ -277,7 +279,7 @@ class Molecule:
             ABC_exp = self.ABC_exp
         except AttributeError:
             return
-        if any(abs(e - c) > _abc_tol for e,c in zip(ABC_exp, ABC_calc)):
+        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(ABC_exp, ABC_calc)):
             err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
                              for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_calc) )
             raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
@@ -294,12 +296,28 @@ class Molecule:
             B_exp = self.B_exp
         except AttributeError:
             return
-        if any(abs(e - c) > _abc_tol for e,c in zip(B_exp, B_calc)):
+        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(B_exp, B_calc)):
             err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
                              for abc,e,c in zip(("B"), B_exp, B_calc) )
             raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
                 f"        exp          calc       exp-calc\n" + err) from None
         return
+
+
+    @property
+    def abc(self):
+        try:
+            x = self.ABC_exp
+            if self.kappa > 0:
+                return 'xyz' # "IIIr representation for near oblate-top"
+            elif self.kappa <= 0:
+                return 'zyx' # "Ir representation for near prolate-top"
+        except AttributeError:
+            return 'xyz'
+
+    @abc.setter
+    def abc(self, val):
+        raise AttributeError(f"setting abc->xyz mapping is not permitted") from None
 
 
     @property
@@ -311,7 +329,13 @@ class Molecule:
 
 
     @sym.setter
-    def sym(self, val: str = "C1"):
+    def sym(self, val="C1"):
+        # automatic symmetry works only for inertia principal axes system
+        try:
+            x = self.ABC
+        except ValueError:
+            print(f"warning: change molecular frame to inertia axes system to enable symmetry")
+            val = "C1"
         self.symmetry = symmetry.group(val)
 
 
@@ -351,7 +375,8 @@ def mol_tensor(val):
 
 if __name__ == '__main__':
     import sys
-    from solution import solve
+    from solution import solve, H0Tensor
+    from labtens import LabTensor
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
@@ -389,6 +414,31 @@ if __name__ == '__main__':
                    [-0.58739, 112.28245, 1.36146], \
                    [0.03276, 1.36146, 108.47809]]
 
+    camphor.frame = 'ipas'
     print(camphor.dip)
+    # camphor.ABC = [0.04826693384984668, 0.03947392003309187, 0.03659630461693979]
+    # camphor.ABC = [0.048, 0.039, 0.036]
+    # print(camphor.ABC)
     camphor.sym = "D2"
-    solve(camphor, Jmin=10, Jmax=10)
+    camphor.watson = "watson_s"
+    camphor.hjka = 3
+    camphor.HjKq = 30
+    camphor.ABC = [0.036596, 0.048266, 0.039473]
+    print(camphor.ABC)
+    camphor.frame = 'diag(inertia)'
+    print(camphor.ABC)
+    # print(camphor.ABC)
+    # print(camphor.ABC_calc)
+    sol = solve(camphor, Jmin=0, Jmax=10, verbose=True) # transform solution into a tensor format
+    # print(sol[10]['B3'].enr)
+    tens = LabTensor(camphor.dip, sol)
+    H0 = H0Tensor(camphor, sol)
+    print(H0.kmat[(10,10)][('B3','B3')][0])
+    print(H0.mmat[(10,10)][('B3','B3')]["0"])
+    # rchm.add("some comment that will be dated")
+    # rchm.add(camphor, 'camphor.h5', descr='user descr')
+    # rchm.add(tens, 'camphor.h5', descr='user description')
+    # rchm.add(sol, 'camphor.h5', descr='user description')
+    
+
+

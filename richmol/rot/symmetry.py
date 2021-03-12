@@ -1,6 +1,20 @@
 """
-Functions for symmetrization of linear combinations of symmetric-top functions
-theory details can be found here: S. N. Yurchenko, A. Yachmenev, R. I. Ovsyannikov, J. Chem. Theory Comput. 2017, 13, 9, 4368–4381
+Symmetrization of linear combinations of symmetric-top functions
+theory details can be found here:
+    S. N. Yurchenko, A. Yachmenev, R. I. Ovsyannikov, J. Chem. Theory Comput. 2017, 13, 9, 4368–4381
+
+To register new symmetry group, add new class:
+
+    @register_sym
+    class NewSymmetry(SymtopSymmetry):
+        def __init__(self, J):
+            self.noper =                    # number of symmetry operations
+            self.nirrep =                   # number of irreducible representations
+            self.ndeg = [..]                # (nirrep) degeneracy of irreps
+            self.characters = [.., ..]      # (nirrep, noper) characters table
+            self.euler_rotation = [.., ..]  # (3, noper) set of equivalent Euler rotations for each
+                                            # symmetry operation, the order of Euler angles 1..3 = (phi, theta, chi)
+            ...
 """
 import numpy as np
 from wigner import symtop
@@ -23,8 +37,8 @@ def group(sym, *args, **kwargs):
 
 
 def symmetrize(arg, sym="D2", thresh=1e-12):
-    """Given a set of linear combinations of symmetric-top functions 'arg'
-    and symmetry 'sym', the function generates symmetry-adapted set.
+    """Given a set of linear combinations of symmetric-top functions 'arg' and symmetry 'sym',
+    generates symmetry-adapted set.
 
     Args:
         arg : PsiTableMK

@@ -1,4 +1,8 @@
+"""
+Implements algebra of angular momentum operators
+"""
 import numpy as np
+from basis import PsiTableMK
 
 
 class J(PsiTableMK):
@@ -203,27 +207,3 @@ class mol_Jzz(J):
             J.__init__(self, res)
 
 Jzz = mol_Jzz
-
-
-def Hpsi(mol, bas):
-    """Computes action of Hamiltonian operator onto wave function"""
-    try:
-        # build Hamiltonian from constants
-        A, B, C = mol.ABC_exp
-        Jx2 = Jxx(bas)
-        Jy2 = Jyy(bas)
-        Jz2 = Jzz(bas)
-        H = Bx * Jx2 + By * Jy2 + Bz * Jz2
-    except AttributeError:
-        # build Hamiltonian from kinetic energy matrix
-        gmat = mol.gmat()
-        H = 0.5 * ( gmat[0,0] * Jxx(bas) + \
-                    gmat[0,1] * Jxy(bas) + \
-                    gmat[0,2] * Jxz(bas) + \
-                    gmat[1,0] * Jyx(bas) + \
-                    gmat[1,1] * Jyy(bas) + \
-                    gmat[1,2] * Jyz(bas) + \
-                    gmat[2,0] * Jzx(bas) + \
-                    gmat[2,1] * Jzy(bas) + \
-                    gmat[2,2] * Jzz(bas) )
-    return H

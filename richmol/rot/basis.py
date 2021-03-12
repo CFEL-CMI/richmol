@@ -10,7 +10,7 @@ _ASSIGN_NPRIM = 1 # number of primitive functions printed in the state assignmen
 _ASSIGN_NDIG_C2 = 4 # number of significant digits printed for the assignment coefficient |c|^2
 
 # allow for repetitions of warning for the same source location
-warnings.simplefilter('always', UserWarning)
+# warnings.simplefilter('always', UserWarning)
 
 
 class PsiTable():
@@ -165,10 +165,12 @@ class PsiTable():
     __rmul__ = __mul__
 
 
-    def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
+    def append(self, arg, check_duplicate_stat=False, del_duplicate_stat=False, del_zero_stat=False, \
+               del_zero_prim=False, thresh=1e-12):
         """Appends two wave function sets together: self + arg.
 
         If requested:
+            'check_duplicate_stat' = True: checks for duplicate states after append.
             'del_duplicate_stat' = True: deletes duplicate states.
             'del_zero_stat' = True: deletes states with all coefficients below 'thresh'.
             'del_zero_prim' = True: deletes primitive functions that have negligible
@@ -214,8 +216,9 @@ class PsiTable():
             prim, stat, coefs = self.del_duplicate_stat(prim, stat, coefs, thresh)
 
         # check for duplicates in 'stat'
-        if len(list(set(tuple(s) for s in stat))) != len(stat):
-            raise ValueError(f"found duplicate eigenstates after adding two wave function sets") from None
+        if check_duplicate_stat == True:
+            if len(list(set(tuple(s) for s in stat))) != len(stat):
+                raise ValueError(f"found duplicate eigenstates after adding two wave function sets") from None
 
         return PsiTable(prim, stat, coefs)
 
@@ -293,10 +296,10 @@ class PsiTable():
         # state assignments
         if stat is None:
             stat = []
-            ndig = _assign_ndig_c2 # number of digits in |c|^2 to be kept for assignment
+            ndig = _ASSIGN_NDIG_C2 # number of digits in |c|^2 to be kept for assignment
             c2_form = "%"+str(ndig+3)+"."+str(ndig)+"f"
             for v in rotmat:
-                n = _assign_nprim # number of primitive states to be used for assignment
+                n = _ASSIGN_NPRIM # number of primitive states to be used for assignment
                 ind = (-abs(v)**2).argsort()[:n]
                 elem_stat = self.table['stat'][ind]
                 c2 = [c2_form%abs(v[i])**2 for i in ind]
@@ -412,8 +415,8 @@ class PsiTableMK():
 
         # initialize using PsiTable.fromPsiTable
         # this way psik and psim will be deep-copied keeping all dynamically added attributes
-        self.m = PsiTable.fromPsiTable(psim)
         self.k = PsiTable.fromPsiTable(psik)
+        self.m = PsiTable.fromPsiTable(psim)
 
 
     def __add__(self, arg):
@@ -456,10 +459,12 @@ class PsiTableMK():
     __rmul__ = __mul__
 
 
-    def append(self, arg, del_duplicate_stat=False, del_zero_stat=False, del_zero_prim=False, thresh=1e-12):
+    def append(self, arg, check_duplicate_stat=False, del_duplicate_stat=False, del_zero_stat=False, \
+               del_zero_prim=False, thresh=1e-12):
         """Appends two wave function sets together: self + arg.
 
         If requested:
+            'check_duplicate_stat' = True: checks for duplicate states.
             'del_duplicate_stat' = True: deletes duplicate states.
             'del_zero_stat' = True: deletes states with all coefficients below 'thresh'.
             'del_zero_prim' = True: deletes primitive functions that have negligible
@@ -477,8 +482,32 @@ class PsiTableMK():
             x = arg.k
         except AttributeError:
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
-        res_m = self.m.append(arg.m, del_duplicate_stat, del_zero_stat, del_zero_prim, thresh)
-        res_k = self.k.append(arg.k, del_duplicate_stat, del_zero_stat, del_zero_prim, thresh)
+        res_k = self.k.append(arg.k, check_duplicate_stat, del_duplicate_stat, del_zero_stat, del_zero_prim, thresh)
+        res_m = self.m.append(arg.m, check_duplicate_stat, del_duplicate_stat, del_zero_stat, del_zero_prim, thresh)
+        return PsiTableMK(res_k, res_m)
+
+
+    def append_k(self, arg, check_duplicate_stat=False, del_duplicate_stat=False, del_zero_stat=False, \
+                 del_zero_prim=False, thresh=1e-12):
+        """Appends two wave function sets together: self + arg, only K-subspaces
+
+        If requested:
+            'check_duplicate_stat' = True: checks for duplicate states.
+            'del_duplicate_stat' = True: deletes duplicate states.
+            'del_zero_stat' = True: deletes states with all coefficients below 'thresh'.
+            'del_zero_prim' = True: deletes primitive functions that have negligible
+                contribution (below 'thresh') to all states.
+
+        Args:
+            arg : PsiTableMK
+                Appended wave function set.
+        """
+        try:
+            x = arg.k
+        except AttributeError:
+            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
+        res_k = self.k.append(arg.k, check_duplicate_stat, del_duplicate_stat, del_zero_stat, del_zero_prim, thresh)
+        res_m = self.m
         return PsiTableMK(res_k, res_m)
 
 
@@ -597,9 +626,9 @@ class PsiTableMK():
     def assign(self):
         """Returns assignment of eigenstates.
 
-        In order to control the number of primitive functions used for assignment, change _assign_nprim (=1..6),
+        In order to control the number of primitive functions used for assignment, change _ASSIGN_NPRIM (=1..6),
         to control the number of printed significant digits for coefficients of primitive functions,
-        change _assign_ndig_c2 (=1..10)
+        change _ASSIGN_NDIG_C2 (=1..10)
         """
         nstat = self.k.table['c'].shape[1]
         assign = self.k.table['stat'][:nstat]
