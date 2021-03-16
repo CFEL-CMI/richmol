@@ -1,6 +1,3 @@
-"""
-Implements algebra of angular momentum operators
-"""
 import numpy as np
 from basis import PsiTableMK
 

@@ -1,53 +1,39 @@
-"""
-Symmetrization of linear combinations of symmetric-top functions
-theory details can be found here:
-    S. N. Yurchenko, A. Yachmenev, R. I. Ovsyannikov, J. Chem. Theory Comput. 2017, 13, 9, 4368–4381
-
-To register new symmetry group, add new class:
-
-    @register_sym
-    class NewSymmetry(SymtopSymmetry):
-        def __init__(self, J):
-            self.noper =                    # number of symmetry operations
-            self.nirrep =                   # number of irreducible representations
-            self.ndeg = [..]                # (nirrep) degeneracy of irreps
-            self.characters = [.., ..]      # (nirrep, noper) characters table
-            self.euler_rotation = [.., ..]  # (3, noper) set of equivalent Euler rotations for each
-                                            # symmetry operation, the order of Euler angles 1..3 = (phi, theta, chi)
-            ...
-"""
 import numpy as np
 from wigner import symtop
 import copy
 
 
-_SYMMETRIES = dict()
+_symmetries = dict()
 
 def register_sym(func):
-    _SYMMETRIES[func.__name__] = func
+    _symmetries[func.__name__] = func
     return func
 
 
 def group(sym, *args, **kwargs):
     """Returns symmetry class specified by 'sym'"""
-    if sym in _SYMMETRIES:
-        return _SYMMETRIES[sym]
+    if sym in _symmetries:
+        return _symmetries[sym]
     else:
         raise TypeError(f"symmetry '{sym}' is not available") from None
 
 
 def symmetrize(arg, sym="D2", thresh=1e-12):
-    """Given a set of linear combinations of symmetric-top functions 'arg' and symmetry 'sym',
-    generates symmetry-adapted set.
+    """Generates symmetry-adapted set of wave functions in symmetric-top basis
 
     Args:
         arg : PsiTableMK
-            Set of wave functions expanded in symmetric-top functions.
+            Wave functions in symmetric-top basis.
         sym : str
-            Point symmetry group.
+            Symmetry group.
         thresh : float
             Threshold for treating symmetrization and wave function superposition
             coefficients as zero.
+
+    Returns:
+        res : dict
+            Dictionary of symmetry-adapted wave functions for different symmetries,
+            i.e., res[sym] -> PsiTableMK
     """
     try:
         x = arg.k

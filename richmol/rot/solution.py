@@ -1,41 +1,47 @@
-"""
-Variational solution, operator expectation values, rotational Hamiltonians
-
-To add new custom built Hamiltonian on the top of the rigid-rotor Hamiltonian (Hrr), add new function:
-
-    @register_ham
-    def NewHamiltonian(Hrr, mol, bas, verbose=False):
-        J2 = JJ(bas)  # J^2
-        J4 = J2 * J2  # J^4
-        J6 = J2 * J4  # J^6
-        .... and other custom-built operators from JJ, Jzz, Jp, and Jm (i.e, J^2, Jz^2, J+, J-)
-
-Please note, the multiplication operations on angular momentum operators are performed
-from right to left, i.e., for example Jxx * JJ is equivalent to Jxx(JJ())
-    correct:
-        H = Jzz * JJ(bas)
-    wrong:
-        H = Jzz * JJ
-        H = Jzz(bas) * JJ
-        H = Jzz(bas) * JJ(bas)
-"""
 import numpy as np
 from basis import SymtopBasis
 from symmetry import symmetrize
 from J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
-from labtens import LabTensor
-from scipy.sparse import csr_matrix, kron
+from scipy.sparse import csr_matrix
 
 
-_hamiltonians = dict()
+_hamiltonians = dict() # Watson-type effective Hamiltonians
+_constants = dict() # parameters of effective Hamiltonians
+
+class dummyMolecule:
+    const = []
+    def __getattr__(self, name):
+        self.const.append(name)
+        return 1
 
 def register_ham(func):
+    """Registers Hamiltonian and a set of molecular attributes it is using""" 
+    bas = SymtopBasis(0)
+    mol = dummyMolecule()
+    func(Jzz(bas), mol, bas)
     _hamiltonians[func.__name__] = func
+    _constants[func.__name__] = mol.const
     return func
 
 
 class H0Tensor():
-    """Casts rotational solutions into M- and K-tensor form"""
+    """Casts matrix elements of rotational Hamiltonian into M- and K-tensor form, similar to labtens.LabTensor
+
+    Args:
+        mol : Molecule
+            Molecular parameters.
+        basis : nested dict
+            Wave functions in symmetric-top basis (SymtopBasis class) for different values
+            of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
+        thresh : float
+            Threshold for neglecting matrix elements.
+
+    Attrs:
+        kmat : nested dict
+            See labtens.LabTensor.kmat, here irrep = 0
+        mmat : nested dict
+            See labtens.LabTensor.mmat, here cart = "0" and irrep = 0
+    """
     def __init__(self, mol, basis, thresh=1e-12):
         Jlist = [J for J in basis.keys()]
         symlist = list(set([sym for J in basis.keys() for sym in basis[J].keys()]))
@@ -54,16 +60,27 @@ class H0Tensor():
 
 
 def solve(mol, Jmin=0, Jmax=10, verbose=False):
-    """Builds and diagonalizes rotational Hamiltonian,
-    returns solutions (PsiTableMK class) in nested dictionary sol[J][symmetry]
-    for different values of J = Jmin..Jmax and different symmetries
+    """Solves rotational eigenvalue problem
+
+    Args:
+        mol : Molecule
+            Molecular parameters.
+        Jmin, Jmax : int
+            Min and max values of J quantum number.
+        verbose : bool
+            If True, some log will be printed.
+
+    Returns:
+        sol : nested dict
+            Wave functions in symmetric-top basis (SymtopBasis class) for different values
+            of J=Jmin..Jmax and different symmetries, i.e., sol[J][sym] -> SymtopBasis.
     """
     assert(Jmax >= Jmin), f"Jmax = {Jmax} < Jmin = {Jmin}"
     Jlist = [J for J in range(Jmin, Jmax+1)]
 
     sol = {}
     for J in Jlist:
-        symbas = symmetrize(SymtopBasis(J), sym=mol.sym)
+        symbas = symmetrize(SymtopBasis(J, linear=mol.linear()), sym=mol.sym)
         sol[J] = {}
         for sym,bas in symbas.items():
             if verbose is True:
@@ -71,9 +88,9 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False):
             H = hamiltonian(mol, bas, verbose=verbose)
             hmat, _ = bas.overlap(H)
             enr, vec = np.linalg.eigh(hmat.real)
-            # bas = bas.rotate(krot=(vec.T, enr))
-            # bas.sym = sym
-            # bas.abc = mol.abc
+            bas = bas.rotate(krot=(vec.T, enr))
+            bas.sym = sym
+            bas.abc = mol.abc
             sol[J][sym] = bas
     return sol
 
@@ -81,15 +98,14 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False):
 def hamiltonian(mol, bas, verbose=False):
     """Computes action of Hamiltonian operator on wave function
 
-    Builds the Hamiltonian from the user-defined rotational constants (mol.ABC_exp or mol.B_exp),
-    if available, otherwise uses the rotational kinetic energy matrix G to build the operator.
+    Builds Hamiltonian from the user-defined rotational constants (mol.ABC_exp or mol.B_exp)
+    when available, otherwise uses the rotational kinetic energy matrix G.
 
     Args:
         mol : Molecule
-            Molecular parameters, such as geometry, symmetry, property tensors, G-matrix, rotational
-            constants, etc.
-        bas : PsiTableMK
-            Rotational wave functions expanded in symmetric-top basis.
+            Molecular parameters.
+        bas : SymtopBasis
+            Rotational wave functions in symmetric-top basis.
     """
     if hasattr(mol, 'B_exp') or mol.linear == True:
         # linear molecule
@@ -176,12 +192,13 @@ def watson_a(H0, mol, bas, verbose=False):
     H = H0
 
     for key, val in expr.items():
-        for attr in dir(mol):
-            if attr.lower() == key:
-                const = getattr(mol, attr)
-                if verbose is True:
-                    print(f"add 'watson_a' term '{attr}'")
-                H = H + const * val
+        try:
+            const = getattr(mol, key)
+            if verbose is True:
+                print(f"add 'watson_s' term '{attr}'")
+            H = H + const * val
+        except AttributeError:
+            pass
 
     return H
 
@@ -231,12 +248,13 @@ def watson_s(H0, mol, bas, verbose=False):
     H = H0
 
     for key, val in expr.items():
-        for attr in dir(mol):
-            if attr.lower() == key:
-                const = getattr(mol, attr)
-                if verbose is True:
-                    print(f"add 'watson_s' term '{attr}'")
-                H = H + const * val
+        try:
+            const = getattr(mol, key)
+            if verbose is True:
+                print(f"add 'watson_s' term '{attr}'")
+            H = H + const * val
+        except AttributeError:
+            pass
 
     return H
 

@@ -1,14 +1,10 @@
-"""
-Functions to read atomic data
-"""
 from mendeleev import element
 from richmol.rot import constants as const
 import numpy as np
 import re
 
 
-_READING_FUNCS = dict()
-
+_reading_funcs = dict()
 
 def register(arg):
     if callable(arg):
@@ -20,14 +16,14 @@ def register(arg):
             typ = [arg]
     def _decorator(func):
         for t in typ:
-            _READING_FUNCS[t] = func
+            _reading_funcs[t] = func
         return func
     return _decorator
 
 
 def read(arg):
-    if type(arg).__name__ in _READING_FUNCS:
-        return _READING_FUNCS[type(arg).__name__](arg)
+    if type(arg).__name__ in _reading_funcs:
+        return _reading_funcs[type(arg).__name__](arg)
     else:
         raise ValueError(f"read function for argument type '{type(arg)}' is not available") from None
 

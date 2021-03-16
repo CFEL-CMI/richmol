@@ -1,6 +1,3 @@
-"""
-Rotational matrix elements of laboratory-frame Cartesian tensor operators
-"""
 import numpy as np
 import math
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
@@ -16,7 +13,7 @@ _sym_tol = 1e-12
 class LabTensor():
     """Laboratory-frame Cartesian tensor operator
 
-    Attributes:
+    Attrs:
         rank : int
             Rank of tensor operator.
         Us : numpy.complex128 2D array
@@ -218,13 +215,9 @@ class LabTensor():
 
         Returns:
             kmat : nested dict
-                K-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-                different pairs of bra and ket symmetries, and different irreducible components
-                of tensor, i.e., kmat[(J1, J2)][(sym1, sym2)][irrep].
+                See LabTens.kmat
             mmat : nested dict
-                M-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-                different pairs of bra and ket symmetries, and different Cartesian and irreducible
-                components of tensor, i.e., mmat[(J1, J2)][(sym1, sym2)][cart][irrep].
+                See LabTens.mmat
         """
         dJ_max = max(set(omega for (omega,sigma) in self.os)) # selection rules |J-J'| <= omega
 

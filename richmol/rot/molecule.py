@@ -1,7 +1,7 @@
-from richmol.rot import mol_frames
-from richmol.rot import mol_tens
-from richmol.rot import atomdata
-from richmol.rot import constants as const
+import mol_frames
+import mol_tens
+import atomdata
+import constants as const
 import symmetry
 import numpy as np
 import string
@@ -57,7 +57,7 @@ class Molecule:
         if hasattr(value, "__name__") and value.__name__ == "user_mol_tens": # user-defined new Cartesian tensor, see mol_tensor function
             # replace random registration name with the name of the attribute
             random_name = value.name
-            mol_tens._TENSORS[name] = mol_tens._TENSORS.pop(random_name)
+            mol_tens._tensors[name] = mol_tens._tensors.pop(random_name)
             # call dynamic rotation of tensor
             mol_tens.dynamic_rotation(Molecule, name, value.val)
             #
@@ -67,11 +67,11 @@ class Molecule:
                 existing_name = temp[name]
                 del _USER_TENSORS[existing_name]
             # register tensor under new random name
-            _USER_TENSORS[value.name] = [name, lambda: mol_tens._TENSORS[name][2]]
+            _USER_TENSORS[value.name] = [name, lambda: mol_tens._tensors[name][2]]
         elif hasattr(value, "__name__") and value.__name__ == "user_del_tens":
-            del mol_tens._TENSORS[name]
+            del mol_tens._tensors[name]
             # object.__setattr__(self, name, None)
-        elif name in mol_tens._TENSORS: # call dynamic rotation of tensor using predefined types in mol_tens module
+        elif name in mol_tens._tensors: # call dynamic rotation of tensor using predefined types in mol_tens module
             mol_tens.dynamic_rotation(Molecule, name, value)
         else:
             object.__setattr__(self, name, value)
@@ -245,7 +245,7 @@ class Molecule:
 
     @property
     def B_calc(self):
-        if linear == False:
+        if self.linear == False:
             raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
         return self.ABC_calc[1]
 
@@ -352,7 +352,7 @@ def mol_tensor(val):
     random_name = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
     def general_rotate(obj):
         "Rotates tensor of arbitrary rank<=8"""
-        # the value of tensor is kept in mol_tens._TENSORS dictionary
+        # the value of tensor is kept in mol_tens._tensorsdictionary
         # it is accessed here by calling a function in _USER_TENSORS[
         x = _USER_TENSORS[random_name][1]()
         tens_name = _USER_TENSORS[random_name][0]
@@ -377,6 +377,8 @@ if __name__ == '__main__':
     import sys
     from solution import solve, H0Tensor
     from labtens import LabTensor
+    from molecule import Molecule
+    import rchm
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
@@ -429,13 +431,28 @@ if __name__ == '__main__':
     print(camphor.ABC)
     # print(camphor.ABC)
     # print(camphor.ABC_calc)
-    sol = solve(camphor, Jmin=0, Jmax=10, verbose=True) # transform solution into a tensor format
+    sol = solve(camphor, Jmin=0, Jmax=3, verbose=True) # transform solution into a tensor format
     # print(sol[10]['B3'].enr)
     tens = LabTensor(camphor.dip, sol)
     H0 = H0Tensor(camphor, sol)
-    print(H0.kmat[(10,10)][('B3','B3')][0])
-    print(H0.mmat[(10,10)][('B3','B3')]["0"])
-    # rchm.add("some comment that will be dated")
+    # print(H0.kmat[(10,10)][('B3','B3')][0])
+    # print(H0.mmat[(10,10)][('B3','B3')]["0"])
+    # rchm.add_comment('camphor.h5', "comment number 1")
+    # rchm.add_comment('camphor.h5', "comment number 2")
+    # rchm.add_comment('camphor.h5', "comment number 3")
+    # rchm.add_comment('camphor.h5', "comment number 4")
+    # rchm.add_comment('camphor.h5', "comment number 5")
+    # comm = rchm.get_comments('camphor.h5')
+    # print(comm)
+    # print("del")
+    # rchm.del_comment('camphor.h5', 2)
+    # comm = rchm.get_comments('camphor.h5')
+    # print(comm)
+    rchm.add_molecule('camphor.h5', camphor, "dhcjdhdjhjdhc", replace=True)
+    mol = rchm.get_molecule('camphor.h5')
+    for key in dir(mol):
+        print(key, getattr(mol, key))
+        # print(key, getattr(mol, key))
     # rchm.add(camphor, 'camphor.h5', descr='user descr')
     # rchm.add(tens, 'camphor.h5', descr='user description')
     # rchm.add(sol, 'camphor.h5', descr='user description')

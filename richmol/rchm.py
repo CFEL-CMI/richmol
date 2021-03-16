@@ -4,8 +4,8 @@ import re
 import sys
 import os
 from scipy.sparse import coo_matrix
-import platform
 import time
+import datetime
 
 
 """
@@ -56,6 +56,30 @@ def J_group_key(J1, J2):
 
 def tens_group_key(tens):
     return 'tens:' + tens
+
+
+def add_comment(filename, comment):
+    date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+    system = sys.version
+    platform = sys.platform
+    comm = date.strip() + '/' + platform.strip() + '/' + system.strip
+    with h5py.File(filename, 'a') as fl:
+        try:
+            comm_ = fl['comments']
+            comm_ += '\n' + comm
+        except AttributeError:
+            comm_ = comm
+        fl['comments'] = comm_
+
+
+def get_comments(filename):
+    with h5py.File(filename, 'r') as fl:
+        try:
+            comm = fl['comments']
+        except AttributeError:
+            comm = ""
+    return comm
+
 
 
 def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):

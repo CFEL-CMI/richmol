@@ -1,6 +1,3 @@
-"""
-Functions for different molecule-fixed frame embeddings
-"""
 import numpy as np
 import re
 
@@ -10,17 +7,15 @@ _small = abs(np.finfo(float).eps)*10
 _large = abs(np.finfo(float).max)
 
 
-_FRAMES = dict()
-_OPERS = dict()
-
+_frames = dict()
+_opers = dict()
 
 def register_frame(func):
-    _FRAMES[func.__name__] = func
+    _frames[func.__name__] = func
     return func
 
-
 def register_oper(func):
-    _OPERS[func.__name__] = func
+    _opers[func.__name__] = func
     return func
 
 
@@ -33,8 +28,8 @@ def orthogonality_check(frame, mat):
 
 def rotmat(frame, *args, **kwargs):
     """Returns rotation matrix to molecular frame specified by 'frame'"""
-    if frame in _FRAMES:
-        return orthogonality_check(frame, _FRAMES[frame](*args, **kwargs))
+    if frame in _frames:
+        return orthogonality_check(frame, _frames[frame](*args, **kwargs))
     else:
         if re.match(r'(\w+)\((\w+)\)', frame):
             op = re.match('(\w+)\((\w+)\)', frame).group(1)
@@ -123,8 +118,8 @@ def rotmat_from_tens(name, tens, op='I'):
         raise ValueError(f"some of elements of tensor '{name}' are too large") from None
     if np.any(np.isnan(x)):
         raise ValueError(f"some of elements of tensor '{name}' are NaN") from None
-    if op in _OPERS:
-        return _OPERS[op](x)
+    if op in _opers:
+        return _opers[op](x)
     else:
         raise TypeError(f"operator '{op}' is not available")
 
