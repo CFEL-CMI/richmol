@@ -3,12 +3,14 @@ import numpy as np
 import re
 import sys
 import os
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 import time
 import datetime
 import molecule
+import labtens
 import mol_tens
 import solution
+import inspect
 
 
 """
@@ -54,82 +56,43 @@ Data structure of richmol HDF5 file
 
 
 def J_group_key(J1, J2):
-    return 'J:' + str(round(float(J1), 1)) + "," + str(round(float(J2), 1))
+    return 'J:' + str(round(float(J1), 1)) + ',' + str(round(float(J2), 1))
+
+def sym_group_key(sym1, sym2):
+    return 'sym:' + str(sym1) + ',' + str(sym2)
 
 
-def tens_group_key(tens):
-    return 'tens:' + tens
+def add_molecule(filename, mol, comment=None, replace=False):
+    """Stores molecular data
 
-
-def add_comment(filename, comment):
-    if '\n' in comment or '\r' in comment:
-        raise ValueError(f"comment string must not contain new lines") from None
-    date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-    platform = sys.platform
-    comm = '[' + date.replace('\n','') + ' ' + platform.replace('\n','') +'] ' + comment
-    with h5py.File(filename, 'a') as fl:
-        try:
-            comm_ = "".join(elem.decode() for elem in fl['comments'])
-            nlines = comm_.count('\n')
-            comm_ = comm_ + '\n' + '#' + str(nlines+2) + comm
-            del fl['comments']
-        except KeyError:
-            nlines = 1
-            comm_ = '#' + str(nlines) + comm
-        fl.create_dataset('comments', data=[str.encode(elem) for elem in comm_])
-
-
-def get_comments(filename):
-    with h5py.File(filename, 'r') as fl:
-        try:
-            comm = "".join(elem.decode() for elem in fl['comments'])
-        except KeyError:
-            comm = ""
-    return comm
-
-
-def del_comment(filename, number):
-    try:
-        number_ = [elem for elem in number]
-    except TypeError:
-        number_ = [number]
-    with h5py.File(filename, 'a') as fl:
-        try:
-            comm = "".join(elem.decode() for elem in fl['comments'])
-            comments = comm.split('\n')
-        except KeyError:
-            raise KeyError(f"file '{filename}' has no comments dataset") from None
-        new_comm = []
-        del_comm = []
-        for comm in comments:
-            numb = re.findall(r'#\d+', comm)
-            comm_numb = int(numb[0].strip('#'))
-            if comm_numb not in number_:
-                new_comm.append(comm)
-            else:
-                del_comm.append(comm)
-        if len(del_comm) == 0:
-            raise ValueError(f"comment numbers {number_} do not exist in {filename}['comments']") from None
-        del fl['comments']
-        comm = '\n'.join(elem for elem in new_comm)
-        fl.create_dataset('comments', data=[str.encode(elem) for elem in comm])
-
-
-def add_molecule(filename, mol, descr=None, replace=False):
+    Args:
+        filename : str
+            Name of hdf5 file
+        mol : Molecule
+            Molecule object
+        comment : str
+            Description of molecular data
+        replace : bool
+            If True, the existing dataset will be replaced
+    """
     if not isinstance(mol, molecule.Molecule):
         raise TypeError(f"bad argument type for molecule") from None
 
     with h5py.File(filename, 'a') as fl:
         if 'molecule' in fl:
-            if replace == True:
+            if replace is True:
                 del fl['molecule']
             else:
                 raise RuntimeError(f"found existing molecule dataset in '{filename}', use replace=True to replace it") from None
         group = fl.create_group('molecule')
 
-        # description
-        if descr != None:
-            group.attrs['descr'] = str.encode(descr)
+        # date/time
+        date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        group.attrs['date'] = date.replace('\n','')
+
+        # user comment
+        if comment is not None:
+            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
 
         # store XYZ
         try:
@@ -166,6 +129,16 @@ def add_molecule(filename, mol, descr=None, replace=False):
 
 
 def get_molecule(filename):
+    """Reads molecular data
+
+    Args:
+        filename : str
+            Name of hdf5 file
+    Returns:
+        mol : object
+            Molecular parameters, such as geometry, property tensors, rotational constants,
+            Hamiltonian parameters, etc.
+    """
     with h5py.File(filename, 'a') as fl:
         try:
             group = fl['molecule']
@@ -173,6 +146,259 @@ def get_molecule(filename):
             raise KeyError(f"file '{filename}' has no molecule dataset") from None
         mol = type("molecule_data", (object,), {key:val for key,val in group.attrs.items()})
         return mol
+
+
+def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=None):
+    """Stores tensor matrix elements
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        tens : LabTensor or equivalent
+            Cartesian tensor object
+        name : str
+            Name of dataset, by default name of variable 'tens' will be used
+        comment : str
+            Description of tensor
+        replace : bool
+            If True, the existing dataset will be replaced
+        thresh : float
+            Threshold for neglecting matrix elements when writing into file
+    """
+    if not isinstance(tens, labtens.LabTensor):
+        raise TypeError(f"bad argument type for tensor") from None
+
+    if name is None:
+        name_ = retrieve_name(tens)
+    else:
+        name_ = name
+
+    with h5py.File(filename, 'a') as fl:
+        if name_ in fl:
+            if replace is True:
+                del fl[name_]
+            else:
+                raise RuntimeError(f"found existing tensor dataset '{name_}' in '{filename}', use replace=True to replace it") from None
+        group = fl.create_group(name_)
+
+        # date/time
+        date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        group.attrs['date'] = date.replace('\n','')
+
+        # user comment
+        if comment is not None:
+            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
+
+        # properties of tensor
+        group.attrs['rank'] = tens.rank
+        group.attrs['Us'] = tens.Us
+        group.attrs['Ux'] = tens.Ux
+        group.attrs['cart'] = tens.cart
+        group.attrs['os'] = tens.os
+        # molecular frame tensor elements
+        group.attrs['tens_flat'] = [elem for elem in tens.tens_flat]
+
+        # matrix elements
+
+        for (J1, J2) in list(set(tens.mmat.keys()) & set(tens.kmat.keys())):
+
+            mmat_sym = tens.mmat[(J1, J2)]
+            kmat_sym = tens.kmat[(J1, J2)]
+
+            for (sym1, sym2) in list(set(mmat_sym.keys()) & set(kmat_sym.keys())):
+
+                # store K-matrix
+
+                kmat = kmat_sym[(sym1, sym2)]
+                kmat_ = [k for k in kmat.values()]
+                if thresh is not None:
+                    for k in kmat_:
+                        mask = np.abs(k.data) < thresh
+                        k.data[mask] = 0
+                        k.eliminate_zeros()
+
+                data = [k.data for k in kmat_ if k.nnz > 0]
+                indices = [k.indices for k in kmat_ if k.nnz > 0]
+                indptr = [k.indptr for k in kmat_ if k.nnz > 0]
+                shape = [k.shape for k in kmat_ if k.nnz > 0]
+                irreps = [key for key,k in zip(kmat.keys(), kmat_) if k.nnz > 0]
+                if len(data) > 0:
+                    try:
+                        group_j = group[J_group_key(J1, J2)]
+                    except:
+                        group_j = group.create_group(J_group_key(J1, J2))
+                    try:
+                        group_sym = group_j[sym_group_key(sym1, sym2)]
+                    except:
+                        group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                    group_sym.create_dataset('kmat_data', data=np.concatenate(data))
+                    group_sym.create_dataset('kmat_indices', data=np.concatenate(indices))
+                    group_sym.create_dataset('kmat_indptr', data=np.concatenate(indptr))
+                    group_sym.attrs['kmat_nnz'] = [len(dat) for dat in data]
+                    group_sym.attrs['kmat_nind'] = [len(ind) for ind in indices]
+                    group_sym.attrs['kmat_nptr'] = [len(ind) for ind in indptr]
+                    group_sym.attrs['kmat_irreps'] = irreps
+                    group_sym.attrs['kmat_shape'] = shape
+
+                # store M-matrix
+
+                mmat = mmat_sym[(sym1, sym2)]
+                mmat_ = [m for mcart in mmat.values() for m in mcart.values()]
+                if thresh is not None:
+                    for m in mmat_:
+                        mask = np.abs(m.data) < thresh
+                        m.data[mask] = 0
+                        m.eliminate_zeros()
+
+                data = [m.data for m in mmat_ if m.nnz > 0]
+                indices = [m.indices for m in mmat_ if m.nnz > 0]
+                indptr = [m.indptr for m in mmat_ if m.nnz > 0]
+                shape = [m.shape for m in mmat_ if m.nnz > 0]
+                irreps_cart = [(key1, key2) for key2 in mmat.keys() for key1 in mmat[key2].keys()]
+                irreps_cart = [(irrep, cart) for (irrep,cart),m in zip(irreps_cart,mmat_) if m.nnz > 0]
+                if len(data) > 0:
+                    try:
+                        group_j = group[J_group_key(J1, J2)]
+                    except:
+                        group_j = group.create_group(J_group_key(J1, J2))
+                    try:
+                        group_sym = group_j[sym_group_key(sym1, sym2)]
+                    except:
+                        group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                    group_sym.create_dataset('mmat_data', data=np.concatenate(data))
+                    group_sym.create_dataset('mmat_indices', data=np.concatenate(indices))
+                    group_sym.create_dataset('mmat_indptr', data=np.concatenate(indptr))
+                    group_sym.attrs['mmat_nnz'] = [len(dat) for dat in data]
+                    group_sym.attrs['mmat_nind'] = [len(ind) for ind in indices]
+                    group_sym.attrs['mmat_nptr'] = [len(ind) for ind in indptr]
+                    group_sym.attrs['mmat_irreps_cart'] = irreps_cart
+                    group_sym.attrs['mmat_shape'] = shape
+
+
+def inspect_file(filename):
+    """Returns information about all datasets stored in file
+
+    Arg:
+        filename : str
+            Name of hdf5 file
+    Returns:
+        elems : dict
+            Each element of dictionary corresponds to a single dataset, with dataset name stored
+            in dictionary key and dataset attributes stored in a metaclass in dictionary value.
+            For tensor datasets, list of pairs of coupled J quanta is stored in attribute 'Jpairs',
+            list of pairs of coupled symmetries is stored in attribute 'symlist'.
+    """
+    J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
+    sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+    elems = dict()
+    with h5py.File(filename, 'a') as fl:
+        for name in fl.keys():
+            elems[name] = type(name, (object,), {key:val for key,val in fl[name].attrs.items()})
+            Jlist = []
+            symlist = dict()
+            if isinstance(fl[name], h5py.Group):
+                for Jkey in fl[name].keys():
+                    if re.match(J_key_re, Jkey):
+                        Jpair = re.findall(f'\d+.\d+', Jkey)
+                        J1, J2 = (round(float(elem), 1) for elem in Jpair)
+                        Jlist.append((J1,J2))
+                        for symkey in fl[name][Jkey]:
+                            if re.match(sym_key_re, symkey):
+                                sympair = re.findall(f'\w+', symkey)
+                                _, sym1, sym2 = sympair
+                                try:
+                                    symlist[(J1, J2)].append((sym1, sym2))
+                                except KeyError:
+                                    symlist[(J1, J2)] = [(sym1, sym2)]
+                elems[name].Jpairs = Jlist
+                elems[name].sympairs = symlist
+    return elems
+
+
+def get_tensor(filename, name):
+    """Reads tensor matrix elements
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        name : str
+            Name of tensor dataset
+    Returns:
+        tens : object
+            Cartesian tensor object
+    """
+    J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
+    sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+
+    with h5py.File(filename, 'a') as fl:
+        try:
+            group = fl[name]
+        except KeyError:
+            raise KeyError(f"file '{filename}' has no tensor dataset '{name}'") from None
+
+        tens = type(name, (object,), {key:val for key,val in group.attrs.items()})
+        tens.kmat = dict()
+        tens.mmat = dict()
+
+        for key in group.keys():
+            if re.match(J_key_re, key):
+                Jpair = re.findall(f'\d+.\d+', key)
+                J1, J2 = (round(float(elem), 1) for elem in Jpair)
+                group_j = group[key]
+                for key2 in group_j.keys():
+                    if re.match(sym_key_re, key2):
+                        sympair = re.findall(f'\w+', key2)
+                        _, sym1, sym2 = sympair
+                        group_sym = group_j[key2]
+
+                        # read K-matrix
+
+                        kmat = None
+                        try:
+                            nnz = group_sym.attrs['kmat_nnz']
+                            nind = group_sym.attrs['kmat_nind']
+                            nptr = group_sym.attrs['kmat_nptr']
+                            shape = group_sym.attrs['kmat_shape']
+                            irreps = group_sym.attrs['kmat_irreps']
+                            data = np.split(group_sym['kmat_data'], np.cumsum(nnz))[:-1]
+                            indices = np.split(group_sym['kmat_indices'], np.cumsum(nind))[:-1]
+                            indptr = np.split(group_sym['kmat_indptr'], np.cumsum(nptr))[:-1]
+                            kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)
+                                    for irrep,dat,ind,ptr,sh in zip(irreps,data,indices,indptr,shape)}
+                        except KeyError:
+                            pass
+
+                        if kmat is not None:
+                            try:
+                                tens.kmat[(J1, J2)][(sym1, sym2)] = kmat
+                            except KeyError:
+                                tens.kmat[(J1, J2)] = {(sym1, sym2) : kmat}
+
+                        # read M-matrix
+
+                        mmat = None
+                        try:
+                            nnz = group_sym.attrs['mmat_nnz']
+                            nind = group_sym.attrs['mmat_nind']
+                            nptr = group_sym.attrs['mmat_nptr']
+                            shape = group_sym.attrs['mmat_shape']
+                            irreps_cart = group_sym.attrs['mmat_irreps_cart']
+                            data = np.split(group_sym['mmat_data'], np.cumsum(nnz))[:-1]
+                            indices = np.split(group_sym['mmat_indices'], np.cumsum(nind))[:-1]
+                            indptr = np.split(group_sym['mmat_indptr'], np.cumsum(nptr))[:-1]
+                            mmat = {irr_car[1] : {irr_car[0] : csr_matrix((dat, ind, ptr), shape=sh) }
+                                    for irr_car,dat,ind,ptr,sh in zip(irreps_cart,data,indices,indptr,shape)}
+                        except KeyError:
+                            pass
+
+                        if mmat is not None:
+                            try:
+                                tens.mmat[(J1, J2)][(sym1, sym2)] = mmat
+                            except KeyError:
+                                tens.mmat[(J1, J2)] = {(sym1, sym2) : mmat}
+
+    return tens
+
 
 
 
@@ -1072,3 +1298,10 @@ def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, stor
             store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, \
                   tens_descr=tens_descr, units=tens_units)
 
+
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]

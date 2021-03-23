@@ -433,29 +433,22 @@ if __name__ == '__main__':
     # print(camphor.ABC_calc)
     sol = solve(camphor, Jmin=0, Jmax=3, verbose=True) # transform solution into a tensor format
     # print(sol[10]['B3'].enr)
-    tens = LabTensor(camphor.dip, sol)
+    dipole_moment = LabTensor(camphor.dip, sol)
     H0 = H0Tensor(camphor, sol)
     # print(H0.kmat[(10,10)][('B3','B3')][0])
     # print(H0.mmat[(10,10)][('B3','B3')]["0"])
-    # rchm.add_comment('camphor.h5', "comment number 1")
-    # rchm.add_comment('camphor.h5', "comment number 2")
-    # rchm.add_comment('camphor.h5', "comment number 3")
-    # rchm.add_comment('camphor.h5', "comment number 4")
-    # rchm.add_comment('camphor.h5', "comment number 5")
-    # comm = rchm.get_comments('camphor.h5')
-    # print(comm)
-    # print("del")
-    # rchm.del_comment('camphor.h5', 2)
-    # comm = rchm.get_comments('camphor.h5')
-    # print(comm)
-    rchm.add_molecule('camphor.h5', camphor, "dhcjdhdjhjdhc", replace=True)
-    mol = rchm.get_molecule('camphor.h5')
-    for key in dir(mol):
-        print(key, getattr(mol, key))
+    rchm.add_molecule('camphor.h5', camphor, replace=True, comment="this is comment for molecule object")
+    # mol = rchm.get_molecule('camphor.h5')
+    # for key in dir(mol):
+        # print(key, getattr(mol, key))
         # print(key, getattr(mol, key))
     # rchm.add(camphor, 'camphor.h5', descr='user descr')
     # rchm.add(tens, 'camphor.h5', descr='user description')
     # rchm.add(sol, 'camphor.h5', descr='user description')
-    
-
-
+    rchm.add_tensor('camphor.h5', dipole_moment, replace=True, comment="this is long \ncomment for dipole moment")
+    rchm.get_tensor('camphor.h5', 'dipole_moment')
+    elems = rchm.inspect_file('camphor.h5')
+    for key, elem in elems.items():
+        print("\n", key, dir(elem))
+        print(elem.comment)
+        print(elem.date)

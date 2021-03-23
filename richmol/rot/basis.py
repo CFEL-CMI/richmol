@@ -515,10 +515,6 @@ class PsiTableMK():
 
     def overlap_k(self, arg):
         try:
-            x = arg.m
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
             x = arg.k
         except AttributeError:
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
@@ -531,10 +527,6 @@ class PsiTableMK():
             x = arg.m
         except AttributeError:
             raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'm'") from None
-        try:
-            x = arg.k
-        except AttributeError:
-            raise AttributeError(f"'{arg.__class__.__name__}' has no attribute 'k'") from None
         ovlp_m = self.m.overlap(arg.m)
         return ovlp_m
 

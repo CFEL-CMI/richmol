@@ -178,7 +178,7 @@ class LabTensor():
             for ind2,(j2,k2) in enumerate(prim_k):
                 fac = (-1)**abs(k2)
                 # compute <j2,k2|K-tensor|j1,k1>
-                threeJ = np.array([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os])
+                threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os], dtype=np.float64)
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
@@ -189,7 +189,7 @@ class LabTensor():
             for ind2,(j2,m2) in enumerate(prim_m):
                 fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
                 # compute <j2,m2|M-tensor|j1,m1>
-                threeJ = np.array([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os])
+                threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os], dtype=np.float64)
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
@@ -250,12 +250,14 @@ class LabTensor():
                                     # set to zero elements with absolute values smaller than a threshold
                                     me[np.abs(me) < thresh] = 0
                                     me_csr = csr_matrix(me)
-                                    kmat[(J1, J2)][(sym1, sym2)][irrep] = me_csr
+                                    if me_csr.nnz > 0:
+                                        kmat[(J1, J2)][(sym1, sym2)][irrep] = me_csr
 
                                 # M-tensor
                                 me = bas1.overlap_m(bas_irrep)
                                 # set to zero elements with absolute values smaller than a threshold
                                 me[np.abs(me) < thresh] = 0
                                 me_csr = csr_matrix(me)
-                                mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
+                                if me_csr.nnz > 0:
+                                    mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
         return kmat, mmat
