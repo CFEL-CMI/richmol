@@ -1,5 +1,5 @@
 from mendeleev import element
-from richmol.rot import constants as const
+from richmol import constants as const
 import numpy as np
 import re
 
@@ -87,7 +87,7 @@ def read_list(arg):
     for ielem,elem in enumerate(arg):
         if isinstance(elem, str):
             if elem[:4].lower() == "bohr":
-                to_angstrom = const.bohr_to_angstrom
+                to_angstrom = const.au_length
             elif elem[:4].lower() == "angs":
                 to_angstrom = 1
             else:

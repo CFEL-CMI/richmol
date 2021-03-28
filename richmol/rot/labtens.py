@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
-from basis import PsiTableMK, PsiTable
+from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix, kron
 import itertools
 import copy

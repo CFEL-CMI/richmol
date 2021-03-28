@@ -1,8 +1,8 @@
-import mol_frames
-import mol_tens
-import atomdata
-import constants as const
-import symmetry
+from richmol.rot import mol_frames
+from richmol.rot import mol_tens
+from richmol.rot import atomdata
+from richmol import constants as const
+from richmol.rot import symmetry
 import numpy as np
 import string
 import random
@@ -375,10 +375,10 @@ def mol_tensor(val):
 
 if __name__ == '__main__':
     import sys
-    from solution import solve, H0Tensor
-    from labtens import LabTensor
-    from molecule import Molecule
-    import rchm
+    from richmol.rot.solution import solve, H0Tensor
+    from richmol.rot.labtens import LabTensor
+    from richmol.rot.molecule import Molecule
+    from richmol.rot import rchm
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \

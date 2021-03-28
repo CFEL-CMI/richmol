@@ -1,7 +1,7 @@
 import numpy as np
-from basis import SymtopBasis
-from symmetry import symmetrize
-from J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
+from richmol.rot.basis import SymtopBasis
+from richmol.rot.symmetry import symmetrize
+from richmol.rot.J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
 from scipy.sparse import csr_matrix
 
 

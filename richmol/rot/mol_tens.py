@@ -1,5 +1,5 @@
 import numpy as np
-import mol_frames
+from richmol.rot import mol_frames
 
 
 _small = abs(np.finfo(float).eps)

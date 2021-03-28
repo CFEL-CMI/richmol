@@ -5,10 +5,10 @@ import os
 from scipy.sparse import coo_matrix, csr_matrix
 import time
 import datetime
-import molecule
-import labtens
-import mol_tens
-import solution
+from richmol.rot import molecule
+from richmol.rot import labtens
+from richmol.rot import mol_tens
+from richmol.rot import solution
 import inspect
 
 

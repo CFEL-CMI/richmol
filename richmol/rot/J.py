@@ -1,5 +1,5 @@
 import numpy as np
-from basis import PsiTableMK
+from richmol.rot.basis import PsiTableMK
 
 
 class J(PsiTableMK):
