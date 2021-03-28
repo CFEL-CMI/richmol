@@ -41,7 +41,7 @@ expokit = Extension(name = 'expokit',
                      )
 
 # modules for computing Wigner functions and symmetric-top functions
-wigner = Extension(name = 'wigner',
+wigner = Extension(name = 'richmol.wigner',
                     sources = ['wigner/symtop.pyf',
                                'wigner/accuracy.f90',
                                'wigner/dffs_m.f90',
