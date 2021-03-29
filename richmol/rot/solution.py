@@ -195,7 +195,7 @@ def watson_a(H0, mol, bas, verbose=False):
         try:
             const = getattr(mol, key)
             if verbose is True:
-                print(f"add 'watson_s' term '{attr}'")
+                print(f"add 'watson_s' term '{key}'")
             H = H + const * val
         except AttributeError:
             pass
@@ -251,7 +251,7 @@ def watson_s(H0, mol, bas, verbose=False):
         try:
             const = getattr(mol, key)
             if verbose is True:
-                print(f"add 'watson_s' term '{attr}'")
+                print(f"add 'watson_s' term '{key}'")
             H = H + const * val
         except AttributeError:
             pass

@@ -6,8 +6,8 @@ import copy
 _small = abs(np.finfo(float).eps)*10
 _large = abs(np.finfo(float).max)
 
-_assign_nprim = 1 # number of primitive functions printed in the state assignment
-_assign_ndig_c2 = 4 # number of significant digits printed for the assignment coefficient |c|^2
+_assign_nprim = 10  # max number of primitive functions printed in the state assignment
+_assign_ndig_c2 = 6 # number of significant digits printed for the assignment coefficient |c|^2
 
 # allow for repetitions of warning for the same source location
 # warnings.simplefilter('always', UserWarning)
@@ -299,7 +299,7 @@ class PsiTable():
             ndig = _assign_ndig_c2 # number of digits in |c|^2 to be kept for assignment
             c2_form = "%"+str(ndig+3)+"."+str(ndig)+"f"
             for v in rotmat:
-                n = _assign_nprim # number of primitive states to be used for assignment
+                n = _assign_nprim # max number of primitive states to be used for assignment
                 ind = (-abs(v)**2).argsort()[:n]
                 elem_stat = self.table['stat'][ind]
                 c2 = [c2_form%abs(v[i])**2 for i in ind]
@@ -594,17 +594,33 @@ class PsiTableMK():
     def assign(self):
         """Returns assignment of eigenstates.
 
-        In order to control the number of primitive functions used for assignment, change _assign_nprim (=1..6),
-        to control the number of printed significant digits for coefficients of primitive functions,
-        change _assign_ndig_c2 (=1..10)
+        In order to control the maximal number of primitive functions used
+        for assignment, change _assign_nprim, to control the number of printed
+        significant digits for coefficients of primitive functions,
+        change _assign_ndig_c2
         """
         nstat = self.k.table['c'].shape[1]
-        assign = self.k.table['stat'][:nstat]
+        assign = []
+        for a in self.k.table['stat'][:nstat]:
+            assign.append(a[:self.assign_nprim*4])
         return assign
 
     @assign.setter
     def assign(self, val):
         raise AttributeError(f"setting assignment is not permitted") from None
+
+
+    @property
+    def assign_nprim(self):
+        """Number of primitive functions printed in the assignment"""
+        try:
+            return self.assign_no_prim
+        except AttributeError:
+            return 1
+
+    @assign_nprim.setter
+    def assign_nprim(self, val):
+        self.assign_no_prim = int(val)
 
 
     @property
