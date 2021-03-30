@@ -3,12 +3,13 @@ import math
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix
+from richmol.field import CarTens
 
 
 _sym_tol = 1e-12
 
 
-class LabTensor():
+class LabTensor(CarTens):
     """Laboratory-frame Cartesian tensor operator
 
     Attrs:
@@ -28,8 +29,12 @@ class LabTensor():
         tens_flat : 1D array
             Contains elements of molecular-frame Cartesian tensor, flattened in the order
             corresponding to the order of Cartesian components in 'cart'.
-        dim_m, dim_k : nested dict
-            Dimensions of M and K tensors (or M and K subspaces of basis set)
+        Jlist : list
+            List of J quanta spanned by the basis.
+        symlist : dict
+            List of symmetries, for each J (as keys), spanned by the basis.
+        dim_m, dim_k, dim : nested dict
+            Dimensions of M, K, and MxK tensors (or respective subspaces of basis set)
             for different values of J quanta and different symmetries,
             i.e., dim_m[J][sym] -> int, dim_k[J][sym] -> int.
         kmat : nested dict
@@ -121,9 +126,29 @@ class LabTensor():
                 self.Ux = np.delete(self.Ux, [1,2,3], 1)
                 self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
+        # list of J quanta and list of symmetries spanned by basis
+        self.Jlist = [J for J in basis.keys()]
+        self.symlist = {J : {sym for sym in basis[J].keys()} for J in basis.keys()}
+
         # initialize matrix elements
         self.dim_k, self.dim_m, self.kmat, self.mmat = self.matelem(basis, thresh)
 
+        # total basis dimension for different J and symmetries
+        self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
+                    for sym in self.symlist[J] } for J in self.Jlist}
+
+        # allocate some attributes of parent CarTens class
+        self.dim_k1 = self.dim_k
+        self.dim_k2 = self.dim_k
+        self.dim_m1 = self.dim_m
+        self.dim_m2 = self.dim_m
+        self.dim1 = self.dim
+        self.dim2 = self.dim
+        self.Jlist1 = self.Jlist
+        self.Jlist2 = self.Jlist
+        self.symlist1 = self.symlist
+        self.symlist2 = self.symlist
+    
 
     def proj(self, basis):
         """Computes action of tensor operator onto a wave function
@@ -235,18 +260,10 @@ class LabTensor():
         # selection rules |J-J'| <= omega
         dJ_max = max(set(omega for (omega,sigma) in self.os))
 
-        # allocate structures for K and M tensors
-
-        Jlist = [J for J in basis.keys()]
-        symlist = list(set([sym for J in basis.keys() for sym in basis[J].keys()]))
-
-        kmat = {(J1, J2) : {(sym1, sym2) : {} for sym1 in symlist for sym2 in symlist}
-                for J1 in Jlist for J2 in Jlist}
-
-        mmat = {(J1, J2) : {(sym1, sym2) : { cart : {} for cart in self.cart}
-                for sym1 in symlist for sym2 in symlist} for J1 in Jlist for J2 in Jlist}
-
         # compute matrix elements for different pairs of J quanta and different symmetries
+
+        mmat = dict()
+        kmat = dict()
 
         for J2, symbas2 in basis.items():
             for sym2, bas2 in symbas2.items():
@@ -259,6 +276,16 @@ class LabTensor():
                         continue
 
                     for sym1, bas1 in symbas1.items():
+
+                        if (J1, J2) in kmat:
+                            kmat[(J1, J2)][(sym1, sym2)] = {}
+                        else:
+                            kmat[(J1, J2)] = {(sym1, sym2) : {}}
+
+                        if (J1, J2) in mmat:
+                            mmat[(J1, J2)][(sym1, sym2)] = {cart : {} for cart in self.cart}
+                        else:
+                            mmat[(J1, J2)] = {(sym1, sym2) : {cart : {} for cart in self.cart}}
 
                         for cart, bas_cart in proj.items():
                             for irrep, bas_irrep in bas_cart.items():

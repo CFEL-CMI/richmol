@@ -3,6 +3,7 @@ from richmol.rot.basis import SymtopBasis
 from richmol.rot.symmetry import symmetrize
 from richmol.rot.J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
 from scipy.sparse import csr_matrix
+from richmol.field import CarTens
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
@@ -26,7 +27,7 @@ def register_ham(func):
     return func
 
 
-class H0Tensor():
+class H0Tensor(CarTens):
     """Casts matrix elements of rotational Hamiltonian into M- and K-tensor form, similar to labtens.LabTensor
 
     Args:
