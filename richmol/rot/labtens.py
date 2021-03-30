@@ -2,9 +2,7 @@ import numpy as np
 import math
 from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 from richmol.rot.basis import PsiTableMK, PsiTable
-from scipy.sparse import csr_matrix, kron
-import itertools
-import copy
+from scipy.sparse import csr_matrix
 
 
 _sym_tol = 1e-12
@@ -30,6 +28,10 @@ class LabTensor():
         tens_flat : 1D array
             Contains elements of molecular-frame Cartesian tensor, flattened in the order
             corresponding to the order of Cartesian components in 'cart'.
+        dim_m, dim_k : nested dict
+            Dimensions of M and K tensors (or M and K subspaces of basis set)
+            for different values of J quanta and different symmetries,
+            i.e., dim_m[J][sym] -> int, dim_k[J][sym] -> int.
         kmat : nested dict
             K-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
             different pairs of bra and ket symmetries, and different irreducible components
@@ -79,7 +81,7 @@ class LabTensor():
         elif isinstance(mol_tens, (np.ndarray,np.generic)):
             tens = mol_tens
         else:
-            raise TypeError(f"bad argument type '{type(mol_tens)}'") from None
+            raise TypeError(f"bad argument type for 'mol_tens': '{type(mol_tens)}'") from None
         if not all(dim==3 for dim in tens.shape):
             raise ValueError(f"input tensor has inappropriate shape: '{tens.shape}' != {[3]*tens.ndim}") from None
         if np.any(np.isnan(tens)):
@@ -120,7 +122,7 @@ class LabTensor():
                 self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
         # initialize matrix elements
-        self.kmat, self.mmat = self.matelem(basis, thresh)
+        self.dim_k, self.dim_m, self.kmat, self.mmat = self.matelem(basis, thresh)
 
 
     def proj(self, basis):
@@ -214,20 +216,37 @@ class LabTensor():
                 Threshold for neglecting matrix elements.
 
         Returns:
+            dim_k : nested dict
+                See LabTensor.dim_k
+            dim_m : nested dict
+                See LabTensor.dim_m
             kmat : nested dict
-                See LabTens.kmat
+                See LabTensor.kmat
             mmat : nested dict
-                See LabTens.mmat
+                See LabTensor.mmat
         """
-        dJ_max = max(set(omega for (omega,sigma) in self.os)) # selection rules |J-J'| <= omega
+        # dimensions of M and K tensors
+
+        dim_m = { J: { sym : bas.m.table['c'].shape[1] for sym, bas in symbas.items() }
+                  for J, symbas in basis.items() }
+        dim_k = { J: { sym : bas.k.table['c'].shape[1] for sym, bas in symbas.items() }
+                  for J, symbas in basis.items() }
+
+        # selection rules |J-J'| <= omega
+        dJ_max = max(set(omega for (omega,sigma) in self.os))
+
+        # allocate structures for K and M tensors
 
         Jlist = [J for J in basis.keys()]
         symlist = list(set([sym for J in basis.keys() for sym in basis[J].keys()]))
 
         kmat = {(J1, J2) : {(sym1, sym2) : {} for sym1 in symlist for sym2 in symlist}
                 for J1 in Jlist for J2 in Jlist}
+
         mmat = {(J1, J2) : {(sym1, sym2) : { cart : {} for cart in self.cart}
                 for sym1 in symlist for sym2 in symlist} for J1 in Jlist for J2 in Jlist}
+
+        # compute matrix elements for different pairs of J quanta and different symmetries
 
         for J2, symbas2 in basis.items():
             for sym2, bas2 in symbas2.items():
@@ -236,7 +255,7 @@ class LabTensor():
 
                 for J1, symbas1 in basis.items():
 
-                    if abs(J1-J2) > dJ_max:
+                    if abs(J1-J2) > dJ_max: # rigorous selection rules
                         continue
 
                     for sym1, bas1 in symbas1.items():
@@ -245,19 +264,43 @@ class LabTensor():
                             for irrep, bas_irrep in bas_cart.items():
 
                                 # K-tensor
+
                                 if cart == self.cart[0]:
+
+                                    # compute matrix elements
                                     me = bas1.overlap_k(bas_irrep)
+
                                     # set to zero elements with absolute values smaller than a threshold
                                     me[np.abs(me) < thresh] = 0
                                     me_csr = csr_matrix(me)
+
+                                    # check matrix dimensions
+                                    assert (np.all(me_csr.shape == (dim_k[J1][sym1], dim_k[J2][sym2]))), \
+                                        f"shape of K-matrix = {me_csr.shape} is not aligned with shape " + \
+                                        f"of basis set = {(dim_k[J1][sym1], dim_k[J2, sym2])} " + \
+                                        f"for (J1, J2) = {(J1, J2)} and (sym1, sym2) = {(sym1, sym2)}"
+
+                                    # add matrix element to K-tensor
                                     if me_csr.nnz > 0:
                                         kmat[(J1, J2)][(sym1, sym2)][irrep] = me_csr
 
                                 # M-tensor
+
+                                # compute matrix elements
                                 me = bas1.overlap_m(bas_irrep)
+
                                 # set to zero elements with absolute values smaller than a threshold
                                 me[np.abs(me) < thresh] = 0
                                 me_csr = csr_matrix(me)
+
+                                # check matrix dimensions
+                                assert (np.all(me_csr.shape == (dim_m[J1][sym1], dim_m[J2][sym2]))), \
+                                    f"shape of M-matrix = {me_csr.shape} is not aligned with shape " + \
+                                    f"of basis set = {(dim_m[J1][sym1], dim_m[J2, sym2])} " + \
+                                    f"for (J1, J2) = {(J1, J2)} and (sym1, sym2) = {(sym1, sym2)}"
+
+                                # add matrix elements to M-tensor
                                 if me_csr.nnz > 0:
                                     mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
-        return kmat, mmat
+
+        return dim_k, dim_m, kmat, mmat
