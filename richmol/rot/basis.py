@@ -651,9 +651,11 @@ class SymtopBasis(PsiTableMK):
             Quantum number of the rotational angular momentum.
         linear : bool
             Set to True if molecule is linear, in this case quantum number K = 0.
+        m_list : list
+            List of m quanta spanned by basis, by default m=-J..J
     """
 
-    def __init__(self, J, linear=False, wang=True):
+    def __init__(self, J, linear=False, m_list=[]):
 
         try:
             self.J = int(round(J))
@@ -691,7 +693,13 @@ class SymtopBasis(PsiTableMK):
                 coefs[iprim,ibas] = cc
 
         # generate m-quanta
-        prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
+        if len(m_list) > 0:
+            if any([abs(m) > J for m in m_list]):
+                raise ValueError(f"some of the absolute values of m quanta in " + \
+                    f"'m_list' = {m_list} are larger than the value of J = {J}") from None
+            prim_m = [(int(J),int(m)) for m in m_list.sort()]
+        else:
+            prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
         coefs_m = np.eye(len(prim_m), dtype=np.complex128)
 
         # initialize

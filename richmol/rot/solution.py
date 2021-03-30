@@ -6,7 +6,7 @@ from scipy.sparse import csr_matrix
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
-_constants = dict() # parameters of effective Hamiltonians
+_constants = dict()    # parameters of effective Hamiltonians
 
 class dummyMolecule:
     const = []
@@ -15,7 +15,9 @@ class dummyMolecule:
         return 1
 
 def register_ham(func):
-    """Registers Hamiltonian and a set of molecular attributes it is using""" 
+    """Decorator function to register Hamiltonian function and a set of molecular
+    attributes it is dependent on
+    """
     bas = SymtopBasis(0)
     mol = dummyMolecule()
     func(Jzz(bas), mol, bas)
@@ -59,7 +61,7 @@ class H0Tensor():
                 self.mmat[(J,J)][(sym,sym)]["0"][0] = mmat_csr
 
 
-def solve(mol, Jmin=0, Jmax=10, verbose=False):
+def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):
     """Solves rotational eigenvalue problem
 
     Args:
@@ -67,6 +69,13 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False):
             Molecular parameters.
         Jmin, Jmax : int
             Min and max values of J quantum number.
+        only : dict
+            Contains various state filters to control the basis set and solution:
+            only['m'][J] for J in range(Jmin, Jmax+1) contains list of m quantum
+                numbers, by default, m runs form -J to +J
+            only['sym'][J] for J in range(Jmin, Jmax+1) contains lits of symmetries
+                for which solution to be obtained, by default, all symmetries
+                are considered
         verbose : bool
             If True, some log will be printed.
 
@@ -80,11 +89,33 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False):
 
     sol = {}
     for J in Jlist:
-        symbas = symmetrize(SymtopBasis(J, linear=mol.linear()), sym=mol.sym)
+
+        # m-quanta filter
+        if 'm' in only:
+            try:
+                m_list = list(only['m'][J])
+            except KeyError:
+                raise KeyError(f"bad argument, only['m'][J] for J = {J} does not exist") from None
+        else:
+            m_list = []
+
+        # symmetry-adapted basis sets
+        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=m_list), sym=mol.sym)
+
         sol[J] = {}
         for sym,bas in symbas.items():
+
+            # symmetry filter
+            if 'sym' in only:
+                try:
+                    if sym not in list(only['sym'][J]):
+                        continue
+                except KeyError:
+                    raise KeyError(f"bad argument, only['sym'][J] for J = {J} does not exist") from None
+
             if verbose is True:
                 print(f"solve for J = {J} and symmetry {sym}")
+
             H = hamiltonian(mol, bas, verbose=verbose)
             hmat, _ = bas.overlap(H)
             enr, vec = np.linalg.eigh(hmat.real)
