@@ -697,7 +697,7 @@ class SymtopBasis(PsiTableMK):
             if any([abs(m) > J for m in m_list]):
                 raise ValueError(f"some of the absolute values of m quanta in " + \
                     f"'m_list' = {m_list} are larger than the value of J = {J}") from None
-            prim_m = [(int(J),int(m)) for m in m_list.sort()]
+            prim_m = [(int(J),int(m)) for m in m_list]
         else:
             prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
         coefs_m = np.eye(len(prim_m), dtype=np.complex128)
