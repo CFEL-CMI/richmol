@@ -93,7 +93,10 @@ def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):
         # m-quanta filter
         if 'm' in only:
             try:
-                m_list = list(only['m'][J])
+                try:
+                    m_list = list(only['m'][J])
+                except IndexError:
+                    raise IndexError(f"bad argument, only['m'][J] for J = {J} looks like an empty list") from None
             except KeyError:
                 raise KeyError(f"bad argument, only['m'][J] for J = {J} does not exist") from None
         else:
