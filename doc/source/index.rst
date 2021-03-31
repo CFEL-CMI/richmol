@@ -18,7 +18,6 @@ however the computationally critical parts are implemented with Fortran and C ro
    :numbered:
 
    overview.rst
-   theory.rst
    version.rst
    installation.rst
    getting_started.rst
