@@ -222,7 +222,7 @@ class Molecule:
 
 
     @property
-    def ABC_calc(self):
+    def ABC_geom(self):
         """Returns rotational constants in units of cm^-1 calculated from the inertia tensor"""
         itens = self.inertia
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
@@ -234,8 +234,8 @@ class Molecule:
         return [val for val in abc]
 
 
-    @ABC_calc.setter
-    def ABC_calc(self, val):
+    @ABC_geom.setter
+    def ABC_geom(self, val):
         raise AttributeError(f"setting calculated rotational constants is not permitted") from None
 
 
@@ -246,7 +246,7 @@ class Molecule:
             self.check_ABC()
             return self.ABC_exp
         except AttributeError:
-            return self.ABC_calc
+            return self.ABC_geom
 
 
     @ABC.setter
@@ -261,16 +261,16 @@ class Molecule:
 
 
     @property
-    def B_calc(self):
+    def B_geom(self):
         if self.linear == False:
             raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
         with np.errstate(divide='ignore'): # ignore divide by zero warning
-            b = self.ABC_calc[1]
+            b = self.ABC_geom[1]
         return b
 
 
-    @B_calc.setter
-    def B_calc(self, val):
+    @B_geom.setter
+    def B_geom(self, val):
         raise AttributeError(f"setting calculated rotational constants is not permitted") from None
 
 
@@ -280,7 +280,7 @@ class Molecule:
             self.check_B()
             return self.B_exp
         except AttributeError:
-            return self.B_calc
+            return self.B_geom
 
 
     @B.setter
@@ -291,34 +291,34 @@ class Molecule:
 
     def check_ABC(self):
         try:
-            ABC_calc = self.ABC_calc
+            ABC_geom = self.ABC_geom
         except AttributeError:
             return
         try:
             ABC_exp = self.ABC_exp
         except AttributeError:
             return
-        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(ABC_exp, ABC_calc)):
+        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(ABC_exp, ABC_geom)):
             err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
-                             for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_calc) )
-            raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
+                             for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_geom) )
+            raise ValueError(f"input rotational constants disagree much with geometry\n" + \
                 f"        exp          calc       exp-calc\n" + err) from None
         return
 
 
     def check_B(self):
         try:
-            B_calc = self.B_calc
+            B_geom = self.B_geom
         except AttributeError:
             return
         try:
             B_exp = self.B_exp
         except AttributeError:
             return
-        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(B_exp, B_calc)):
+        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(B_exp, B_geom)):
             err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
-                             for abc,e,c in zip(("B"), B_exp, B_calc) )
-            raise ValueError(f"input experimental rotational constants differ much from the calculated once\n" + \
+                             for abc,e,c in zip(("B"), B_exp, B_geom) )
+            raise ValueError(f"input rotational constants disagree much with geometry\n" + \
                 f"        exp          calc       exp-calc\n" + err) from None
         return
 
@@ -451,7 +451,7 @@ if __name__ == '__main__':
     camphor.frame = 'diag(inertia)'
     print(camphor.ABC)
     # print(camphor.ABC)
-    # print(camphor.ABC_calc)
+    # print(camphor.ABC_geom)
     sol = solve(camphor, Jmin=0, Jmax=3, verbose=True) # transform solution into a tensor format
     # print(sol[10]['B3'].enr)
     dipole_moment = LabTensor(camphor.dip, sol)
