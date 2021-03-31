@@ -456,3 +456,5 @@ if __name__ == '__main__':
     mat2 = dipole_moment.tomat(form='block', cart='x')
     mat2 = dipole_moment.full_form(mat2)
     print(np.sum(abs(mat-mat2)>1e-12))
+    vec = dipole_moment * [1,2,3]
+ 

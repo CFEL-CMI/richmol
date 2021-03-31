@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse import kron, csr_matrix
 import itertools
-
+import copy
 
 
 class CarTens():
@@ -128,7 +128,7 @@ class CarTens():
 
 
     def field(self, field, tol=1e-12):
-        """Multiplies tensor with field and contracts over Cartesian components
+        """Multiplies tensor with field and sums over Cartesian components
 
         The result is stored in the attribute self.mfmat, which has the same structure
         as self.kmat, i.e., self.mfmat[(J1, J2)][(sym1, sym2)][irrep]
@@ -137,13 +137,14 @@ class CarTens():
             field : array (3)
                 Contains field's X, Y, Z components
             tol : float
-                Threshold for considering field or product of field components as zero
+                Threshold for considering elements of field or elements of M-tensor
+                contracted with field as zero
         """
         try:
             fx, fy, fz = field[:3]
             fxyz = np.array([fx, fy, fz])
-        except IndexError:
-            raise IndexError(f"field must be an iterable with three items, " + \
+        except (TypeError, IndexError):
+            raise IndexError(f"field variable must be an iterable with three items, " + \
                 f"which represent field's X, Y, and Z components") from None
 
         # screen out small field components
@@ -151,30 +152,46 @@ class CarTens():
                       for comb in itertools.product((0,1,2), repeat=self.rank) \
                       if abs(np.prod(fxyz[list(comb)])) >= tol}
 
+        nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
+        res = np.zeros(nirrep, dtype=np.complex128)
+
         # contract M-tensor with field
+
         self.mfmat = dict()
+
         for (J1, J2), mmat_J in self.mmat.items():
             for (sym1, sym2), mmat_sym in mmat_J.items():
-                res = dict()
+
+                res[:] = 0
                 for cart, mmat_irrep in mmat_sym.items():
                     try:
                         fprod = field_prod[cart]
                     except KeyError:
                         continue     # the product of field components can be neglected
+
                     for irrep, mmat in mmat_irrep.items():
-                        try:
-                            res[irrep] = res[irrep] + mmat * fprod
-                        except KeyError:
-                            res = {irrep : m * fprod}
-                if len(res.keys()) > 0:
+                        res[irrep] = res[irrep] + mmat * fprod
+
+                res_dict = {irrep : elem for elem in res if np.abs(elem) > tol}
+                if len(res_dict) > 0:
                     try:
-                        self.mfmat[(J1, J2)][(sym1, sym2)] = res
+                        self.mfmat[(J1, J2)][(sym1, sym2)] = res_dict
                     except KeyError:
-                        self.mfmat[(J1, J2)] = {(sym1, sym2) : res}
+                        self.mfmat[(J1, J2)] = {(sym1, sym2) : res_dict}
 
 
     def vec(self, vec):
-        """Computes product of tensor with vector"""
+        """Computes product of tensor with vector
+
+        Args:
+            vec : nested dict
+                Dictionary containing vector elements for different values  of J
+                quantum number and different symmetries, i.e., vec[J][sym] -> ndarray
+
+        Returns:
+            vec2 : nested dict
+                Resulting vector, has same structure as input vec
+        """
         try:
             x = self.mfmat
         except AttributeError:
@@ -183,29 +200,63 @@ class CarTens():
         if not isinstance(vec, dict):
             raise TypeError(f"bad argument type for 'vec': '{type(vec)}'") from None
 
+        nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
+        res = np.zeros(nirrep, dtype=np.complex128)
+
+        vec2 = dict()
+
         for (J1, J2) in list(set(self.mfmat.keys()) & set(self.kmat.keys())):
 
             mfmat_J = self.mfmat[(J1, J2)]
             kmat_J = self.kmat[(J1, J2)]
+            vec2[J1] = dict()
 
             for (sym1, sym2) in list(set(mfmat_sym.keys()) & set(kmat_sym.keys())):
 
                 mfmat = mfmat_J[(sym1, sym2)]
                 kmat = kmat_J[(sym1, sym2)]
 
-                dim1 = dim_m[J2][sym2]
-                dim2 = dim_k[J2][sym2]
-                dim = dim_m[J1][sym1] * dim_k[J1][sym1]
+                dim1 = self.dim_m2[J2][sym2]
+                dim2 = self.dim_k2[J2][sym2]
+                dim = self.dim1[J1][sym1]
+
                 try:
                     vecT = np.transpose(vec[J2][sym2].reshape(dim1, dim2))
                 except KeyError:
                     continue
 
+                res[:] = 0
                 for irrep in list(set(mfmat.keys()) & set(kmat.keys())):
                     tmat = csr_matrix.dot(kmat[irrep], vecT)
                     v = csr_matrix.dot(mfmat[irrep], np.transpose(tmat))
-                    try:
-                        vec_new[J1] = vec_new[J1] + csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
-                    except KeyError:
-                        vec_new[J1] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
-        return {key : val * self.prefac for key,val in vec_new.items()}
+                    res[irrep] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+
+                try:
+                    vec2[J1][sym1] += np.sum(res) * self.prefac
+                except KeyError:
+                    vec2[J1] = {sym1 : np.sum(res) * self.prefac}
+
+        return vec2
+
+
+    def __mul__(self, arg):
+        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
+                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        if isinstance(arg, scalar):
+            # multiply with a scalar
+            res = copy.deepcopy(self)
+            res.mul(arg)
+        elif isinstance(arg, (np.ndarray, list, tuple)):
+            # multiply with field
+            res = copy.deepcopy(self)
+            res.field(arg)
+        elif isinstance(arg, dict):
+            # multiply with wavepacket coefficient vector
+            res = copy.deepcopy(self)
+            res.vec(arg)
+        else:
+            raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
+                f"'{type(arg)}'") from None
+        return res
+
+    __rmul__ = __mul__
