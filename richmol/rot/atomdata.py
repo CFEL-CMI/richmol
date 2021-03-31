@@ -1,6 +1,6 @@
 from mendeleev import element
-from richmol import constants as const
 import numpy as np
+from scipy import constants
 import re
 
 
@@ -87,7 +87,7 @@ def read_list(arg):
     for ielem,elem in enumerate(arg):
         if isinstance(elem, str):
             if elem[:4].lower() == "bohr":
-                to_angstrom = const.au_length
+                to_angstrom = constants.value('Bohr radius') * 1e10
             elif elem[:4].lower() == "angs":
                 to_angstrom = 1
             else:

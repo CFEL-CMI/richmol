@@ -1,7 +1,7 @@
 from richmol.rot import mol_frames
 from richmol.rot import mol_tens
 from richmol.rot import atomdata
-from richmol import constants as const
+from scipy import constants
 from richmol.rot import symmetry
 import numpy as np
 import string
@@ -130,7 +130,8 @@ class Molecule:
 
     def gmat(self):
         """Computes rotational kinetic energy matrix"""
-        convert_to_cm = const.planck * const.avogno * 1e+16 / (4.0 * np.pi * np.pi * const.vellgt)
+        convert_to_cm = constants.value('Planck constant') * constants.value('Avogadro constant') \
+                      * 1e+16 / (4.0 * np.pi**2 * constants.value('speed of light in vacuum')) * 1e5
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
         natoms = xyz.shape[0]
@@ -227,7 +228,8 @@ class Molecule:
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
             raise ValueError(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
                 f"max offdiag = {np.max(np.abs(np.diag(np.diag(itens))-itens)).round(16)}") from None
-        convert_to_cm = const.planck * const.avogno * 1e+16 / (8.0 * np.pi * np.pi * const.vellgt)
+        convert_to_cm = constants.value('Planck constant') * constants.value('Avogadro constant') \
+                      * 1e+16 / (8.0 * np.pi**2 * constants.value('speed of light in vacuum')) * 1e5
         abc = [convert_to_cm/val for val in np.diag(itens)]
         return [val for val in abc]
 
