@@ -330,4 +330,32 @@ class LabTensor(CarTens):
                                 if me_csr.nnz > 0:
                                     mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
 
+        #kmat, mmat = self.matelem_del_empty(kmat, mmat)
+
         return dim_k, dim_m, kmat, mmat
+
+
+    def matelem_del_empty(self, kmat, mmat):
+
+        del_sym = dict()
+        for Jpair, kmat_J in kmat.items():
+            for sympair, kmat_sym in kmat_J.items():
+                if all(np.isscalar(k) == 0  for k in kmat_sym):
+                    del_sym[Jpair] = sympair
+
+        for Jpair, sympair in del_sym.items():
+            del kmat[Jpair][sympair]
+
+        for Jpair, mmat_J in mmat.items():
+            for sympair, mmat_sym in mmat_J.items():
+                if all(np.all(np.isscalar(m) == 0)  for m in mmat_sym.values()):
+                    del_sym[Jpair] = sympair
+
+        for Jpair, sympair in del_sym.items():
+            try:
+                del kmat[Jpair][sympair]
+                del mmat[Jpair][sympair]
+            except KeyError:
+                pass
+
+        return kmat, mmat
