@@ -180,7 +180,16 @@ class Molecule:
 
     def linear(self):
         """Returns True/False if molecule is linear/non-linear"""
-        xyz = self.XYZ['xyz']
+        try:
+            xyz = self.XYZ['xyz']
+        except AttributeError:
+            if hasattr(self, 'B_exp') and not hasattr(self, 'ABC_exp'):
+                return True
+            elif hasattr(self, 'ABC_exp') and not hasattr(self, 'B_exp'):
+                return False
+            else:
+                raise ValueError(f"cannot determine whether the molecule is linear " + \
+                    f"on the basis of input molecular parameters") from None
         imom = self.imom()
         d, rotmat = np.linalg.eigh(imom)
         xyz2 = np.dot(xyz, rotmat)
