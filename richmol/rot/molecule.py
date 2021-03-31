@@ -212,7 +212,7 @@ class Molecule:
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
             raise ValueError(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
                 f"max offdiag = {np.max(np.abs(np.diag(np.diag(itens))-itens)).round(16)}") from None
-        convert_to_cm = const.planck * const.avogno * 1e+16 / (8.0 * np.pi * np.pi * const.vellgt) 
+        convert_to_cm = const.planck * const.avogno * 1e+16 / (8.0 * np.pi * np.pi * const.vellgt)
         abc = [convert_to_cm/val for val in np.diag(itens)]
         return [val for val in abc]
 
@@ -247,7 +247,9 @@ class Molecule:
     def B_calc(self):
         if self.linear == False:
             raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
-        return self.ABC_calc[1]
+        with np.errstate(divide='ignore'): # ignore divide by zero warning
+            b = self.ABC_calc[1]
+        return b
 
 
     @B_calc.setter
@@ -457,4 +459,3 @@ if __name__ == '__main__':
     mat2 = dipole_moment.full_form(mat2)
     print(np.sum(abs(mat-mat2)>1e-12))
     vec = dipole_moment * [1,2,3]
- 
