@@ -9,6 +9,7 @@ from richmol.rot import molecule
 from richmol.rot import labtens
 from richmol.rot import mol_tens
 from richmol.rot import solution
+from richmol import field
 import inspect
 
 
@@ -18,6 +19,24 @@ def J_group_key(J1, J2):
 
 def sym_group_key(sym1, sym2):
     return 'sym:' + str(sym1) + ',' + str(sym2)
+
+
+def store(filename, obj, *args, **kwargs):
+    """Stores objects in richmol hdf5 database file
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        obj : object
+            Object to store, currently one can store objects of type:
+            rot.molecule.Molecule, rot.labtens.LabTensor, and field.CarTens
+    """
+    if isinstance(obj, molecule.Molecule):
+        add_molecule(filename, obj, *args, **kwargs)
+    elif isinstance(obj, (labtens.LabTensor, field.CarTens)):
+        add_tensor(filename, obj, *args, **kwargs)
+    else:
+        raise TypeError(f"unsupported type: '{type(obj)}'") from None
 
 
 def add_molecule(filename, mol, comment=None, replace=False):
@@ -67,14 +86,20 @@ def add_molecule(filename, mol, comment=None, replace=False):
             pass
 
         # store rotational constants
-        if mol.linear:
-            group.attrs['ABC'] = mol.ABC
-        else:
-            group.attrs['B'] = mol.B
+        try:
+            if mol.linear:
+                group.attrs['ABC'] = mol.ABC
+            else:
+                group.attrs['B'] = mol.B
+        except AttributeError:
+            pass
 
         # store tensors
         for tens in mol_tens._tensors.keys():
-            group.attrs[tens] = getattr(mol, tens)
+            try:
+                group.attrs[tens] = getattr(mol, tens)
+            except AttributeError:
+                pass
 
         # store custom Hamiltonians and parameters
         try:
@@ -128,7 +153,7 @@ def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=No
         thresh : float
             Threshold for neglecting matrix elements when writing into file
     """
-    if not isinstance(tens, labtens.LabTensor):
+    if not isinstance(tens, (labtens.LabTensor, field.CarTens)):
         raise TypeError(f"bad argument type for tensor") from None
 
     # group name
