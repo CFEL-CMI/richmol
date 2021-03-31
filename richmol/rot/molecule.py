@@ -96,8 +96,14 @@ class Molecule:
                 self.frame_rotation = mol_frames.rotmat('eye')
 
             for fr in reversed([v.strip().lower() for v in arg.split(',')]):
+                # if frame='None', reset frame to the one defined by the input molecular geometry
+                if fr == "none":
+                    fr = "null"
                 rotmat = mol_frames.rotmat(fr, self)
                 self.frame_rotation = np.dot(rotmat, self.frame_rotation)
+        elif isinstance(arg, type(None)):
+            # if frame=None, reset frame to the one defined by the input molecular geometry
+            self.frame_rotation = mol_frames.rotmat("null", self)
         else:
             raise TypeError(f"bad argument type '{type(arg)}' for frame specification") from None
 
