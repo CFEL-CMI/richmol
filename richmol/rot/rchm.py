@@ -131,7 +131,7 @@ def get_molecule(filename):
             group = fl['molecule']
         except KeyError:
             raise KeyError(f"file '{filename}' has no molecule dataset") from None
-        mol = type("molecule_data", (object,), {key:val for key,val in group.attrs.items()})
+        mol = type("molecule", (object,), {key:val for key,val in group.attrs.items()})
         return mol
 
 
