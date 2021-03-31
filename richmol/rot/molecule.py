@@ -347,6 +347,8 @@ class Molecule:
         except ValueError:
             print(f"warning: change molecular frame to inertia axes system to enable symmetry")
             val = "C1"
+        except AttributeError:
+            raise AttributeError(f"can't use symmetry if neither geometry nor rotational constants provided") from None
         self.symmetry = symmetry.group(val)
 
 
