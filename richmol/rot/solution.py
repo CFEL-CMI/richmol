@@ -193,10 +193,10 @@ def watson_a(H0, mol, bas, verbose=False):
     """Watson-type asymmetric top Hamiltonian in A standard reduced form
     (J. K. G. Watson in "Vibrational Spectra and Structure" (Ed: J. Durig) Vol 6 p 1, Elsevier, Amsterdam, 1977).
 
-    :math:`H = H_{rr} - D_{J} * J^{4} - D_{JK} * J^{2} * J_{z}^{2} - D_{K} * J_{z}^{4}`
-    :math:`-\\frac{1}{2} * [ d_{1} * J^{2} + d_{2} * J_{z}^{2}, J_{+}^{2} + J_{-}^{2} ]_{+}`
+    :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
+    :math:`-\\frac{1}{2} * [ \delta_J_{1} * J^{2} + \delta_{k} * J_{z}^{2}, J_{+}^{2} + J_{-}^{2} ]_{+}`
     :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
-    :math:`+ \\frac{1}{2} * [ h_{1} * J^{4} + h_{2} * J^{2} * J_{z}^{2} + h_{3} * J_{z}^{4}, J_{+}^{2} + J_{-}^{2} ]_{+}`
+    :math:`+ \\frac{1}{2} * [ \phi_{J} * J^{4} + \phi_{JK} * J^{2} * J_{z}^{2} + \phi_{K} * J_{z}^{4}, J_{+}^{2} + J_{-}^{2} ]_{+}`
     """
     J2 = JJ(bas)
     J4 = J2 * J2
@@ -211,18 +211,18 @@ def watson_a(H0, mol, bas, verbose=False):
     Jm2 = Jm() * Jm(bas)
 
     expr = {}
-    expr['dj']  = (-1) * J4
-    expr['djk'] = (-1) * J2Jz2
-    expr['dk']  = (-1) * Jz4
-    expr['d1'] = (-0.5) * (J2*(Jp2+Jm2)+Jp2*J2+Jm2*J2)
-    expr['d2'] = (-0.5) * (Jz2*(Jp2+Jm2)+Jp2*Jz2+Jm2*Jz2)
-    expr['hj']  = J6
-    expr['hjk'] = J4Jz2
-    expr['hkj'] = J2Jz4
-    expr['hk']  = Jz6
-    expr['h1'] = (0.5) * (J4*(Jp2+Jm2)+Jp2*J4+Jm2*J4)
-    expr['h2'] = (0.5) * (J2Jz2*(Jp2+Jm2)+Jp2*J2Jz2+Jm2*J2Jz2)
-    expr['h3'] = (0.5) * (Jz4*(Jp2+Jm2)+Jp2*Jz4+Jm2*Jz4)
+    expr['DeltaJ']  = (-1) * J4
+    expr['DeltaJK'] = (-1) * J2Jz2
+    expr['DeltaK']  = (-1) * Jz4
+    expr['deltaJ'] = (-0.5) * (J2*(Jp2+Jm2)+Jp2*J2+Jm2*J2)
+    expr['deltaK'] = (-0.5) * (Jz2*(Jp2+Jm2)+Jp2*Jz2+Jm2*Jz2)
+    expr['HJ']  = J6
+    expr['HJK'] = J4Jz2
+    expr['HKJ'] = J2Jz4
+    expr['HK']  = Jz6
+    expr['phiJ'] = (0.5) * (J4*(Jp2+Jm2)+Jp2*J4+Jm2*J4)
+    expr['phiJK'] = (0.5) * (J2Jz2*(Jp2+Jm2)+Jp2*J2Jz2+Jm2*J2Jz2)
+    expr['phiK'] = (0.5) * (Jz4*(Jp2+Jm2)+Jp2*Jz4+Jm2*Jz4)
 
     H = H0
 
@@ -230,7 +230,7 @@ def watson_a(H0, mol, bas, verbose=False):
         try:
             const = getattr(mol, key)
             if verbose is True:
-                print(f"add 'watson_s' term '{key}'")
+                print(f"add 'watson_s' term '{key}' = {const}")
             H = H + const * val
         except AttributeError:
             pass
@@ -243,7 +243,7 @@ def watson_s(H0, mol, bas, verbose=False):
     """Watson-type asymmetric top Hamiltonian in S standard reduced form
     (J. K. G. Watson in "Vibrational Spectra and Structure" (Ed: J. Durig) Vol 6 p 1, Elsevier, Amsterdam, 1977).
 
-    :math:`H = H_{rr} - D_{J} * J^{4} - D_{JK} * J^{2} * J_{z}^{2} - D_{K} * J_{z}^{4}`
+    :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
     :math:`+ d_{1} * J^{2} * (J_{+}^{2} + J_{-}^{2}) + d_{2} * (J_{+}^{4} + J_{-}^{4})`
     :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
     :math:`+ h_{1} * J^{4} * (J_{+}^{2} + J_{-}^{2}) + h_{2} * J^{2} * (J_{+}^{4} + J_{-}^{4})`
@@ -267,15 +267,15 @@ def watson_s(H0, mol, bas, verbose=False):
 
     expr = {}
 
-    expr['dj']  = (-1) * J4
-    expr['djk'] = (-1) * J2Jz2
-    expr['dk']  = (-1) * Jz4
+    expr['DeltaJ']  = (-1) * J4
+    expr['DeltaJK'] = (-1) * J2Jz2
+    expr['DeltaK']  = (-1) * Jz4
     expr['d1']  = J2 * (Jp2 + Jm2)
     expr['d2']  = (Jp4 + Jm4)
-    expr['hj']  = J6
-    expr['hjk'] = J4Jz2
-    expr['hkj'] = J2Jz4
-    expr['hk']  = Jz6
+    expr['HJ']  = J6
+    expr['HJK'] = J4Jz2
+    expr['HKJ'] = J2Jz4
+    expr['HK']  = Jz6
     expr['h1']  = J4 * (Jp2 + Jm2)
     expr['h2']  = J2 * (Jp4 + Jm4)
     expr['h3']  = (Jp6 + Jm6)
@@ -286,7 +286,7 @@ def watson_s(H0, mol, bas, verbose=False):
         try:
             const = getattr(mol, key)
             if verbose is True:
-                print(f"add 'watson_s' term '{key}'")
+                print(f"add 'watson_s' term '{key}' = {const}")
             H = H + const * val
         except AttributeError:
             pass
