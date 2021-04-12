@@ -4,6 +4,7 @@ from richmol.rot.symmetry import symmetrize
 from richmol.rot.J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
 from scipy.sparse import csr_matrix
 from richmol.field import CarTens
+import itertools
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
@@ -25,41 +26,6 @@ def register_ham(func):
     _hamiltonians[func.__name__] = func
     _constants[func.__name__] = mol.const
     return func
-
-
-class H0Tensor(CarTens):
-    """Casts matrix elements of rotational Hamiltonian into M- and K-tensor form, similar to labtens.LabTensor
-
-    Args:
-        mol : Molecule
-            Molecular parameters.
-        basis : nested dict
-            Wave functions in symmetric-top basis (SymtopBasis class) for different values
-            of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
-        thresh : float
-            Threshold for neglecting matrix elements.
-
-    Attrs:
-        kmat : nested dict
-            See labtens.LabTensor.kmat, here irrep = 0
-        mmat : nested dict
-            See labtens.LabTensor.mmat, here cart = "0" and irrep = 0
-    """
-    def __init__(self, mol, basis, thresh=1e-12):
-        Jlist = [J for J in basis.keys()]
-        symlist = list(set([sym for J in basis.keys() for sym in basis[J].keys()]))
-        self.kmat = {(J, J) : {(sym, sym) : {} for sym in symlist} for J in Jlist}
-        self.mmat = {(J, J) : {(sym, sym) : { "0" : {} } for sym in symlist} for J in Jlist}
-        for J, bas_J in basis.items():
-            for sym, bas_sym in bas_J.items():
-                H = hamiltonian(mol, bas_sym)
-                kmat, mmat = bas_sym.overlap(H)
-                kmat[np.abs(kmat) < thresh] = 0
-                mmat[np.abs(mmat) < thresh] = 0
-                kmat_csr = csr_matrix(kmat)
-                mmat_csr = csr_matrix(mmat)
-                self.kmat[(J,J)][(sym,sym)][0] = kmat_csr
-                self.mmat[(J,J)][(sym,sym)]["0"][0] = mmat_csr
 
 
 def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):

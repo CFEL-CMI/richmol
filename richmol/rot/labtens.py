@@ -4,6 +4,10 @@ from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_fr
 from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix
 from richmol.field import CarTens
+from richmol.rot.molecule import Molecule
+from richmol.rot.solution import hamiltonian
+import itertools
+import copy
 
 
 _sym_tol = 1e-12
@@ -29,6 +33,8 @@ class LabTensor(CarTens):
         tens_flat : 1D array
             Contains elements of molecular-frame Cartesian tensor, flattened in the order
             corresponding to the order of Cartesian components in 'cart'.
+        molecule : Molecule
+            Molecular parameters.
         Jlist : list
             List of J quanta spanned by the basis.
         symlist : dict
@@ -37,6 +43,11 @@ class LabTensor(CarTens):
             Dimensions of M, K, and MxK tensors (or respective subspaces of basis set)
             for different values of J quanta and different symmetries,
             i.e., dim_m[J][sym] -> int, dim_k[J][sym] -> int.
+        assign_m, assign_k : nested dict
+            Assignments of states in M and K subspaces of basis set
+            for different values of J quanta and different symmetries,
+            i.e., m_assign[J][sym] -> list (len = dim_m[J][sym]),
+            and k_assign[J][sym] -> list (len = dim_k[J][sym])
         kmat : nested dict
             K-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
             different pairs of bra and ket symmetries, and different irreducible components
@@ -47,8 +58,11 @@ class LabTensor(CarTens):
             components of tensor, i.e., mmat[(J1, J2)][(sym1, sym2)][cart][irrep].
 
     Args:
-        mol_tens : numpy.ndarray, list or tuple
-            Molecular-frame Cartesian tensor.
+        arg : Molecule or numpy.ndarray, list or tuple
+            Molecule object or molecular-frame Cartesian tensor.
+            In case arg is Molecule, the resulting tensor represents the matrix elements
+            of the field-free Hamiltonian, in other cases, the resulting tensor
+            id the laboratory-frame tensor.
         basis : nested dict
             Wave functions in symmetric-top basis (SymtopBasis class) for different values
             of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
@@ -78,79 +92,132 @@ class LabTensor(CarTens):
     cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
-    def __init__(self, mol_tens, basis, thresh=1e-12):
 
-        # check input tensor
-        if isinstance(mol_tens, (tuple, list)):
-            tens = np.array(mol_tens)
-        elif isinstance(mol_tens, (np.ndarray,np.generic)):
-            tens = mol_tens
+    def __init__(self, arg, basis, thresh=1e-14):
+
+        tens = None
+
+        # if arg is Molecule
+        if isinstance(arg, Molecule):
+            self.rank = 0
+            self.cart = ["0"]
+            self.os = [(0,0)]
+            self.molecule = arg
+        # if arg is tensor
+        elif isinstance(arg, (tuple, list)):
+            tens = np.array(arg)
+        elif isinstance(arg, (np.ndarray,np.generic)):
+            tens = arg
         else:
-            raise TypeError(f"bad argument type for 'mol_tens': '{type(mol_tens)}'") from None
-        if not all(dim==3 for dim in tens.shape):
-            raise ValueError(f"input tensor has inappropriate shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-        if np.any(np.isnan(tens)):
-            raise ValueError(f"some of elements of input tensor are NaN") from None
+            raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
 
-        rank = tens.ndim
-        self.rank = rank
-        try:
-            self.Us = self.tmat_s[rank]
-            self.Ux = self.tmat_x[rank]
-            self.os = self.irrep_ind[rank]
-            self.cart = self.cart_ind[rank]
-        except KeyError:
-            raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
+        # initialize tensor attributes
 
-        # save molecular-frame tensor in flatted form with the elements following the order in self.cart
-        self.tens_flat = np.zeros(len(self.cart), dtype=type(tens))
-        for ix,sx in enumerate(self.cart):
-            s = [ss for ss in sx]    # e.g. split "xy" into ["x","y"]
-            ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
-            self.tens_flat[ix] = tens.item(tuple(ind))
+        if tens is not None:
 
-        # special cases if tensor is symmetric and/or traceless
-        if self.rank==2:
-            symmetric = lambda tens, tol=_sym_tol: np.all(np.abs(tens-tens.T) < tol)
-            traceless = lambda tens, tol=_sym_tol: abs(np.sum(np.diag(tens))) < tol
-            if symmetric(tens)==True and traceless(tens)==True:
-                # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
-                # will be zero: (0,0), (1,-1), (1,0), and (1,1)
-                self.Us = np.delete(self.Us, [0,1,2,3], 0)
-                self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
-                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega==2]
-            elif symmetric(tens)==True and traceless(tens)==False:
-                # for symmetric tensor the following rows in tmat_s and columns in tmat_x
-                # will be zero: (1,-1), (1,0), and (1,1)
-                self.Us = np.delete(self.Us, [1,2,3], 0)
-                self.Ux = np.delete(self.Ux, [1,2,3], 1)
-                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
+            if not all(dim==3 for dim in tens.shape):
+                raise ValueError(f"input tensor has inappropriate shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+            if np.any(np.isnan(tens)):
+                raise ValueError(f"some of elements of input tensor are NaN") from None
 
-        # list of J quanta and list of symmetries spanned by basis
+            rank = tens.ndim
+            self.rank = rank
+            try:
+                self.Us = self.tmat_s[rank]
+                self.Ux = self.tmat_x[rank]
+                self.os = self.irrep_ind[rank]
+                self.cart = self.cart_ind[rank]
+            except KeyError:
+                raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
+
+            # save molecular-frame tensor in flatted form with the elements following the order in self.cart
+            self.tens_flat = np.zeros(len(self.cart), dtype=type(tens))
+            for ix,sx in enumerate(self.cart):
+                s = [ss for ss in sx]    # e.g. split "xy" into ["x","y"]
+                ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
+                self.tens_flat[ix] = tens.item(tuple(ind))
+
+            # special cases if tensor is symmetric and/or traceless
+            if self.rank==2:
+                symmetric = lambda tens, tol=_sym_tol: np.all(np.abs(tens-tens.T) < tol)
+                traceless = lambda tens, tol=_sym_tol: abs(np.sum(np.diag(tens))) < tol
+                if symmetric(tens)==True and traceless(tens)==True:
+                    # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
+                    # will be zero: (0,0), (1,-1), (1,0), and (1,1)
+                    self.Us = np.delete(self.Us, [0,1,2,3], 0)
+                    self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
+                    self.os = [(omega,sigma) for (omega,sigma) in self.os if omega==2]
+                elif symmetric(tens)==True and traceless(tens)==False:
+                    # for symmetric tensor the following rows in tmat_s and columns in tmat_x
+                    # will be zero: (1,-1), (1,0), and (1,1)
+                    self.Us = np.delete(self.Us, [1,2,3], 0)
+                    self.Ux = np.delete(self.Ux, [1,2,3], 1)
+                    self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
+
+        # initialize basis set attributes
+
         self.Jlist = [J for J in basis.keys()]
         self.symlist = {J : {sym for sym in basis[J].keys()} for J in basis.keys()}
-
-        # initialize matrix elements
-        self.dim_k, self.dim_m, self.kmat, self.mmat = self.matelem(basis, thresh)
-
-        # total basis dimension for different J and symmetries
+        self.dim_k = { J : { sym : bas_sym.k.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+                       for J, bas_J in basis.items() }
+        self.dim_m = { J : { sym : bas_sym.m.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+                       for J, bas_J in basis.items() }
         self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
                     for sym in self.symlist[J] } for J in self.Jlist}
 
-        # allocate some attributes of parent CarTens class
+        # basis set assignments
+
+        self.assign_m = { J : { sym : [ " ".join(q for q in elem)
+                                        for elem in bas_sym.m.table['stat'][:self.dim_m[J][sym]] ]
+                                for sym, bas_sym in bas_J.items() }
+                          for J, bas_J in basis.items() }
+        self.assign_k = { J : { sym : [ " ".join(q for q in elem)
+                                        for elem in bas_sym.k.table['stat'][:self.dim_k[J][sym]] ]
+                                for sym, bas_sym in bas_J.items() }
+                          for J, bas_J in basis.items() }
+
+        # basis set dimensions and assignments for bra and ket states (used by CarTens class)
+
+        self.Jlist1 = self.Jlist
+        self.Jlist2 = self.Jlist
         self.dim_k1 = self.dim_k
         self.dim_k2 = self.dim_k
         self.dim_m1 = self.dim_m
         self.dim_m2 = self.dim_m
         self.dim1 = self.dim
         self.dim2 = self.dim
-        self.Jlist1 = self.Jlist
-        self.Jlist2 = self.Jlist
         self.symlist1 = self.symlist
         self.symlist2 = self.symlist
-    
+        self.assign_k1 = self.assign_k
+        self.assign_k2 = self.assign_k
+        self.assign_m1 = self.assign_m
+        self.assign_m2 = self.assign_m
 
-    def proj(self, basis):
+        # matrix elements
+
+        self.kmat, self.mmat = self.matelem(basis, thresh)
+
+
+    def ham_proj(self, basis):
+        """Computes action of field-free Hamiltonian operator onto a wave function
+
+        Args:
+            basis : SymtopBasis or PsiTableMK
+                Wave functions in symmetric-top basis
+    
+        Returns:
+            res : nested dict
+                Hamiltonian-projected wave functions as dictionary of SymtopBasis
+                objects, for single Cartesian and single irreducible component,
+                i.e., res['0'][0].
+        """
+        H = hamiltonian(self.molecule, basis)
+        irreps = set(omega for (omega,sigma) in self.os)
+        res = { cart : { irrep : H for irrep in irreps } for cart in self.cart }
+        return res
+
+
+    def tens_proj(self, basis):
         """Computes action of tensor operator onto a wave function
 
         Args:
@@ -230,7 +297,7 @@ class LabTensor(CarTens):
         return res
 
 
-    def matelem(self, basis, thresh=1e-12):
+    def matelem(self, basis, thresh=1e-14):
         """Computes matrix elements of tensor operator
 
         Args:
@@ -241,10 +308,6 @@ class LabTensor(CarTens):
                 Threshold for neglecting matrix elements.
 
         Returns:
-            dim_k : nested dict
-                See LabTensor.dim_k
-            dim_m : nested dict
-                See LabTensor.dim_m
             kmat : nested dict
                 See LabTensor.kmat
             mmat : nested dict
@@ -268,7 +331,13 @@ class LabTensor(CarTens):
         for J2, symbas2 in basis.items():
             for sym2, bas2 in symbas2.items():
 
-                proj = self.proj(bas2)
+                try:
+                    # compute H0|psi>
+                    x = self.molecule
+                    proj = self.ham_proj(bas2)
+                except AttributeError:
+                    # compute LabTensor|psi>
+                    proj = self.tens_proj(bas2)
 
                 for J1, symbas1 in basis.items():
 
@@ -286,6 +355,9 @@ class LabTensor(CarTens):
                             mmat[(J1, J2)][(sym1, sym2)] = {cart : {} for cart in self.cart}
                         else:
                             mmat[(J1, J2)] = {(sym1, sym2) : {cart : {} for cart in self.cart}}
+
+                        nelem_k = 0
+                        nelem_m = 0
 
                         for cart, bas_cart in proj.items():
                             for irrep, bas_irrep in bas_cart.items():
@@ -310,6 +382,7 @@ class LabTensor(CarTens):
                                     # add matrix element to K-tensor
                                     if me_csr.nnz > 0:
                                         kmat[(J1, J2)][(sym1, sym2)][irrep] = me_csr
+                                        nelem_k += 1
 
                                 # M-tensor
 
@@ -329,33 +402,11 @@ class LabTensor(CarTens):
                                 # add matrix elements to M-tensor
                                 if me_csr.nnz > 0:
                                     mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
+                                    nelem_m += 1
 
-        #kmat, mmat = self.matelem_del_empty(kmat, mmat)
-
-        return dim_k, dim_m, kmat, mmat
-
-
-    def matelem_del_empty(self, kmat, mmat):
-
-        del_sym = dict()
-        for Jpair, kmat_J in kmat.items():
-            for sympair, kmat_sym in kmat_J.items():
-                if all(np.isscalar(k) == 0  for k in kmat_sym):
-                    del_sym[Jpair] = sympair
-
-        for Jpair, sympair in del_sym.items():
-            del kmat[Jpair][sympair]
-
-        for Jpair, mmat_J in mmat.items():
-            for sympair, mmat_sym in mmat_J.items():
-                if all(np.all(np.isscalar(m) == 0)  for m in mmat_sym.values()):
-                    del_sym[Jpair] = sympair
-
-        for Jpair, sympair in del_sym.items():
-            try:
-                del kmat[Jpair][sympair]
-                del mmat[Jpair][sympair]
-            except KeyError:
-                pass
+                        if nelem_m == 0:
+                            del mmat[(J1, J2)][(sym1, sym2)]
+                        if nelem_k == 0:
+                            del kmat[(J1, J2)][(sym1, sym2)]
 
         return kmat, mmat

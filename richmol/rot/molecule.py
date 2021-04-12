@@ -396,7 +396,7 @@ def mol_tensor(val):
 
 if __name__ == '__main__':
     import sys
-    from richmol.rot.solution import solve, H0Tensor
+    from richmol.rot.solution import solve
     from richmol.rot.labtens import LabTensor
     from richmol.rot.molecule import Molecule
     from richmol.rot import rchm
@@ -452,10 +452,10 @@ if __name__ == '__main__':
     print(camphor.ABC)
     # print(camphor.ABC)
     # print(camphor.ABC_geom)
-    sol = solve(camphor, Jmin=0, Jmax=3, verbose=True) # transform solution into a tensor format
+    sol = solve(camphor, Jmin=0, Jmax=1, verbose=True) # transform solution into a tensor format
     # print(sol[10]['B3'].enr)
     dipole_moment = LabTensor(camphor.dip, sol)
-    H0 = H0Tensor(camphor, sol)
+    #H0 = H0Tensor(camphor, sol)
     # print(H0.kmat[(10,10)][('B3','B3')][0])
     # print(H0.mmat[(10,10)][('B3','B3')]["0"])
     #rchm.add_molecule('camphor.h5', camphor, replace=True, comment="this is comment for molecule object")
@@ -473,8 +473,14 @@ if __name__ == '__main__':
     #    print("\n", key, dir(elem))
     #    print(elem.comment)
     #    print(elem.date)
-    mat = dipole_moment.tomat(form='full', cart='x')
-    mat2 = dipole_moment.tomat(form='block', cart='x')
-    mat2 = dipole_moment.full_form(mat2)
-    print(np.sum(abs(mat-mat2)>1e-12))
-    vec = dipole_moment * [1,2,3]
+    #mat = dipole_moment.tomat(form='full', cart='z')
+    #mat2 = dipole_moment.tomat(form='block', cart='x')
+    #mat2 = dipole_moment.full_form(mat2)
+    #print(np.sum(abs(mat-mat2)>1e-12))
+    #vec = dipole_moment * [1,2,3]
+    #sol2 = LabTensor(camphor, sol)
+    mat = dipole_moment.tomat(form='full', cart='z')
+    ass1, ass2 = dipole_moment.assign(form='full')
+    for i in range(mat.shape[0]):
+        for j in range(mat.shape[1]):
+            print(i,j, mat[i,j], ass1['J'][i], ass1['sym'][i], '---', ass2['J'][j], ass2['sym'][j])
