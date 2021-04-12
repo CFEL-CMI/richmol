@@ -425,6 +425,82 @@ def get_tensor(filename, name):
     return tens
 
 
+def read_states(filename, name='H0'):
+    """Reads states information from old-format richmol states file
+
+    Args:
+        filename : str
+            Name of richmol states file
+        name : str
+            object.__name__ name of output object
+
+    Returns:
+        tens : object
+            Cartesian tensor object containing diagonal representation
+            of the field-free Hamiltonain
+    """
+    energy = dict()
+    assign = dict()
+    with open(filename, 'r') as fl:
+        for line in fl:
+           w = line.split()
+            J = round(float(w[0]),1)
+            id = np.int64(w[1])
+            sym = w[2]
+            ndeg = int(w[3])
+            enr = float(w[4])
+            qstr = ' '.join([w[i] for i in range(5,len(w))])
+            energy[J] = dict()
+            assign[J] = dict()
+            for ideg in range(ndeg):
+                try:
+                    energy[J][sym].append(enr)
+                    assign[J][sym].append(qstr)
+                except KeyError:
+                    energy[J][sym] = [enr]
+                    assign[J][sym] = [qstr]
+
+    Jlist = list(energy.keys())
+    symlist = {J : [sym for sym in states[J].keys()] for J in Jlist}
+    dim_m = {J : {sym : int(2*J)+1 for sym in symlist[J]} for J in Jlist}
+    dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
+    dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
+    assign_m = {J : {sym : [str(m) for m in range(-J, J+1)] for sym in symlist[J]} for J in Jlist}
+    assign_k = {J : {sym : assign[J][sym] for sym in symlist[J]} for J in Jlist}
+
+    cart = '0'
+    os = [(0,0)]
+    rank = 0
+
+    Jlist1 = Jlist
+    Jlist2 = Jlist
+    symlist1 = symlist
+    symlist2 = symlist
+    dim_m1 = dim_m
+    dim_m2 = dim_m
+    dim_k1 = dim_k
+    dim_k2 = dim_k
+    assign_k1 = assign_k
+    assign_k2 = assign_k
+    assign_m1 = assign_m
+    assign_m2 = assign_m
+
+    mmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.eye(int(2*J)+1, dtype=np.complex128)}}
+            for sym in symlist[J]} for J in Jlist}
+    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.diag(energy[J][sym], dtype=np.complex128)}}
+            for sym in symlist[J]} for J in Jlist}
+
+    # initialize output object
+    names = ('Jlist', 'Jlist1', 'Jlist2', 'symlist', 'symlist1', 'symlist2',
+             'dim_m', 'dim_m1', 'dim_m2', 'dim_k', 'dim_k1', 'dim_k2', 'dim',
+             'dim_1', 'dim_2', 'assign_m', 'assign_m1', 'assign_m2', 'assign_k',
+             'assign_k1', 'assign_k2', 'cart', 'os', 'rank', 'mmat', 'kmat')
+    loc = locals()
+    tens = type(name, (object,), {key: loc[key] for key in names})
+
+    return tens
+
+
 def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, store_states=True, \
                        me_tol=1e-40, **kwargs):
     """Converts richmol old formatted text file format into to new hdf5 file format.
