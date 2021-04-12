@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.sparse import kron, csr_matrix
 import itertools
+from itertools import chain
 import copy
 
 
@@ -14,7 +15,7 @@ class CarTens():
         pass
 
 
-    def tomat(self, form='split', **kwargs):
+    def tomat(self, form='block', **kwargs):
         """Returns full MxK matrix representation of tensor
 
         Args:
@@ -86,6 +87,68 @@ class CarTens():
         if form == 'full':
             mat = self.full_form(mat)
         return mat
+
+
+    def assign(self, form='block'):
+        """Returns assignments of bra and ket basis states
+
+        Args:
+            form : str
+                Form of the assignment output
+
+        Returns:
+            assign1, assign2 : dict
+                If form == 'block', assign[J][sym]['m'] and assign[J][sym]['k']
+                each contain list of quantum numbers describing M and K subspaces,
+                repspectively, for all states with given values of J quantum
+                number and symmetry sym.
+                For other values of form parameter, assign['m'], assign['k'],
+                assign['sym'], and assign['J'] contain list of quantum numbers
+                describing M and K subspaces, list of symmetries, and list of values
+                of J quantum number, respectively, for all sates in the basis
+        """
+        m1 = { J : { sym : self.assign_m1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
+        m2 = { J : { sym : self.assign_m2[J][sym] for sym in self.symlist2[J] } for J in self.Jlist2 }
+        k1 = { J : { sym : self.assign_k1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
+        k2 = { J : { sym : self.assign_k2[J][sym] for sym in self.symlist2[J] } for J in self.Jlist2 }
+
+        if form == 'block':
+
+            assign1 = {J:{sym:{} for sym in self.symlist1[J]} for J in self.Jlist1}
+            for J in self.Jlist1:
+                for sym in self.symlist1[J]:
+                    mk = [elem for elem in itertools.product(m1[J][sym], k1[J][sym])]
+                    assign1[J][sym]['m'] = [elem[0] for elem in mk]
+                    assign1[J][sym]['k'] = [elem[1] for elem in mk]
+
+            assign2 = {J:{sym:{} for sym in self.symlist2[J]} for J in self.Jlist2}
+            for J in self.Jlist2:
+                for sym in self.symlist2[J]:
+                    mk = [elem for elem in itertools.product(m2[J][sym], k2[J][sym])]
+                    assign2[J][sym]['m'] = [elem[0] for elem in mk]
+                    assign2[J][sym]['k'] = [elem[1] for elem in mk]
+
+        else:
+
+            assign1 = {'m':[], 'k':[], 'sym':[], 'J':[]}
+            for J in self.Jlist1:
+                for sym in self.symlist1[J]:
+                    mk = [elem for elem in itertools.product(m1[J][sym], k1[J][sym])]
+                    assign1['m'] += [elem[0] for elem in mk]
+                    assign1['k'] += [elem[1] for elem in mk]
+                    assign1['sym'] += [sym for elem in mk]
+                    assign1['J'] += [J for elem in mk]
+
+            assign2 = {'m':[], 'k':[], 'sym':[], 'J':[]}
+            for J in self.Jlist2:
+                for sym in self.symlist2[J]:
+                    mk = [elem for elem in itertools.product(m2[J][sym], k2[J][sym])]
+                    assign2['m'] += [elem[0] for elem in mk]
+                    assign2['k'] += [elem[1] for elem in mk]
+                    assign2['sym'] += [sym for elem in mk]
+                    assign2['J'] += [J for elem in mk]
+
+        return assign1, assign2
 
 
     def full_form(self, mat):
