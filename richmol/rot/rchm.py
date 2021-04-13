@@ -425,7 +425,7 @@ def get_tensor(filename, name):
     return tens
 
 
-def read_states(filename, name='H0'):
+def read_states(filename, name='H0', **kwargs):
     """Reads states information from old-format richmol states file
 
     Args:
@@ -434,8 +434,29 @@ def read_states(filename, name='H0'):
         name : str
             object.__name__ name of output object
 
+    Kwargs:
+        jmin, jmax : int or float
+            Min and max values of quantum number J of total angular momentum
+        jlist : list
+            List of J values, if present, overrides jmin and jmax
+        mmin, mmax : int or float
+            Min and max values of quantum number m of Z projection of total
+            angular momentum
+        mlist : list
+            List of m values, if present, overrides mmin and mmax
+        mdict : dict
+            Dictionary mdict[J] -> list, contains list of m quantum numbers
+            for different values of J, if present, overrides mlist
+        emin, emax : float
+            Min and max values of state energy
+        symlist : list
+            List of state symmetries
+        symdic : dict:
+            Dictionary symdic[J] -> list, contains list of symmetries
+            for different values of J, if present, overrides symlist
+
     Returns:
-        tens : object
+        tens : field.CarTens
             Cartesian tensor object containing diagonal representation
             of the field-free Hamiltonain
     """
@@ -443,15 +464,44 @@ def read_states(filename, name='H0'):
     assign = dict()
     with open(filename, 'r') as fl:
         for line in fl:
-           w = line.split()
+            w = line.split()
             J = round(float(w[0]),1)
             id = np.int64(w[1])
             sym = w[2]
             ndeg = int(w[3])
             enr = float(w[4])
             qstr = ' '.join([w[i] for i in range(5,len(w))])
-            energy[J] = dict()
-            assign[J] = dict()
+
+            # apply state filters
+            if 'jlist' in kwargs:
+                if J not in [round(float(elem),1) for elem in kwargs['jlist']]:
+                    continue
+            else:
+                if 'jmin' in kwargs:
+                    if J < kwargs['jmin']:
+                        continue
+                if 'jmax' in kwargs:
+                    if J > kwargs['jmax']:
+                        continue
+            if 'emin' in kwargs:
+                if enr < kwargs['emin']:
+                    continue
+            if 'emax' in kwargs:
+                if enr > kwargs['emax']:
+                    continue
+            if 'symdic' in kwargs:
+                try:
+                    if sym.lower() not in [elem.lower() for elem in kwargs['symdic'][J]]:
+                        continue
+                except KeyError:
+                    pass
+            elif 'symlist' in kwargs:
+                if sym not in kwargs['symlist']:
+                    continue
+
+            if J not in energy:
+                energy[J] = dict()
+                assign[J] = dict()
             for ideg in range(ndeg):
                 try:
                     energy[J][sym].append(enr)
@@ -460,12 +510,76 @@ def read_states(filename, name='H0'):
                     energy[J][sym] = [enr]
                     assign[J][sym] = [qstr]
 
+    # check how many states have passed the filters
+
+    if len(list(energy.keys())) == 0:
+        raise Exception(f"zero number of states, perhaps selection filters cast out states") from None
+
+    if 'jlist' in kwargs:
+        j_none = [J for J in kwargs['jlist'] if J not in energy]
+        if len(j_none) > 0:
+            raise Exception(f"states with the following J quanta were not found: {j_none}") from None
+
+    if 'symdic' in kwargs:
+        sym_none = {J : [sym for sym in kwargs['symdic'][J] if sym not in energy[J].keys()]
+                    for J in kwargs['symdic'].keys()}
+    elif 'symlist' in kwargs:
+        symlist = set([sym for J in energy.keys() for sym in energy[J].keys()])
+        sym_none = [sym for sym in kwargs['symlist'] if sym not in symlist]
+    else:
+        sym_none = []
+    if len(sym_none) > 0:
+        raise Exception(f"states with the following symmetries were not found: {sym_none}") from None
+
+    # generate lists of m quanta for different J
+
+    if 'mdict' in kwargs:
+        mdict = {J : [round(float(elem),1) for elem in kwargs['mdict'][J]]
+                 for J in list(energy.keys() & kwargs['mdict'].keys)}
+        # for J values that are not present in kwargs['mdict'] set m ranges -J..J
+        j_out = [J for J in energy.keys() if J not in mdict]
+        mdict += {J : [round(float(m),1) for m in np.linalg(-J, J, int(2*J)+1)] for J in j_out}
+    elif 'mlist' in kwargs:
+        mdict = {J : [round(float(m),1) for m in kwargs['mlist'] if abs(round(float(m),1))<=J]
+                 for J in energy.keys()}
+    else:
+        mdict = dict()
+        mmin = None
+        mmax = None
+        if 'mmin' in kwargs:
+            mmin = round(float(kwargs['mmin']),1)
+        if 'mmax' in kwargs:
+            mmax = round(float(kwargs['mmax']),1)
+        assert (mmin<=mmax), f"'mmin' = {mmin} > 'mmax' = {mmax}"
+        for J in energy.keys():
+            if mmin is None:
+                m1 = -J
+            else:
+                m1 = max(-J, mmin)
+            if mmax is None:
+                m2 = J
+            else:
+                m2 = min(J, mmax)
+            if m1>m2: continue
+            m = np.linspace(m1, m2, m2-m1+1)
+            mdict[J] = m
+
+    # delete entries with zero length
+    mdict = {key : val for key,val in mdict.items() if len(val)>0}
+    # check if mmin and mmax filters cast out some of J quanta
+    j_none = [J for J in energy.keys() if J not in mdict]
+    if len(j_none) > 0:
+        raise Exception(f"m-quanta filters cast out following J quanta: {j_none}") from None
+
+    # generate field.CarTens object attributes
+
     Jlist = list(energy.keys())
-    symlist = {J : [sym for sym in states[J].keys()] for J in Jlist}
-    dim_m = {J : {sym : int(2*J)+1 for sym in symlist[J]} for J in Jlist}
+    symlist = {J : [sym for sym in energy[J].keys()] for J in Jlist}
+    dim_m = {J : {sym : len(mdict[J]) for sym in symlist[J]} for J in Jlist}
     dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
     dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
-    assign_m = {J : {sym : [str(m) for m in range(-J, J+1)] for sym in symlist[J]} for J in Jlist}
+    assign_m = {J : {sym : ["%4.1f"%m for m in mdict[J]] 
+                for sym in symlist[J]} for J in Jlist}
     assign_k = {J : {sym : assign[J][sym] for sym in symlist[J]} for J in Jlist}
 
     cart = '0'
@@ -476,6 +590,8 @@ def read_states(filename, name='H0'):
     Jlist2 = Jlist
     symlist1 = symlist
     symlist2 = symlist
+    dim1 = dim
+    dim2 = dim
     dim_m1 = dim_m
     dim_m2 = dim_m
     dim_k1 = dim_k
@@ -487,16 +603,18 @@ def read_states(filename, name='H0'):
 
     mmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.eye(int(2*J)+1, dtype=np.complex128)}}
             for sym in symlist[J]} for J in Jlist}
-    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.diag(energy[J][sym], dtype=np.complex128)}}
+    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.diag(energy[J][sym])}}
             for sym in symlist[J]} for J in Jlist}
 
-    # initialize output object
+    # initialize field.CarTens object
     names = ('Jlist', 'Jlist1', 'Jlist2', 'symlist', 'symlist1', 'symlist2',
              'dim_m', 'dim_m1', 'dim_m2', 'dim_k', 'dim_k1', 'dim_k2', 'dim',
-             'dim_1', 'dim_2', 'assign_m', 'assign_m1', 'assign_m2', 'assign_k',
+             'dim1', 'dim2', 'assign_m', 'assign_m1', 'assign_m2', 'assign_k',
              'assign_k1', 'assign_k2', 'cart', 'os', 'rank', 'mmat', 'kmat')
     loc = locals()
-    tens = type(name, (object,), {key: loc[key] for key in names})
+    tens = field.CarTens()
+    for name in names:
+        setattr(tens, name, loc[name])
 
     return tens
 
