@@ -466,7 +466,7 @@ if __name__ == '__main__':
     # rchm.add(camphor, 'camphor.h5', descr='user descr')
     # rchm.add(tens, 'camphor.h5', descr='user description')
     # rchm.add(sol, 'camphor.h5', descr='user description')
-    #rchm.add_tensor('camphor.h5', dipole_moment, replace=True, comment="this is long \ncomment for dipole moment")
+    rchm.add_tensor('camphor.h5', dipole_moment, replace=True, comment="this is long \ncomment for dipole moment")
     #rchm.get_tensor('camphor.h5', 'dipole_moment')
     #elems = rchm.inspect_file('camphor.h5')
     #for key, elem in elems.items():
@@ -479,8 +479,8 @@ if __name__ == '__main__':
     #print(np.sum(abs(mat-mat2)>1e-12))
     #vec = dipole_moment * [1,2,3]
     #sol2 = LabTensor(camphor, sol)
-    mat = dipole_moment.tomat(form='full', cart='z')
-    ass1, ass2 = dipole_moment.assign(form='full')
-    for i in range(mat.shape[0]):
-        for j in range(mat.shape[1]):
-            print(i,j, mat[i,j], ass1['J'][i], ass1['sym'][i], '---', ass2['J'][j], ass2['sym'][j])
+    #mat = dipole_moment.tomat(form='full', cart='z')
+    #ass1, ass2 = dipole_moment.assign(form='full')
+    #for i in range(mat.shape[0]):
+    #    for j in range(mat.shape[1]):
+    #        print(i,j, mat[i,j], ass1['J'][i], ass1['sym'][i], '---', ass2['J'][j], ass2['sym'][j])

@@ -1,8 +1,8 @@
 import h5py
 import numpy as np
 import re
-import os
-from scipy.sparse import coo_matrix, csr_matrix
+import os as opersys
+from scipy.sparse import csr_matrix
 import time
 import datetime
 from richmol.rot import molecule
@@ -11,6 +11,7 @@ from richmol.rot import mol_tens
 from richmol.rot import solution
 from richmol import field
 import inspect
+import json
 
 
 def J_group_key(J1, J2):
@@ -22,31 +23,33 @@ def sym_group_key(sym1, sym2):
 
 
 def store(filename, obj, *args, **kwargs):
-    """Stores objects in richmol hdf5 database file
+    """Stores objects in richmol hdf5 file
 
     Args:
         filename : str
             Name of hdf5 file
         obj : object
-            Object to store, currently one can store objects of type:
-            rot.molecule.Molecule, rot.labtens.LabTensor, and field.CarTens
+            Object to store, one of the following:
+                rot.molecule.Molecule
+                rot.labtens.LabTensor
+                field.CarTens
     """
     if isinstance(obj, molecule.Molecule):
-        add_molecule(filename, obj, *args, **kwargs)
+        add_rot_molecule(filename, obj, *args, **kwargs)
     elif isinstance(obj, (labtens.LabTensor, field.CarTens)):
         add_tensor(filename, obj, *args, **kwargs)
     else:
         raise TypeError(f"unsupported type: '{type(obj)}'") from None
 
 
-def add_molecule(filename, mol, comment=None, replace=False):
+def add_rot_molecule(filename, mol, comment=None, replace=False):
     """Stores molecular data
 
     Args:
         filename : str
             Name of hdf5 file
-        mol : Molecule
-            Molecule object
+        mol : rot.molecule.Molecule
+            Molecular data
         comment : str
             Description of molecular data
         replace : bool
@@ -94,14 +97,14 @@ def add_molecule(filename, mol, comment=None, replace=False):
         except AttributeError:
             pass
 
-        # store tensors
+        # store molecular tensors (dipole moment, polarizability, etc.)
         for tens in mol_tens._tensors.keys():
             try:
                 group.attrs[tens] = getattr(mol, tens)
             except AttributeError:
                 pass
 
-        # store custom Hamiltonians and parameters
+        # store custom Hamiltonians and their parameters
         try:
             watson = mol.watson
             group.attrs['watson'] = str.encode(watson)
@@ -136,16 +139,15 @@ def get_molecule(filename):
 
 
 def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=None):
-    """Stores properties and matrix elements of Cartesian tensor operator
+    """Stores Cartesian tensor operator
 
     Args:
         filename : str
             Name of hdf5 file
-        tens : LabTensor
+        tens : labtens.LabTensor or field.CarTens
             Cartesian tensor object
         name : str
-            Name of data group, by default, the name of variable passed as 'tens'
-            will be used
+            Name of data group, by default, the name of argument 'tens' is used
         comment : str
             Description of tensor
         replace : bool
@@ -181,16 +183,17 @@ def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=No
         if comment is not None:
             group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
 
-        # store properties of tensor
-        group.attrs['rank'] = tens.rank
-        group.attrs['Us'] = tens.Us
-        group.attrs['Ux'] = tens.Ux
-        group.attrs['cart'] = tens.cart
-        group.attrs['os'] = tens.os
-        # store molecular frame tensor elements
-        group.attrs['tens_flat'] = [elem for elem in tens.tens_flat]
+        # store tensor attributes except M and K tensors
+        attrs = list(set(vars(tens).keys()) - set(['mmat', 'kmat', 'molecule']))
+        for attr in attrs:
+            val = getattr(tens, attr)
+            try:
+                group.attrs[attr] = val
+            except TypeError:
+                jd = json.dumps(val)
+                group.attrs[attr] = jd
 
-        # store matrix elements
+        # store matrix elements, M and K tensors
 
         # loop over pairs of coupled J quanta
         for (J1, J2) in list(set(tens.mmat.keys()) & set(tens.kmat.keys())):
@@ -425,14 +428,12 @@ def get_tensor(filename, name):
     return tens
 
 
-def read_states(filename, name='H0', **kwargs):
-    """Reads states information from old-format richmol states file
+def read_states(filename, **kwargs):
+    """Reads basis states information from old-format richmol states file
 
     Args:
         filename : str
             Name of richmol states file
-        name : str
-            object.__name__ name of output object
 
     Kwargs:
         jmin, jmax : int or float
@@ -458,10 +459,15 @@ def read_states(filename, name='H0', **kwargs):
     Returns:
         tens : field.CarTens
             Cartesian tensor object containing diagonal representation
-            of the field-free Hamiltonain
+            of field-free Hamiltonain
     """
+
+    # read states file
+
     energy = dict()
     assign = dict()
+    map_kstates = dict()
+
     with open(filename, 'r') as fl:
         for line in fl:
             w = line.split()
@@ -502,6 +508,7 @@ def read_states(filename, name='H0', **kwargs):
             if J not in energy:
                 energy[J] = dict()
                 assign[J] = dict()
+
             for ideg in range(ndeg):
                 try:
                     energy[J][sym].append(enr)
@@ -509,6 +516,10 @@ def read_states(filename, name='H0', **kwargs):
                 except KeyError:
                     energy[J][sym] = [enr]
                     assign[J][sym] = [qstr]
+
+                # mapping between J,id,ideg and basis set index running
+                # within the group of states sharing the same J and symmetry
+                map_kstates[(J, id, ideg)] = [len(energy[J][sym])-1, sym]
 
     # check how many states have passed the filters
 
@@ -561,15 +572,17 @@ def read_states(filename, name='H0', **kwargs):
             else:
                 m2 = min(J, mmax)
             if m1>m2: continue
-            m = np.linspace(m1, m2, m2-m1+1)
-            mdict[J] = m
+            mdict[J] = [round(float(m),1) for m in np.linspace(m1, m2, m2-m1+1)]
 
     # delete entries with zero length
     mdict = {key : val for key,val in mdict.items() if len(val)>0}
-    # check if mmin and mmax filters cast out some of J quanta
+    # check if m-quanta filters cast out some of J quanta
     j_none = [J for J in energy.keys() if J not in mdict]
     if len(j_none) > 0:
         raise Exception(f"m-quanta filters cast out following J quanta: {j_none}") from None
+
+    # generate mapping beteween m quanta and basis set index
+    map_mstates = {(J, m) : ind_m for J in energy.keys() for ind_m,m in enumerate(mdict[J]) }
 
     # generate field.CarTens object attributes
 
@@ -601,277 +614,278 @@ def read_states(filename, name='H0', **kwargs):
     assign_m1 = assign_m
     assign_m2 = assign_m
 
-    mmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.eye(int(2*J)+1, dtype=np.complex128)}}
+    mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mdict[J])), dtype=np.complex128)}}
             for sym in symlist[J]} for J in Jlist}
-    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : np.diag(energy[J][sym])}}
+
+    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}}
             for sym in symlist[J]} for J in Jlist}
 
     # initialize field.CarTens object
-    names = ('Jlist', 'Jlist1', 'Jlist2', 'symlist', 'symlist1', 'symlist2',
-             'dim_m', 'dim_m1', 'dim_m2', 'dim_k', 'dim_k1', 'dim_k2', 'dim',
-             'dim1', 'dim2', 'assign_m', 'assign_m1', 'assign_m2', 'assign_k',
-             'assign_k1', 'assign_k2', 'cart', 'os', 'rank', 'mmat', 'kmat')
+
     loc = locals()
     tens = field.CarTens()
-    for name in names:
+    tens.attr_list += ('map_kstates', 'map_mstates')
+    for name in tens.attr_list:
         setattr(tens, name, loc[name])
+    tens.check_attrs()
 
     return tens
 
 
-def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, store_states=True, \
-                       me_tol=1e-40, **kwargs):
-    """Converts richmol old formatted text file format into to new hdf5 file format.
+def read_trans(states, filename, thresh=None):
+    """Reads matrix elements of Cartesian tensor from old-format Richmol
+    matrix elements files
 
     Args:
-        h5_fname : str
-            Name of new richmol hdf5 file.
-        states_fname : str
-            Name of old richmol states file.
-        tens_fname : str
-            Template for generating names of old richmol tensor matrix elements files.
-            For example, for filename="matelem_alpha_j<j1>_j<j2>.rchm" following files will be
-            searched: matelem_alpha_j0_j0.rchm, matelem_alpha_j0_j1.rchm,
-            matelem_alpha_j0_j2.rchm and so on, where <j1> and <j2> will be replaced by integer
-            numbers running through all J quanta spanned by all states listed in file states_fname.
-            NOTE: in old richmol format, j1 and j2 are treated as ket and bra state quanta, respectively.
-            For half-integer numbers (e.g., F quanta), substitute <j1> and <j2> in the template
-            tens_fname by <f1> and <f2>, which will then be replaced by floating point numbers
-            rounded to the first decimal.
-        replace : bool
-            Set True to replace existing hdf5 file.
-        store_states : bool
-            Set True to write richmol states data into hdf5 file, or False if you call this function
-            multiple times to convert different tensors and don't want each time to rewrite the states
-            data. The states file however need to be loaded for every new tensor.
-        me_tol : float
+        states : field.CarTens
+            Field-free basis states (see read_states)
+        filename : str
+            In old format, matrix elements for different bra and ket J quantum
+            numbers are stored in separate files. Argument filename provides
+            a template for generating the names of these files.
+            For example, for filename = "matelem_alpha_j<j1>_j<j2>.rchm",
+            the following files will be searched: matelem_alpha_j0_j0.rchm,
+            matelem_alpha_j0_j1.rchm, matelem_alpha_j0_j2.rchm,
+            matelem_alpha_j1_j1.rchm, etc., where <j1> and <j2> are replaced
+            by integer numbers running through all J quanta spanned by the basis.
+            For half-integer numbers (e.g., F quanta), replace <j1> and <j2>
+            in the template by <f1> and <f2>, these will be replaced by
+            floating point numbers rounded to the first decimal.
+        thresh : float
             Threshold for neglecting matrix elements.
-    Kwargs:
-        descr : str or list
-            Description of richmol data. Old richmol file format does not contain description
-            of the data, this can be added into hdf5 file by passing a string or list of strings
-            in descr variable. The description can be added only if store_states=True.
-        tens_descr : str or list
-            Description of tensor.
-        tens_units : str
-            Tensor units.
-        enr_units : str
-            Energy units.
-        tens_name : str
-            If provided, the name of tensor read from richmol file will be replaced with tens_name.
-            Tensor name is used to generate data group name for matrix elements of tensor in hdf5 file.
-            For state energies, the data group name is 'h0'.
+
+    Returns:
+        tens : field.CarTens
+            Cartesian tensor
     """
-    if replace == True:
-        store_states_ = True
-    else:
-        store_states_ = store_states
+    # read M and K tensors for different pairs of J quanta
 
-    try:
-        descr = kwargs['descr']
-    except KeyError:
-        descr = None
+    Jlist1 = states.Jlist1
+    Jlist2 = states.Jlist2
 
-    try:
-        tens_descr = kwargs['tens_descr']
-    except KeyError:
-        tens_descr = None
+    mmat = dict()
+    kmat = dict()
+    tens_cart = []
+    tens_nirrep = None
+    tens_ncart = None
 
-    try:
-        tens_units = kwargs['tens_units']
-    except KeyError:
-        tens_units = None
-
-    try:
-        enr_units = kwargs['enr_units']
-    except KeyError:
-        enr_units = None
-
-    try:
-        tens_name = kwargs['tens_name']
-    except KeyError:
-        tens_name = None
-
-    # read states data
-    print(f"Read states data from richmol formatted text file {states_file}")
-    fl = open(states_file, "r")
-    maxid = {}
-    for line in fl:
-        w = line.split()
-        J = round(float(w[0]),1)
-        id = np.int64(w[1])
-        try:
-            maxid[J] = max(maxid[J], id)
-        except KeyError:
-            maxid[J] = id
-    fl.seek(0)
-    map_id_to_istate = {J : np.zeros(maxid[J]+1, dtype=np.int64) for J in maxid.keys()}
-    for J, elem in map_id_to_istate.items():
-        elem[:] = -1
-    states = {}
-    nstates = {J : 0 for J in maxid.keys()}
-    for line in fl:
-        w = line.split()
-        J = round(float(w[0]),1)
-        id = np.int64(w[1])
-        sym = w[2]
-        ndeg = int(w[3])
-        enr = float(w[4])
-        qstr = ' '.join([w[i] for i in range(5,len(w))])
-        try:
-            map_id_to_istate[J][id] = nstates[J]
-        except KeyError:
-            map_id_to_istate[J][id] = 0
-        try:
-            x = states[J][0]
-        except (IndexError, KeyError):
-            states[J] = []
-        for ideg in range(ndeg):
-            states[J].append((nstates[J], sym, ideg, enr, qstr))
-            nstates[J] += 1
-    fl.close()
-
-    # store states data
-    if store_states_ == True:
-        print(f"Write states data into richmol hdf5 file {h5_file}, replace={replace}")
-        for iJ, J in enumerate(states.keys()):
-            id = [elem[0] for elem in states[J]]
-            sym = [elem[1] for elem in states[J]]
-            ideg = [elem[2] for elem in states[J]]
-            enr = [elem[3] for elem in states[J]]
-            qstr = [elem[4] for elem in states[J]]
-            store(h5_file, 'h0', J, J, enr=enr, id=id, sym=sym, ideg=ideg, assign=qstr, \
-                  replace=(replace if iJ == 0 else False), descr=descr, units=enr_units)
-
-    # read matrix elements data and store into hdf5 file
-    print(f"Convert richmol matrix elements data {tens_file} --> {h5_file}, tol={me_tol}")
-    for J1 in states.keys():
-        for J2 in states.keys():
+    for J1 in Jlist1:
+        for J2 in Jlist2:
 
             F1_str = str(round(J1,1))
             F2_str = str(round(J2,1))
             J1_str = str(int(round(J1,0)))
             J2_str = str(int(round(J2,0)))
 
-            fname = re.sub(r"\<f1\>", F1_str, tens_file)
+            fname = re.sub(r"\<f1\>", F1_str, filename)
             fname = re.sub(r"\<f2\>", F2_str, fname)
             fname = re.sub(r"\<j1\>", J1_str, fname)
             fname = re.sub(r"\<j2\>", J2_str, fname)
 
-            if not os.path.exists(fname):
+            if not opersys.path.exists(fname):
                 continue
 
-            print(f"Read matrix elements from richmol formatted text file {fname}")
-            fl = open(fname, "r")
+            with open(fname, "r") as fl:
 
-            iline = 0
-            eof = False
-            read_m = False
-            read_k = False
-            icart = None
+                iline = 0
+                eof = False
+                read_m = False
+                read_k = False
 
-            for line in fl:
-                strline = line.rstrip('\n')
+                for line in fl:
+                    strline = line.rstrip('\n')
 
-                if iline==0:
-                    if strline!="Start richmol format":
-                        raise RuntimeError(f"Matrix-elements file '{fname}' has bogus header = '{strline}'")
-                    iline+=1
-                    continue
+                    if iline == 0:
+                        if strline != "Start richmol format":
+                            raise Exception(f"matrix elements file '{fname}' has bogus header '{strline}'")
+                        iline+=1
+                        continue
 
-                if strline == "End richmol format":
-                    eof = True
-                    break
+                    if strline == "End richmol format":
+                        eof = True
+                        break
 
-                if iline==1:
-                    w = strline.split()
-                    if tens_name is None:
+                    if iline == 1:
+                        w = strline.split()
                         tens_name = w[0]
-                    nomega = int(w[1])
-                    ncart = int(w[2])
-                    iline+=1
-                    continue
+                        nirrep = int(w[1])
+                        ncart = int(w[2])
+                        if tens_nirrep is not None and tens_nirrep != nirrep:
+                            raise Exception(f"'nirrep' = {nirrep} read from file {fname} is different from " + \
+                                f"the value {tens_nirrep} read from previous files") from None
+                        if tens_ncart is not None and tens_ncart != ncart:
+                            raise Exception(f"'ncart' = {ncart} read from file {fname} is different from " + \
+                                f"the value {tens_ncart} read from previous files") from None
+                        tens_nirrep = nirrep
+                        tens_ncart = ncart
+                        iline+=1
+                        continue
 
-                if strline=="M-tensor":
-                    read_m = True
-                    read_k = False
-                    mvec = {}
-                    im1 = {}
-                    im2 = {}
-                    iline+=1
-                    continue
+                    if strline == "M-tensor":
+                        read_m = True
+                        read_k = False
+                        mdata = dict()
+                        mrow = dict()
+                        mcol = dict()
+                        iline+=1
+                        continue
 
-                if strline=="K-tensor":
-                    read_m = False
-                    read_k = True
-                    kvec = [[] for i in range(nomega)]
-                    ik1 = [[] for i in range(nomega)]
-                    ik2 = [[] for i in range(nomega)]
-                    iline+=1
-                    continue
+                    if strline == "K-tensor":
+                        read_m = False
+                        read_k = True
+                        kdata = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        krow = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        kcol = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        iline+=1
+                        continue
 
-                if read_m is True and strline.split()[0]=="alpha":
-                    w = strline.split()
-                    icart = int(w[1])
-                    icmplx = int(w[2])
-                    scart = w[3].lower()
-                    cmplx_fac = (1j, 1)[icmplx+1]
-                    mvec[scart] = [[] for i in range(nomega)]
-                    im1[scart] = [[] for i in range(nomega)]
-                    im2[scart] = [[] for i in range(nomega)]
-                    iline+=1
-                    continue
+                    if read_m is True and strline.split()[0] == "alpha":
+                        w = strline.split()
+                        icmplx = int(w[2])
+                        cart = w[3].lower()
+                        tens_cart = list(set(tens_cart + [cart]))
+                        cmplx_fac = (1j, 1)[icmplx+1]
+                        mdata[cart] = dict()
+                        mrow[cart] = dict()
+                        mcol[cart] = dict()
+                        iline+=1
+                        continue
 
-                if read_m is True:
-                    w = strline.split()
-                    m1 = float(w[0])
-                    m2 = float(w[1])
-                    i1, i2 = int(m1 + J1), int(m2 + J2)
-                    mval = [ float(val) * cmplx_fac for val in w[2:] ]
-                    ind_omega = [i for i in range(nomega) if abs(mval[i]) > me_tol]
-                    for iomega in ind_omega:
-                        im1[scart][iomega].append(i1)
-                        im2[scart][iomega].append(i2)
-                        mvec[scart][iomega].append(mval[iomega])
+                    if read_m is True:
+                        w = strline.split()
+                        m1 = float(w[0])
+                        m2 = float(w[1])
+                        try:
+                            im1 = states.map_mstates[(J1, m1)]
+                        except:
+                            continue
+                        try:
+                            im2 = states.map_mstates[(J2, m2)]
+                        except:
+                            continue
+                        mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                        if thresh is not None:
+                            irreps = [i for i in range(nirrep) if abs(mval[i]) > thresh]
+                        else:
+                            irreps = [i for i in range(nirrep)]
+                        for irrep in irreps:
+                            try:
+                                mrow[cart][irrep].append(im1)
+                                mcol[cart][irrep].append(im2)
+                                mdata[cart][irrep].append(mval[irrep])
+                            except KeyError:
+                                mrow[cart][irrep] = [im1]
+                                mcol[cart][irrep] = [im2]
+                                mdata[cart][irrep] = [mval[irrep]]
 
-                if read_k is True:
-                    w = strline.split()
-                    id1 = int(w[0])
-                    id2 = int(w[1])
-                    ideg1 = int(w[2])
-                    ideg2 = int(w[3])
-                    kval = [float(val) for val in w[4:]]
-                    istate1 = map_id_to_istate[J1][id1] + ideg1 - 1
-                    istate2 = map_id_to_istate[J2][id2] + ideg2 - 1
-                    ind_omega = [i for i in range(nomega) if abs(kval[i]) > me_tol]
-                    for iomega in ind_omega:
-                        ik1[iomega].append(istate1)
-                        ik2[iomega].append(istate2)
-                        kvec[iomega].append(kval[iomega])
+                    if read_k is True:
+                        w = strline.split()
+                        id1 = int(w[0])
+                        id2 = int(w[1])
+                        ideg1 = int(w[2])
+                        ideg2 = int(w[3])
+                        kval = [float(val) for val in w[4:]]
+                        try:
+                            istate1, sym1 = states.map_kstates[(J1, id1, ideg1)]
+                        except:
+                            continue
+                        try:
+                            istate2, sym2 = states.map_kstates[(J2, id2, ideg2)]
+                        except:
+                            continue
+                        if thresh is not None:
+                            irreps = [i for i in range(nirrep) if abs(kval[i]) > thresh]
+                        else:
+                            irreps = [i for i in range(nirrep)]
+                        sym = (sym1, sym2)
+                        for irrep in irreps:
+                            try:
+                                krow[sym][irrep].append(istate1)
+                                kcol[sym][irrep].append(istate2)
+                                kdata[sym][irrep].append(kval[irrep])
+                            except IndexError:
+                                krow[sym][irrep] = [istate1]
+                                kcol[sym][irrep] = [istate2]
+                                kdata[sym][irrep] = [kval[irrep]]
 
-                iline +=1
-            fl.close()
+                    iline +=1
 
-            if eof is False:
-                raise RuntimeError(f"Matrix-elements file '{fname}' has bogus footer = '{strline}'")
+                if eof is False:
+                    raise Exception(f"matrix-elements file '{fname}' has bogus footer '{strline}'")
 
-            print(f"Write matrix elements into richmol hdf5 file {h5_file}, me_tol = {me_tol}")
+            fshape = lambda sym: (states.dim_m1[J1][sym[0]], states.dim_m2[J2][sym[1]])
+            mmat[(J1,J2)] = {sym : {cart : {irrep :
+                             csr_matrix((mdata[cart][irrep], (mrow[cart][irrep], mcol[cart][irrep])), shape=fshape(sym))
+                             for irrep in mdata[cart].keys()}
+                             for cart in mdata.keys()}
+                             for sym in kdata.keys()}
 
-            # write M-matrix into hdf5 file
-            for cart in mvec.keys():
-                print(f"    M-tensor's {cart} component, irreps = {ind_omega}")
-                ind_omega = [iomega for iomega in range(nomega) if len(mvec[cart][iomega]) > 0]
-                mat = [ coo_matrix((mvec[cart][iomega], (im2[cart][iomega], im1[cart][iomega])), \
-                            shape=(int(2*J2+1), int(2*J1+1)) ) for iomega in ind_omega ]
-                store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, cart=cart, mmat=mat)
+            fshape = lambda sym: (states.dim_k1[J1][sym[0]], states.dim_k2[J2][sym[1]])
+            kmat[(J1,J2)] = {sym : {irrep :
+                             csr_matrix((kdata[sym][irrep], (krow[sym][irrep], kcol[sym][irrep])), shape=fshape(sym))
+                             for irrep in kdata[sym].keys()}
+                             for sym in kdata.keys()}
 
-            # write K-matrix into hdf5 file
-            print(f"    K-tensor, irreps = {ind_omega}")
-            ind_omega = [iomega for iomega in range(nomega) if len(kvec[iomega]) > 0]
-            mat = [ coo_matrix((kvec[iomega], (ik2[iomega], ik1[iomega])), shape=(nstates[J2], nstates[J1]) ) \
-                    for iomega in ind_omega ]
-            store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, \
-                  tens_descr=tens_descr, units=tens_units)
+            # delete empty entries in kmat
+            symlist = list(kmat[(J1, J2)].keys())
+            for sym in symlist:
+                if all(mat.nnz == 0 for mat in kmat[(J1, J2)][sym].values()):
+                    del kmat[(J1, J2)][sym]
+
+            # delete empty entries in mmat
+            symlist = list(mmat[(J1, J2)].keys())
+            for sym in symlist:
+                if all(mat.nnz == 0 for tmat in mmat[(J1, J2)][sym].values() for mat in tmat.values()):
+                    del mmat[(J1, J2)][sym]
+
+    # copy some attributes from states
+
+    symlist1 = states.symlist1
+    symlist2 = states.symlist2
+    dim_m1 = states.dim_m1
+    dim_m2 = states.dim_m2
+    dim_k1 = states.dim_k1
+    dim_k2 = states.dim_k2
+    dim1 = states.dim1
+    dim2 = states.dim2
+    assign_m1 = states.assign_m1
+    assign_m2 = states.assign_m2
+    assign_k1 = states.assign_k1
+    assign_k2 = states.assign_k2
+    cart = tens_cart
+
+    # irreps[(ncart, nirrep)]
+    irreps = {(3,1) : [(1,-1), (1,0), (1,1)],                                               # rank-1 tensor
+              (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                                # traceless and symmetric rank-2 tensor
+              (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],                         # symmetric rank-2 tensor
+              (9,3) : [(0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2)]}   # non-symmetric rank-2 tensor
+
+    # ranks[ncart]
+    ranks = {3 : 1, 9 : 2}
+
+    # infer list of spherical-tensor indices
+    try:
+        os = irreps[(tens_ncart, tens_nirrep)]
+    except KeyError:
+        raise ValueError(f"can't infer Cartesian tensor irreps from the number " + \
+            f"of Cartesian components = {tens_ncart} and number of irreps = {tens_nirrep}") from None
+
+    # infer rank
+    try:
+        rank = ranks[tens_ncart]
+    except KeyError:
+        raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
+            f"of Cartesian components = {tens_ncart}") from None
+
+    # initialize field.CarTens object
+
+    loc = locals()
+    tens = field.CarTens()
+    for name in tens.attr_list:
+        setattr(tens, name, loc[name])
+    tens.check_attrs()
+
+    return tens
 
 
 def retrieve_name(var):
