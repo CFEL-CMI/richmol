@@ -10,7 +10,7 @@ import itertools
 import copy
 
 
-_sym_tol = 1e-12
+_sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
 
 
 class LabTensor(CarTens):
@@ -23,55 +23,66 @@ class LabTensor(CarTens):
             Cartesian-to-spherical tensor transformation matrix.
         Ux : numpy.complex128 2D array
             Spherical-to-Cartesian tensor transformation matrix (Ux = (Us^T)^*).
-        cart : array of str
-            Contains string labels of different Cartesian components in the order corresponding
+        cart : list of str
+            Contains string labels of tensor Cartesian components
+            (e.g, 'x', 'y', 'z', 'xx', 'xy', 'xz', ...) in the order corresponding
             to the order of Cartesian components in rows of 'Ux' (columns of 'Us').
         os : [(omega,sigma) for omega in range(nirrep) for sigma in range(-omega,omega+1)]
             List of spherical-tensor indices (omega,sigma) in the order corresponding
             to the spherical-tensor components in columns of 'Ux' (rows of 'Us'),
-            'nirrep' here is the number of tensor irreducible representations.
+            nirrep here is the number of tensor irreducible representations.
         tens_flat : 1D array
-            Contains elements of molecular-frame Cartesian tensor, flattened in the order
-            corresponding to the order of Cartesian components in 'cart'.
-        molecule : Molecule
+            Contains elements of molecular-frame Cartesian tensor, flattened
+            in the order corresponding to the order of Cartesian components in cart.
+        molecule : rot.molecule.Molecule
             Molecular parameters.
-        Jlist : list
+        Jlist1 : list
             List of J quanta spanned by the basis.
-        symlist : dict
+        Jlist2 : list
+            Equal to Jlist1.
+        symlist1 : dict
             List of symmetries, for each J (as keys), spanned by the basis.
-        dim_m, dim_k, dim : nested dict
+        symlist2 : dict
+            Equal to symlist1.
+        dim_m1, dim_k1, dim1 : nested dict
             Dimensions of M, K, and MxK tensors (or respective subspaces of basis set)
             for different values of J quanta and different symmetries,
-            i.e., dim_m[J][sym] -> int, dim_k[J][sym] -> int.
-        assign_m, assign_k : nested dict
-            Assignments of states in M and K subspaces of basis set
+            i.e., dim_m1[J][sym] -> int, dim_k1[J][sym] -> int.
+        dim_m2, dim_k2, dim2 : nested dict
+            Equal to respective dim_m1, dim_k1, dim1.
+        assign_m1, assign_k1 : nested dict
+            Assignments of states in M and K subspaces of basis set,
             for different values of J quanta and different symmetries,
-            i.e., m_assign[J][sym] -> list (len = dim_m[J][sym]),
-            and k_assign[J][sym] -> list (len = dim_k[J][sym])
+            i.e., m_assign1[J][sym] -> list (len = dim_m1[J][sym]),
+            and k_assign1[J][sym] -> list (len = dim_k1[J][sym]).
+        assign_m2, assign_k2 : nested dict
+            Equal to respective assign_m1, assign_k1.
         kmat : nested dict
-            K-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-            different pairs of bra and ket symmetries, and different irreducible components
-            of tensor, i.e., kmat[(J1, J2)][(sym1, sym2)][irrep].
+            K-tensor matrix elements (in CSR format) for different pairs of bra
+            and ket J quanta, different pairs of bra and ket symmetries,
+            and different irreducible components of tensor,
+            i.e., kmat[(J1, J2)][(sym1, sym2)][irrep].
         mmat : nested dict
-            M-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-            different pairs of bra and ket symmetries, and different Cartesian and irreducible
-            components of tensor, i.e., mmat[(J1, J2)][(sym1, sym2)][cart][irrep].
+            M-tensor matrix elements (in CSR format) for different pairs of bra
+            and ket J quanta, different pairs of bra and ket symmetries,
+            and different Cartesian and irreducible components of tensor,
+            i.e., mmat[(J1, J2)][(sym1, sym2)][cart][irrep].
 
     Args:
-        arg : Molecule or numpy.ndarray, list or tuple
+        arg : rot.molecule.Molecule or numpy.ndarray, list or tuple
             Molecule object or molecular-frame Cartesian tensor.
-            In case arg is Molecule, the resulting tensor represents the matrix elements
-            of the field-free Hamiltonian, in other cases, the resulting tensor
-            id the laboratory-frame tensor.
+            For arg = rot.molecule.Molecule, the resulting tensor represents
+            field-free Hamiltonian.
         basis : nested dict
-            Wave functions in symmetric-top basis (SymtopBasis class) for different values
-            of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
+            Wave functions in symmetric-top basis (SymtopBasis class)
+            for different values of J quantum number and different symmetries,
+            i.e., basis[J][sym] -> SymtopBasis.
         thresh : float
             Threshold for neglecting matrix elements.
     """
-
     # transformation matrix from Cartesian to spherical-tensor representation
     # for tensors of different ranks (dict keys)
+
     tmat_s = {1 : np.array([ [np.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0], \
                              [0, 0, 1.0], \
                              [-math.sqrt(2.0)/2.0, -math.sqrt(2.0)*1j/2.0, 0] ], dtype=np.complex128),
@@ -86,11 +97,16 @@ class LabTensor(CarTens):
                              [0.5, 0.5*1j, 0, 0.5*1j, -0.5, 0, 0, 0, 0] ], dtype=np.complex128) }
 
     # inverse spherical-tensor to Cartesian transformation matrix
+
     tmat_x = {key : np.linalg.pinv(val) for key,val in tmat_s.items()}
 
     # Cartesian components and irreducible representations for tensors of different ranks
-    cart_ind = {1 : ["x","y","z"], 2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
-    irrep_ind = {1 : [(1,-1),(1,0),(1,1)], 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
+
+    cart_ind = {1 : ["x","y","z"],
+                2 : ["xx","xy","xz","yx","yy","yz","zx","zy","zz"]}
+
+    irrep_ind = {1 : [(1,-1),(1,0),(1,1)],
+                 2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
 
     def __init__(self, arg, basis, thresh=1e-14):
@@ -131,9 +147,9 @@ class LabTensor(CarTens):
                 raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
 
             # save molecular-frame tensor in flatted form with the elements following the order in self.cart
-            self.tens_flat = np.zeros(len(self.cart), dtype=type(tens))
+            self.tens_flat = np.zeros(len(self.cart), dtype=tens.dtype)
             for ix,sx in enumerate(self.cart):
-                s = [ss for ss in sx]    # e.g. split "xy" into ["x","y"]
+                s = [ss for ss in sx]                  # e.g. split "xy" into ["x","y"]
                 ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
                 self.tens_flat[ix] = tens.item(tuple(ind))
 
@@ -154,48 +170,51 @@ class LabTensor(CarTens):
                     self.Ux = np.delete(self.Ux, [1,2,3], 1)
                     self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
-        # initialize basis set attributes
+        # basis set dimensions and quanta
 
-        self.Jlist = [J for J in basis.keys()]
-        self.symlist = {J : {sym for sym in basis[J].keys()} for J in basis.keys()}
-        self.dim_k = { J : { sym : bas_sym.k.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
-                       for J, bas_J in basis.items() }
-        self.dim_m = { J : { sym : bas_sym.m.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
-                       for J, bas_J in basis.items() }
-        self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
-                    for sym in self.symlist[J] } for J in self.Jlist}
+        Jlist = [J for J in basis.keys()]
+        symlist = {J : [sym for sym in basis[J].keys()] for J in basis.keys()}
+        dim_k = { J : { sym : bas_sym.k.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+                  for J, bas_J in basis.items() }
+        dim_m = { J : { sym : bas_sym.m.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+                  for J, bas_J in basis.items() }
+        dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym]
+               for sym in symlist[J] } for J in Jlist}
 
         # basis set assignments
 
-        self.assign_m = { J : { sym : [ " ".join(q for q in elem)
-                                        for elem in bas_sym.m.table['stat'][:self.dim_m[J][sym]] ]
-                                for sym, bas_sym in bas_J.items() }
-                          for J, bas_J in basis.items() }
-        self.assign_k = { J : { sym : [ " ".join(q for q in elem)
-                                        for elem in bas_sym.k.table['stat'][:self.dim_k[J][sym]] ]
-                                for sym, bas_sym in bas_J.items() }
-                          for J, bas_J in basis.items() }
+        assign_m = { J : { sym : [ " ".join(q for q in elem)
+                                   for elem in bas_sym.m.table['stat'][:dim_m[J][sym]] ]
+                           for sym, bas_sym in bas_J.items() }
+                     for J, bas_J in basis.items() }
+        assign_k = { J : { sym : [ " ".join(q for q in elem)
+                                   for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
+                           for sym, bas_sym in bas_J.items() }
+                     for J, bas_J in basis.items() }
 
         # basis set dimensions and assignments for bra and ket states (used by CarTens class)
 
-        self.Jlist1 = self.Jlist
-        self.Jlist2 = self.Jlist
-        self.dim_k1 = self.dim_k
-        self.dim_k2 = self.dim_k
-        self.dim_m1 = self.dim_m
-        self.dim_m2 = self.dim_m
-        self.dim1 = self.dim
-        self.dim2 = self.dim
-        self.symlist1 = self.symlist
-        self.symlist2 = self.symlist
-        self.assign_k1 = self.assign_k
-        self.assign_k2 = self.assign_k
-        self.assign_m1 = self.assign_m
-        self.assign_m2 = self.assign_m
+        self.Jlist1 = Jlist
+        self.Jlist2 = Jlist
+        self.dim_k1 = dim_k
+        self.dim_k2 = dim_k
+        self.dim_m1 = dim_m
+        self.dim_m2 = dim_m
+        self.dim1 = dim
+        self.dim2 = dim
+        self.symlist1 = symlist
+        self.symlist2 = symlist
+        self.assign_k1 = assign_k
+        self.assign_k2 = assign_k
+        self.assign_m1 = assign_m
+        self.assign_m2 = assign_m
 
         # matrix elements
 
         self.kmat, self.mmat = self.matelem(basis, thresh)
+
+        # check is all required attributes have been initialized
+        self.check_attrs()
 
 
     def ham_proj(self, basis):
@@ -227,9 +246,10 @@ class LabTensor(CarTens):
         Returns:
             res : nested dict
                 Tensor-projected wave functions as dictionary of SymtopBasis objects,
-                for different Cartesian and irreducible components of tensor, i.e., res[cart][irep].
-                The K-subspace projections are independent on the Cartesian component cart
-                and computed only for a single component cart=self.cart[0].
+                for different Cartesian and irreducible components of tensor,
+                i.e., res[cart][irep].
+                The K-subspace projections are independent of Cartesian component
+                cart and computed only for a single component cart=self.cart[0].
         """
         try:
             jm_table = basis.m.table
@@ -302,8 +322,9 @@ class LabTensor(CarTens):
 
         Args:
             basis : nested dict
-                Wave functions in symmetric-top basis (SymtopBasis class) for different values
-                of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
+                Wave functions in symmetric-top basis (SymtopBasis class)
+                for different values of J quantum number and different symmetries,
+                i.e., basis[J][sym] -> SymtopBasis.
             thresh : float
                 Threshold for neglecting matrix elements.
 
@@ -404,6 +425,7 @@ class LabTensor(CarTens):
                                     mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
                                     nelem_m += 1
 
+                        # delete empty entires
                         if nelem_m == 0:
                             del mmat[(J1, J2)][(sym1, sym2)]
                         if nelem_k == 0:
