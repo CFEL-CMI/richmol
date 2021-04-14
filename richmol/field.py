@@ -9,10 +9,24 @@ class CarTens():
     """General class for laboratory-frame Cartesian tensor operators
     """
 
+    # list of essential attributes, initialized externally
+    attr_list = ('Jlist1', 'Jlist2', 'symlist1', 'symlist2', 'dim_m1', 'dim_m2',
+                 'dim_k1', 'dim_k2', 'dim1', 'dim2', 'assign_m1', 'assign_m2',
+                 'assign_k1', 'assign_k2', 'cart', 'mmat', 'kmat', 'os', 'rank')
+
     prefac = 1.0
+
 
     def __init__(self):
         pass
+
+
+    def check_attrs(self):
+        """Checks if all required attributes were initialized"""
+        attrs = list(vars(self).keys())
+        for attr in self.attr_list:
+            if attr not in attrs:
+                raise AttributeError(f"{self.__class__.__name__} attribute '{attr}' was not initialized") from None
 
 
     def tomat(self, form='block', **kwargs):
