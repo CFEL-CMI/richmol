@@ -8,6 +8,22 @@ def MHz_to_invcm(*args):
     return convert(fac, *args)
 
 
+def Debye_to_au(*args):
+    """Converts dipole moment from Debye to atomic units"""
+    fac = 0.393456
+    return convert(fac, *args)
+
+
+def DebyeVm_to_invcm(*args):
+    """Converts product of dipole moment (Debye) with field (Volts/meter) to cm^-1"""
+    fac = constants.value('atomic unit of electric dipole mom.') \
+        / (constants.value('Planck constant') \
+        * constants.value('speed of light in vacuum')) \
+        / 1e2 \
+        * Debye_to_au()
+    return convert(fac, *args)
+
+
 def convert(fac, *args):
     if len(args) == 0:
         return fac
