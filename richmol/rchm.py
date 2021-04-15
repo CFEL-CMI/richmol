@@ -1,980 +1,908 @@
 import h5py
 import numpy as np
 import re
-import sys
-import os
-from scipy.sparse import coo_matrix
+import os as opersys
+from scipy.sparse import csr_matrix
 import time
 import datetime
-
-
-"""
-Data structure of richmol HDF5 file
-
-  /descr                               (description of the data)
-   |
-  /tens:<tens>                         (data for specific tensor)
-  /tens:<tens>.units                   (units)
-  /tens:<tens>.rank                    (rank)
-  /tens:<tens>.irreps                  (list of irreducible representations)
-  /tens:<tens>.cart                    (list of Cartesian components)
-  /tens:<tens>.descr                   (description of tensor)
-   |
-   |---/J:<J1>,<J1>                    (H0 basis states, <J1|H0|J1> = E)
-   |    |
-   |    |---/enr                       (state energies)
-   |    |---/sym                       (state symmetries)
-   |    |---/assign                    (state assignments)
-   |    |---/id                        (state IDs)
-   |    |---/ideg                      (state degeneracy indices)
-   |
-   |---/J:<J1>,<J2>                    (tensor matrix elements between H0 basis states, <J1|<tens>|J2>
-        |
-        |---/kmat_data                 (vector of non-zero elements of K-matrix, concatenated across all irreducible representations)
-        |---/kmat_data.irreps          (list of irreducible representations)
-        |---/kmat_data.nnz             (number of elements in kmat_data for each irreducible representation)
-        |---/kmat_row                  (bra state IDs of non-zero elements)
-        |---/kmat_col                  (ket state IDs of non-zero elements)
-        |
-        |---/mmat_<cart>_data          (...)
-        |---/mmat_<cart>_data.irreps   (...)
-        |---/mmat_<cart>_data.nnz      (...)
-        |---/mmat_<cart>_data.cart     (Cartesian component label cart == <cart>)
-        |---/mmat_<cart>_row           (bra state m quanta, as m+J, of non-zero elements)
-        |---/mmat_<cart>_col           (ket state m quanta, as m+J, of non-zero elements)
-
- <J1> and <J2> (float): bra and ket quantum numbers of the total angular momentum operator, rounded
-    to the first decimal, e.g., 1.0 and 2.0 or 1.5 and 2.5
- <tens> (str): name of tensor operator
- <cart> (str): Cartesian component of tensor
-"""
+from richmol.rot import molecule
+from richmol.rot import labtens
+from richmol.rot import mol_tens
+from richmol.rot import solution
+from richmol import field
+import inspect
+import json
+from collections.abc import Mapping
 
 
 def J_group_key(J1, J2):
-    return 'J:' + str(round(float(J1), 1)) + "," + str(round(float(J2), 1))
+    return 'J:' + str(round(float(J1), 1)) + ',' + str(round(float(J2), 1))
 
 
-def tens_group_key(tens):
-    return 'tens:' + tens
+def sym_group_key(sym1, sym2):
+    return 'sym:' + str(sym1) + ',' + str(sym2)
 
 
-def add_comment(filename, comment):
-    date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-    system = sys.version
-    platform = sys.platform
-    comm = date.strip() + '/' + platform.strip() + '/' + system.strip
+def store(filename, obj, *args, **kwargs):
+    """Stores objects in richmol hdf5 file
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        obj : object
+            Object to store, one of the following:
+                rot.molecule.Molecule
+                rot.labtens.LabTensor
+                field.CarTens
+    """
+    if isinstance(obj, molecule.Molecule):
+        add_rot_molecule(filename, obj, *args, **kwargs)
+    elif isinstance(obj, (labtens.LabTensor, field.CarTens)):
+        add_tensor(filename, obj, *args, **kwargs)
+    else:
+        raise TypeError(f"unsupported type: '{type(obj)}'") from None
+
+
+def add_rot_molecule(filename, mol, comment=None, replace=False):
+    """Stores molecular data
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        mol : rot.molecule.Molecule
+            Molecular data
+        comment : str
+            Description of molecular data
+        replace : bool
+            If True, the existing dataset will be replaced
+    """
+    if not isinstance(mol, molecule.Molecule):
+        raise TypeError(f"bad argument type for molecule") from None
+
+    with h5py.File(filename, 'a') as fl:
+
+        # create group
+        if 'molecule' in fl:
+            if replace is True:
+                del fl['molecule']
+            else:
+                raise RuntimeError(f"found existing molecule dataset in '{filename}', " + \
+                                   f"use replace=True to replace it") from None
+        group = fl.create_group('molecule')
+
+        # store date/time
+        date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        group.attrs['date'] = date.replace('\n','')
+
+        # store user comment
+        if comment is not None:
+            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
+
+        # store XYZ
+        try:
+            xyz = mol.XYZ
+            for name in xyz.dtype.names:
+                try:
+                    group.attrs[name] = xyz[name]
+                except TypeError: # atom labels are U strings
+                    group.attrs[name] = [str.encode(elem) for elem in xyz[name]]
+        except AttributeError:
+            pass
+
+        # store rotational constants
+        try:
+            if mol.linear:
+                try:
+                    group.attrs['ABC'] = mol.ABC
+                except Exception:
+                    group.attrs['Gmat'] = mol.gmat()
+            else:
+                try:
+                    group.attrs['B'] = mol.B
+                except Exception:
+                    pass
+        except AttributeError:
+            pass
+
+        # store molecular tensors (dipole moment, polarizability, etc.)
+        for tens in mol_tens._tensors.keys():
+            try:
+                group.attrs[tens] = getattr(mol, tens)
+            except AttributeError:
+                pass
+
+        # store custom Hamiltonians and their parameters
+        try:
+            watson = mol.watson
+            group.attrs['watson'] = str.encode(watson)
+            for const in solution._constants[watson]:
+                try:
+                    group.attrs[tens] = getattr(mol, const)
+                except AttributeError:
+                    pass
+        except AttributeError:
+            pass
+
+
+def read_molecule(filename):
+    """Reads molecular data
+
+    Args:
+        filename : str
+            Name of hdf5 file
+
+    Returns:
+        mol : object
+            Contains molecular parameters, such as Cartesian cooridnates of atoms,
+            molecular property tensors, rotational constants, Hamiltonian parameters, etc.
+    """
     with h5py.File(filename, 'a') as fl:
         try:
-            comm_ = fl['comments']
-            comm_ += '\n' + comm
-        except AttributeError:
-            comm_ = comm
-        fl['comments'] = comm_
+            group = fl['molecule']
+        except KeyError:
+            raise KeyError(f"file '{filename}' has no molecule dataset") from None
+        mol = type("molecule", (object,), {key:val for key,val in group.attrs.items()})
+        return mol
 
 
-def get_comments(filename):
-    with h5py.File(filename, 'r') as fl:
-        try:
-            comm = fl['comments']
-        except AttributeError:
-            comm = ""
-    return comm
-
-
-
-def store(filename, tens, J1, J2, replace=False, thresh=1e-14, **kwargs):
-    """Stores field-free state energies, assignments, and matrix elements
-    of Cartesian tensor operators in richmol HDF5 file.
+def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=None):
+    """Stores Cartesian tensor operator
 
     Args:
         filename : str
-            Name of the output HDF5 file, if file exists it will be appended, it can be overwritten
-            by passing replace=True.
-        tens : str
-            Name of tensor operator.
-        J1, J2 : int or float
-            Values of J quantum numbers for bra (J1) and ket (J2) states.
+            Name of hdf5 file
+        tens : labtens.LabTensor or field.CarTens
+            Cartesian tensor object
+        name : str
+            Name of data group, by default, the name of argument 'tens' is used
+        comment : str
+            Description of tensor
         replace : bool
-            If True, existing HDF5 file will be overwritten.
+            If True, the existing dataset will be replaced
+        thresh : float
+            Threshold for neglecting matrix elements when writing into file
+    """
+    if not isinstance(tens, (labtens.LabTensor, field.CarTens)):
+        raise TypeError(f"bad argument type for tensor") from None
+
+    # group name
+    if name is None:
+        name_ = retrieve_name(tens)
+    else:
+        name_ = name
+
+    with h5py.File(filename, 'a') as fl:
+
+        # create group
+        if name_ in fl:
+            if replace is True:
+                del fl[name_]
+            else:
+                raise RuntimeError(f"found existing tensor dataset '{name_}' in '{filename}', " + \
+                                   f"use replace=True to replace it") from None
+        group = fl.create_group(name_)
+
+        # store date/time
+        date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        group.attrs['date'] = date.replace('\n','')
+
+        # store user comment
+        if comment is not None:
+            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
+
+        # store tensor attributes except M and K tensors, and few others
+        attrs = list(set(vars(tens).keys()) - set(['mmat', 'kmat', 'molecule']))
+        for attr in attrs:
+            val = getattr(tens, attr)
+            try:
+                group.attrs[attr] = val
+            except TypeError:
+                # store dictionary as json
+                jd = json.dumps(val)
+                group.attrs[attr+'_JSON'] = jd
+
+        # store matrix elements, M and K tensors
+
+        # loop over pairs of coupled J quanta
+        for (J1, J2) in list(set(tens.mmat.keys()) & set(tens.kmat.keys())):
+
+            mmat_sym = tens.mmat[(J1, J2)]
+            kmat_sym = tens.kmat[(J1, J2)]
+
+            # loop over pairs of coupled symmetries
+            for (sym1, sym2) in list(set(mmat_sym.keys()) & set(kmat_sym.keys())):
+
+                # store K-matrix
+
+                # remove elements smaller that 'thresh'
+                kmat = kmat_sym[(sym1, sym2)]
+                kmat_ = [k for k in kmat.values()]
+                if thresh is not None:
+                    for k in kmat_:
+                        mask = np.abs(k.data) < thresh
+                        k.data[mask] = 0
+                        k.eliminate_zeros()
+
+                data = [k.data for k in kmat_ if k.nnz > 0]
+                indices = [k.indices for k in kmat_ if k.nnz > 0]
+                indptr = [k.indptr for k in kmat_ if k.nnz > 0]
+                shape = [k.shape for k in kmat_ if k.nnz > 0]
+                irreps = [key for key,k in zip(kmat.keys(), kmat_) if k.nnz > 0]
+                if len(data) > 0:
+                    try:
+                        group_j = group[J_group_key(J1, J2)]
+                    except:
+                        group_j = group.create_group(J_group_key(J1, J2))
+                    try:
+                        group_sym = group_j[sym_group_key(sym1, sym2)]
+                    except:
+                        group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                    group_sym.create_dataset('kmat_data', data=np.concatenate(data))
+                    group_sym.create_dataset('kmat_indices', data=np.concatenate(indices))
+                    group_sym.create_dataset('kmat_indptr', data=np.concatenate(indptr))
+                    group_sym.attrs['kmat_nnz'] = [len(dat) for dat in data]
+                    group_sym.attrs['kmat_nind'] = [len(ind) for ind in indices]
+                    group_sym.attrs['kmat_nptr'] = [len(ind) for ind in indptr]
+                    group_sym.attrs['kmat_irreps'] = irreps
+                    group_sym.attrs['kmat_shape'] = shape
+
+                # store M-matrix
+
+                # remove elements smaller that 'thresh'
+                mmat = mmat_sym[(sym1, sym2)]
+                mmat_ = [m for mcart in mmat.values() for m in mcart.values()]
+                if thresh is not None:
+                    for m in mmat_:
+                        mask = np.abs(m.data) < thresh
+                        m.data[mask] = 0
+                        m.eliminate_zeros()
+
+                data = [m.data for m in mmat_ if m.nnz > 0]
+                indices = [m.indices for m in mmat_ if m.nnz > 0]
+                indptr = [m.indptr for m in mmat_ if m.nnz > 0]
+                shape = [m.shape for m in mmat_ if m.nnz > 0]
+                irreps_cart = [(key1, key2) for key2 in mmat.keys() for key1 in mmat[key2].keys()]
+                irreps_cart = [(irrep, cart) for (irrep,cart),m in zip(irreps_cart,mmat_) if m.nnz > 0]
+                if len(data) > 0:
+                    try:
+                        group_j = group[J_group_key(J1, J2)]
+                    except:
+                        group_j = group.create_group(J_group_key(J1, J2))
+                    try:
+                        group_sym = group_j[sym_group_key(sym1, sym2)]
+                    except:
+                        group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                    group_sym.create_dataset('mmat_data', data=np.concatenate(data))
+                    group_sym.create_dataset('mmat_indices', data=np.concatenate(indices))
+                    group_sym.create_dataset('mmat_indptr', data=np.concatenate(indptr))
+                    group_sym.attrs['mmat_nnz'] = [len(dat) for dat in data]
+                    group_sym.attrs['mmat_nind'] = [len(ind) for ind in indices]
+                    group_sym.attrs['mmat_nptr'] = [len(ind) for ind in indptr]
+                    group_sym.attrs['mmat_irreps_cart'] = irreps_cart
+                    group_sym.attrs['mmat_shape'] = shape
+
+
+def json_to_dict(node):
+    """USE WITH CARE: can delete duplicate keys, for example, "1" and 1
+
+    Converts keys in nested dictionary to integers and floats where possible.
+    Used to convert JSON dictionaries read from HDF5 file back to original form
+    """
+    out = dict()
+    for key, item in node.items():
+        if isinstance(item, Mapping):
+            item_ = json_to_dict(item)
+        else:
+            item_ = item
+        try:
+            if key.find('.') == -1:
+                key_ = int(key)
+            else:
+                key_ = float(key)
+        except ValueError:
+            key_ = key
+        out[key_] = item_
+    return out
+
+
+def inspect_file(filename):
+    """Returns information about all data groups stored in file
+
+    Arg:
+        filename : str
+            Name of hdf5 file
+
+    Returns:
+        datagroup : dict
+            Dictionary of data groups stored in file.
+    """
+    J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
+    sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+
+    datagroup = dict()
+
+    with h5py.File(filename, 'a') as fl:
+        for name in fl.keys():
+            # collect attributes
+            attrs = dict()
+            for key, val in fl[name].attrs.items():
+                if key.find('_JSON') == -1:
+                    attrs[key] = val
+                else:
+                    jl = json.loads(val) # problem with JSON is that it converts dict keys into strings
+                    if isinstance(jl, Mapping):
+                        # solution: convert dict string keys into integers and floats (where possible)
+                        jl = json_to_dict(jl)
+                    attrs[key.replace('_JSON', '')] = jl
+            # add object to datagroup dictionary
+            datagroup[name] = type(name, (object,), attrs)
+
+    return datagroup
+
+
+def read_tensor(filename, name):
+    """Reads properties and matrix elements of Cartesian tensor operator
+
+    Args:
+        filename : str
+            Name of hdf5 file
+        name : str
+            Name of tensor data group
+
+    Returns:
+        tens : object
+            Cartesian tensor object
+    """
+    J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
+    sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+
+    with h5py.File(filename, 'a') as fl:
+        try:
+            group = fl[name]
+        except KeyError:
+            raise KeyError(f"file '{filename}' has no tensor dataset '{name}'") from None
+
+        # read dataset attributes
+        tens = type(name, (object,), {key:val for key,val in group.attrs.items()})
+
+        # read tensor matrix elements
+    
+        tens.kmat = dict()
+        tens.mmat = dict()
+
+        # search for J groups
+        for key in group.keys():
+
+            # pair of coupled J quanta
+            if re.match(J_key_re, key):
+                Jpair = re.findall(f'\d+.\d+', key)
+                J1, J2 = (round(float(elem), 1) for elem in Jpair)
+                group_j = group[key]
+
+                # search for symmetry groups
+                for key2 in group_j.keys():
+
+                    # pair of coupled symmetries
+                    if re.match(sym_key_re, key2):
+                        sympair = re.findall(f'\w+', key2)
+                        _, sym1, sym2 = sympair
+                        group_sym = group_j[key2]
+
+                        # read K-matrix
+
+                        kmat = None
+                        try:
+                            nnz = group_sym.attrs['kmat_nnz']
+                            nind = group_sym.attrs['kmat_nind']
+                            nptr = group_sym.attrs['kmat_nptr']
+                            shape = group_sym.attrs['kmat_shape']
+                            irreps = group_sym.attrs['kmat_irreps']
+                            data = np.split(group_sym['kmat_data'], np.cumsum(nnz))[:-1]
+                            indices = np.split(group_sym['kmat_indices'], np.cumsum(nind))[:-1]
+                            indptr = np.split(group_sym['kmat_indptr'], np.cumsum(nptr))[:-1]
+                            kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)
+                                    for irrep,dat,ind,ptr,sh in zip(irreps,data,indices,indptr,shape)}
+                        except KeyError:
+                            pass
+
+                        # add K-matrix to tensor object
+                        if kmat is not None:
+                            try:
+                                tens.kmat[(J1, J2)][(sym1, sym2)] = kmat
+                            except KeyError:
+                                tens.kmat[(J1, J2)] = {(sym1, sym2) : kmat}
+
+                        # read M-matrix
+
+                        mmat = None
+                        try:
+                            nnz = group_sym.attrs['mmat_nnz']
+                            nind = group_sym.attrs['mmat_nind']
+                            nptr = group_sym.attrs['mmat_nptr']
+                            shape = group_sym.attrs['mmat_shape']
+                            irreps_cart = group_sym.attrs['mmat_irreps_cart']
+                            data = np.split(group_sym['mmat_data'], np.cumsum(nnz))[:-1]
+                            indices = np.split(group_sym['mmat_indices'], np.cumsum(nind))[:-1]
+                            indptr = np.split(group_sym['mmat_indptr'], np.cumsum(nptr))[:-1]
+                            mmat = {irr_car[1] : {irr_car[0] : csr_matrix((dat, ind, ptr), shape=sh) }
+                                    for irr_car,dat,ind,ptr,sh in zip(irreps_cart,data,indices,indptr,shape)}
+                        except KeyError:
+                            pass
+
+                        # add M-matrix to tensor object
+                        if mmat is not None:
+                            try:
+                                tens.mmat[(J1, J2)][(sym1, sym2)] = mmat
+                            except KeyError:
+                                tens.mmat[(J1, J2)] = {(sym1, sym2) : mmat}
+
+    return tens
+
+
+def read_states(filename, **kwargs):
+    """Reads basis states information from old-format richmol states file
+
+    Args:
+        filename : str
+            Name of richmol states file
 
     Kwargs:
-        descr : str or list
-            Description of the data.
-        enr : array (no_states)
-            State energies, no_states is the number of states for J = J1 == J2.
-        sym : array (no_states)
-            State symmetries.
-        assign : array (no_states)
-            State assignments.
-        id : array (no_states)
-            State ID numbers.
-        ideg : array (no_states)
-            State degeneracy indices.
-        irreps : list
-            List of tensor irreducible representations.
-        cart : str
-            Cartesian component of tensor.
-        kmat : list of scipy.coo_matrix, where coo_matrix.shape = (no_states(J1), no_states(J2))
-            List of K-matrices for different irreducible representations of tensor.
-            Each K-matrix is stored in a sparse scipy.coo_matrix format, where kmat[irrep].row and
-            kmat[irrep].col contain IDs of bra and ket states, respectively, that are coupled
-            by tensor with corresponding matrix element given by kmat[irrep].data.
-        mmat : list of scipy.coo_matrix, where coo_matrix.shape = (2*J1+1, 2*J2+1)
-            List of M-matrices for different irreducible representations of tensor.
-            Each M-matrix is stored in a sparse scipy.coo_matrix format, where mmat[irrep].row and
-            mmat[irrep].col contain m1=-J1..J1 bra and m2=-J2..J2 ket quanta as int(m+J), respectively,
-            that are coupled by tensor with corresponding matrix element given by mmat[irrep].data.
-            Only single Cartesian component of M-matrix (labelled by 'cart') can be stored at a call.
-        units : str
-            Tensor units.
-        tens_descr : str or list
-            Description of tensor.
+        jmin, jmax : int or float
+            Min and max values of quantum number J of total angular momentum
+        jlist : list
+            List of J values, if present, overrides jmin and jmax
+        mmin, mmax : int or float
+            Min and max values of quantum number m of Z projection of total
+            angular momentum
+        mlist : list
+            List of m values, if present, overrides mmin and mmax
+        mdict : dict
+            Dictionary mdict[J] -> list, contains list of m quantum numbers
+            for different values of J, if present, overrides mlist
+        emin, emax : float
+            Min and max values of state energy
+        symlist : list
+            List of state symmetries
+        symdic : dict:
+            Dictionary symdic[J] -> list, contains list of symmetries
+            for different values of J, if present, overrides symlist
+
+    Returns:
+        tens : field.CarTens
+            Cartesian tensor object containing diagonal representation
+            of field-free Hamiltonain
+    """
+
+    # read states file
+
+    energy = dict()
+    assign = dict()
+    map_kstates = dict()
+
+    with open(filename, 'r') as fl:
+        for line in fl:
+            w = line.split()
+            J = round(float(w[0]),1)
+            id = np.int64(w[1])
+            sym = w[2]
+            ndeg = int(w[3])
+            enr = float(w[4])
+            qstr = ' '.join([w[i] for i in range(5,len(w))])
+
+            # apply state filters
+            if 'jlist' in kwargs:
+                if J not in [round(float(elem),1) for elem in kwargs['jlist']]:
+                    continue
+            else:
+                if 'jmin' in kwargs:
+                    if J < kwargs['jmin']:
+                        continue
+                if 'jmax' in kwargs:
+                    if J > kwargs['jmax']:
+                        continue
+            if 'emin' in kwargs:
+                if enr < kwargs['emin']:
+                    continue
+            if 'emax' in kwargs:
+                if enr > kwargs['emax']:
+                    continue
+            if 'symdic' in kwargs:
+                try:
+                    if sym.lower() not in [elem.lower() for elem in kwargs['symdic'][J]]:
+                        continue
+                except KeyError:
+                    pass
+            elif 'symlist' in kwargs:
+                if sym not in kwargs['symlist']:
+                    continue
+
+            if J not in energy:
+                energy[J] = dict()
+                assign[J] = dict()
+
+            for ideg in range(ndeg):
+                try:
+                    energy[J][sym].append(enr)
+                    assign[J][sym].append(qstr)
+                except KeyError:
+                    energy[J][sym] = [enr]
+                    assign[J][sym] = [qstr]
+
+                # mapping between J,id,ideg and basis set index running
+                # within the group of states sharing the same J and symmetry
+                map_kstates[(J, id, ideg)] = [len(energy[J][sym])-1, sym]
+
+    # check how many states have passed the filters
+
+    if len(list(energy.keys())) == 0:
+        raise Exception(f"zero number of states, perhaps selection filters cast out states") from None
+
+    if 'jlist' in kwargs:
+        j_none = [J for J in kwargs['jlist'] if J not in energy]
+        if len(j_none) > 0:
+            raise Exception(f"states with the following J quanta were not found: {j_none}") from None
+
+    if 'symdic' in kwargs:
+        sym_none = {J : [sym for sym in kwargs['symdic'][J] if sym not in energy[J].keys()]
+                    for J in kwargs['symdic'].keys()}
+    elif 'symlist' in kwargs:
+        symlist = set([sym for J in energy.keys() for sym in energy[J].keys()])
+        sym_none = [sym for sym in kwargs['symlist'] if sym not in symlist]
+    else:
+        sym_none = []
+    if len(sym_none) > 0:
+        raise Exception(f"states with the following symmetries were not found: {sym_none}") from None
+
+    # generate lists of m quanta for different J
+
+    if 'mdict' in kwargs:
+        mdict = {J : [round(float(elem),1) for elem in kwargs['mdict'][J]]
+                 for J in list(energy.keys() & kwargs['mdict'].keys)}
+        # for J values that are not present in kwargs['mdict'] set m ranges -J..J
+        j_out = [J for J in energy.keys() if J not in mdict]
+        mdict += {J : [round(float(m),1) for m in np.linalg(-J, J, int(2*J)+1)] for J in j_out}
+    elif 'mlist' in kwargs:
+        mdict = {J : [round(float(m),1) for m in kwargs['mlist'] if abs(round(float(m),1))<=J]
+                 for J in energy.keys()}
+    else:
+        mdict = dict()
+        mmin = None
+        mmax = None
+        if 'mmin' in kwargs:
+            mmin = round(float(kwargs['mmin']),1)
+        if 'mmax' in kwargs:
+            mmax = round(float(kwargs['mmax']),1)
+        if mmin is not None and mmax is not None:
+            assert (mmin<=mmax), f"'mmin' = {mmin} > 'mmax' = {mmax}"
+        for J in energy.keys():
+            if mmin is None:
+                m1 = -J
+            else:
+                m1 = max(-J, mmin)
+            if mmax is None:
+                m2 = J
+            else:
+                m2 = min(J, mmax)
+            if m1>m2: continue
+            mdict[J] = [round(float(m),1) for m in np.linspace(m1, m2, m2-m1+1)]
+
+    # delete entries with zero length
+    mdict = {key : val for key,val in mdict.items() if len(val)>0}
+    # check if m-quanta filters cast out some of J quanta
+    j_none = [J for J in energy.keys() if J not in mdict]
+    if len(j_none) > 0:
+        raise Exception(f"m-quanta filters cast out following J quanta: {j_none}") from None
+
+    # generate mapping beteween m quanta and basis set index
+    map_mstates = {(J, m) : ind_m for J in energy.keys() for ind_m,m in enumerate(mdict[J]) }
+
+    # generate field.CarTens object attributes
+
+    Jlist = list(energy.keys())
+    symlist = {J : [sym for sym in energy[J].keys()] for J in Jlist}
+    dim_m = {J : {sym : len(mdict[J]) for sym in symlist[J]} for J in Jlist}
+    dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
+    dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
+    assign_m = {J : {sym : ["%4.1f"%m for m in mdict[J]] 
+                for sym in symlist[J]} for J in Jlist}
+    assign_k = {J : {sym : assign[J][sym] for sym in symlist[J]} for J in Jlist}
+
+    cart = '0'
+    os = [(0,0)]
+    rank = 0
+
+    Jlist1 = Jlist
+    Jlist2 = Jlist
+    symlist1 = symlist
+    symlist2 = symlist
+    dim1 = dim
+    dim2 = dim
+    dim_m1 = dim_m
+    dim_m2 = dim_m
+    dim_k1 = dim_k
+    dim_k2 = dim_k
+    assign_k1 = assign_k
+    assign_k2 = assign_k
+    assign_m1 = assign_m
+    assign_m2 = assign_m
+
+    mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mdict[J])), dtype=np.complex128)}}
+            for sym in symlist[J]} for J in Jlist}
+
+    kmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}}
+            for sym in symlist[J]} for J in Jlist}
+
+    # initialize field.CarTens object
+
+    loc = locals()
+    tens = field.CarTens()
+    tens.attr_list += ('map_kstates', 'map_mstates')
+    for name in tens.attr_list:
+        setattr(tens, name, loc[name])
+    tens.check_attrs()
+
+    return tens
+
+
+def read_trans(states, filename, thresh=None):
+    """Reads matrix elements of Cartesian tensor from old-format Richmol
+    matrix elements files
+
+    Args:
+        states : field.CarTens
+            Field-free basis states (see read_states)
+        filename : str
+            In old format, matrix elements for different bra and ket J quantum
+            numbers are stored in separate files. Argument filename provides
+            a template for generating the names of these files.
+            For example, for filename = "matelem_alpha_j<j1>_j<j2>.rchm",
+            the following files will be searched: matelem_alpha_j0_j0.rchm,
+            matelem_alpha_j0_j1.rchm, matelem_alpha_j0_j2.rchm,
+            matelem_alpha_j1_j1.rchm, etc., where <j1> and <j2> are replaced
+            by integer numbers running through all J quanta spanned by the basis.
+            For half-integer numbers (e.g., F quanta), replace <j1> and <j2>
+            in the template by <f1> and <f2>, these will be replaced by
+            floating point numbers rounded to the first decimal.
         thresh : float
             Threshold for neglecting matrix elements.
-    """
-
-    fl = h5py.File(filename, {True:'w', False:'a'}[replace])
-
-    if tens_group_key(tens) not in fl:
-        tens_grp = fl.create_group(tens_group_key(tens))
-    else:
-        tens_grp = fl[tens_group_key(tens)]
-
-    if J_group_key(J1, J2) not in tens_grp:
-        J_grp = tens_grp.create_group(J_group_key(J1, J2))
-    else:
-        J_grp = tens_grp[J_group_key(J1, J2)]
-
-    # store metadata
-
-    try:
-        descr = kwargs['descr']
-        if descr is None:
-            raise KeyError()
-        if 'descr' in fl:
-            del fl['descr']
-        if isinstance(descr, str):
-            data = descr
-        elif all(isinstance(elem, str) for elem in descr):
-            data = " ".join(elem for elem in descr)
-        else:
-            raise TypeError(f"bad argument type for 'descr': '{type(descr)}'") from None
-        dset = fl.create_dataset('descr', data=[str.encode(elem) for elem in data])
-    except KeyError:
-        pass
-
-    # store energy
-
-    try:
-        enr = kwargs['enr']
-        if 'enr' in J_grp:
-            del J_grp['enr']
-        dset = J_grp.create_dataset('enr', data=enr)
-    except KeyError:
-        pass
-
-    # store assignment
-
-    try:
-        assign = kwargs['assign']
-        if 'assign' in J_grp:
-            del J_grp['assign']
-        dset = J_grp.create_dataset('assign', data=[str.encode(elem) for elem in assign])
-    except KeyError:
-        pass
-
-    # store IDs
-
-    try:
-        id = kwargs['id']
-        assert (len(list(set(id))) == len(id)), f"State IDs contain duplicates for J = {J1}"
-        if 'id' in J_grp:
-            del J_grp['id']
-        dset = J_grp.create_dataset('id', data=id)
-    except KeyError:
-        pass
-
-    # store degeneracy indices
-
-    try:
-        ideg = kwargs['ideg']
-        if 'ideg' in J_grp:
-            del J_grp['ideg']
-        dset = J_grp.create_dataset('ideg', data=ideg)
-    except KeyError:
-        pass
-
-    # store symmetries
-
-    try:
-        sym = kwargs['sym']
-        if 'sym' in J_grp:
-            del J_grp['sym']
-        dset = J_grp.create_dataset('sym', data=[str.encode(elem) for elem in sym])
-    except KeyError:
-        pass
-
-    # store tensor units
-
-    try:
-        units = kwargs['units']
-        if units is None:
-            raise KeyError()
-        tens_grp.attrs['units'] = units
-    except KeyError:
-        pass
-
-    # store tensor description
-
-    try:
-        descr = kwargs['tens_descr']
-        if descr is None:
-            raise KeyError()
-        if isinstance(descr, str):
-            data = descr
-        elif all(isinstance(elem, str) for elem in descr):
-            data = " ".join(elem for elem in descr)
-        else:
-            raise TypeError(f"bad argument type for 'tens_descr': '{type(descr)}'") from None
-        tens_grp.attrs['descr'] = data
-    except KeyError:
-        pass
-
-    # store K-matrix
-
-    try:
-        kmat = kwargs['kmat']
-
-        if 'irreps' not in kwargs:
-            raise Exception(f"'irreps' argument must be passed together with 'kmat'") from None
-        else:
-            irreps = kwargs['irreps']
-            assert (len(irreps) == len(kmat)), \
-                f"Lengths of 'irreps' and 'kmat' are not equal: {len(irreps)} != {len(kmat)}"
-
-        k_nnz = []
-        k_irrep = []
-        k_data = None
-        k_row = None
-        k_col = None
-
-        for km, irrep in zip(kmat, irreps):
-
-            data = km.data
-            row = km.row
-            col = km.col
-
-            if len(data) == 0:
-                continue
-            if np.all(np.abs(data) < thresh):
-                continue
-
-            k_nnz.append(len(data))
-            k_irrep.append(irrep)
-
-            if k_data is None:
-                k_data = data
-                k_row = row
-                k_col = col
-            else:
-                k_data = np.concatenate((k_data, data))
-                k_row = np.concatenate((k_row, row))
-                k_col = np.concatenate((k_col, col))
-
-        if k_data is not None:
-
-            try:
-                tens_irreps = tens_grp.attrs['irreps']
-                tens_grp.attrs['irreps'] = list(set(list(tens_irreps) + list(k_irrep)))
-            except KeyError:
-                tens_grp.attrs['irreps'] = k_irrep
-
-            if 'kmat_data' in J_grp:
-                del J_grp['kmat_data']
-            if 'kmat_row' in J_grp:
-                del J_grp['kmat_row']
-            if 'kmat_col' in J_grp:
-                del J_grp['kmat_col']
-
-            dset = J_grp.create_dataset('kmat_data', data=k_data)
-            dset.attrs['irreps'] = k_irrep
-            dset.attrs['nnz'] = k_nnz
-            dset = J_grp.create_dataset('kmat_row', data=k_row)
-            dset = J_grp.create_dataset('kmat_col', data=k_col)
-
-    except KeyError:
-        pass
-
-    # store M-matrix
-
-    try:
-        mmat = kwargs['mmat']
-
-        if 'cart' not in kwargs:
-            raise Exception(f"'cart' argument must be passed together with 'mmat'") from None
-        else:
-            cart = kwargs['cart']
-
-        assert all(c.lower() in 'xyz' for c in cart), f"Illegal Cartesian label = '{cart}'"
-
-        if 'irreps' not in kwargs:
-            raise Exception(f"'irreps' argument must be passed together with 'mmat'") from None
-        else:
-            irreps = kwargs['irreps']
-            assert (len(irreps) == len(mmat)), \
-                f"Lengths of 'irreps' and 'mmat' are not equal: {len(irreps)} != {len(mmat)}"
-
-        m_data = None
-        m_row = None
-        m_col = None
-        m_nnz = []
-        m_irrep = []
-
-        for mm, irrep in zip(mmat, irreps):
-
-            data = mm.data
-            row = mm.row
-            col = mm.col
-
-            if len(data) == 0:
-                continue
-            if np.all(np.abs(data) < thresh):
-                continue
-
-            m_nnz.append(len(data))
-            m_irrep.append(irrep)
-
-            if m_data is None:
-                m_data = data
-                m_row = row
-                m_col = col
-            else:
-                m_data = np.concatenate((m_data, data))
-                m_row = np.concatenate((m_row, row))
-                m_col = np.concatenate((m_col, col))
-
-        if m_data is not None:
-
-            rank = len(cart)
-            try:
-                rank_ = tens_grp.attrs['rank']
-                assert (rank == rank_), f"Rank of '{tens}' = {rank} derived from Cartesian label '{cart}' " + \
-                    f"for J1, J2 = {J1}, {J2} does not match that = {rank_} already stored in file {filename}"
-            except KeyError:
-                tens_grp.attrs['rank'] = rank
-
-            try:
-                tens_cart = tens_grp.attrs['cart']
-                tens_grp.attrs['cart'] = list(set(list(tens_cart) + [cart]))
-            except KeyError:
-                tens_grp.attrs['cart'] = [cart]
-
-            try:
-                tens_irreps = tens_grp.attrs['irreps']
-                tens_grp.attrs['irreps'] = list(set(list(tens_irreps) + list(m_irrep)))
-            except KeyError:
-                tens_grp.attrs['irreps'] = list(m_irrep)
-
-            if 'mmat_'+cart+'_data' in J_grp:
-                del J_grp['mmat_'+cart+'_data']
-            if 'mmat_'+cart+'_row' in J_grp:
-                del J_grp['mmat_'+cart+'_row']
-            if 'mmat_'+cart+'_col' in J_grp:
-                del J_grp['mmat_'+cart+'_col']
-
-            dset = J_grp.create_dataset('mmat_'+cart+'_data', data=m_data)
-            dset.attrs['irreps'] = m_irrep
-            dset.attrs['nnz'] = m_nnz
-            dset.attrs['cart'] = cart
-            dset = J_grp.create_dataset('mmat_'+cart+'_row', data=m_row)
-            dset = J_grp.create_dataset('mmat_'+cart+'_col', data=m_col)
-
-    except KeyError:
-        pass
-
-    fl.close()
-
-
-def inspect_tensors(filename):
-    """Returns list of tensors stored in file, for each tensor returns rank, list of irreps,
-    list or Cartesian components, units, and list of coupled J quanta.
-
-    Args:
-        filename : str
-            Name of richmol HDF5 file.
 
     Returns:
-        tensors : dict
-            Dictionary with keys as names of tensors and values as another dictionaries
-            containing rank of tensor ('rank'), list of irreps ('irreps'), list of Cartesian
-            components ('cart'), tensor description ('descr'), and list of coupled J quanta ('J_pairs').
+        tens : field.CarTens
+            Cartesian tensor
     """
-    fl = h5py.File(filename, 'r')
-
-    tensors = {}
-
-    J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
-    tens_key_re = re.sub(r'dummy', '(\w+)', tens_group_key('dummy'))
-
-    for key in fl.keys():
-
-        if not re.match(r''+tens_key_re, key): 
-            continue
-        tens = re.search(tens_key_re, key).group(1)
-
-        tensors[tens] = {'J_pairs':[]}
-
-        for attr in ('rank', 'irreps', 'cart', 'units', 'descr'):
-            try:
-                tensors[tens][attr] = fl[key].attrs[attr]
-            except KeyError:
-                continue
-
-        for key2 in fl[key]:
-            if not re.match(J_key_re, key2):
-                continue
-            Jpair = re.findall(r'\d+\.\d+', key2)
-            if len(Jpair)==0:
-                continue
-            J1, J2 = (round(float(elem), 1) for elem in Jpair)
-
-            if 'kmat_data' in fl[key][key2] and any(re.match(r'mmat_(\w+)_data', key3) for key3 in fl[key][key2]):
-                tensors[tens]['J_pairs'].append((J1, J2))
-            elif 'enr' in fl[key][key2] and 'id' in fl[key][key2]:
-                tensors[tens]['J_pairs'].append((J1, J2))
-
-    fl.close()
-
-    return tensors
-
-
-def read_mmat(filename, tens, J1, J2):
-    """Reads M-matrix for selected tensor and pair of J quanta.
-
-    Args:
-        filename : str
-            Name of richmol HDF5 file.
-        tens : str
-            Name of tensor.
-        J1, J2 : float
-            Values of bra (J1) and ket (J2) rotational angular momentum quanta.
-
-    Returns:
-        swapJ : bool
-            If True, the returned M-matrix data is for swapped J1 and J2 quanta.
-        mmat : list
-            List of sets for each Cartesian component of M-matrix.
-            The elements of each set are the following:
-                cart (str): Cartesian-component label
-                irreps (list): list of irreducible representations
-                nnz (list) : number of non-zero elements for each irreducible representation in irreps
-                data (array(nnz)): non-zero elements concatenated across all irreps
-                row (array(nnz)): row indices of non-zero elements, concatenated across all irreps
-                col (array(nnz)): column indices of non-zero elements, concatenated across all irreps
-    """
-    fl = h5py.File(filename, 'r')
-
-    try:
-        tens_key = tens_group_key(tens)
-        tens_group = fl[tens_key]
-    except KeyError:
-        raise KeyError(f"Can't locate data group '{tens_key}' in file {filename}") from None
-
-    try:
-        J_key = J_group_key(J1, J2)
-        J_group = tens_group[J_key]
-        swapJ = False
-    except KeyError:
-        try:
-            J_key2 = J_group_key(J2, J1)
-            J_group = tens_group[J_key2]
-            swapJ = True
-            J_key = J_key2
-        except KeyError:
-            raise KeyError(f"Can't locate data group '{tens_key}/{J_key}' neither '{tens_key}/{J_key2}' " + \
-                f"in file {filename}") from None
-
-    mmat = []
-    for key in J_group:
-        if re.match(r'mmat_(\w+)_data', key):
-            cart = re.search('mmat_(\w+)_data', key).group(1)
-            dat = J_group[key]
-            data = dat[()]
-
-            try:
-                irreps = dat.attrs['irreps']
-            except KeyError:
-                raise KeyError(f"Can't locate attribute 'irreps' for dataset = '{tens_key}/{J_key}/{key}' in file = {filename}") from None
-            try:
-                nnz = dat.attrs['nnz']
-            except KeyError:
-                raise KeyError(f"Can't locate attribute 'nnz' for dataset = '{tens_key}/{J_key}/{key}' in file = {filename}") from None
-            try:
-                cart_ = dat.attrs['cart']
-            except KeyError:
-                raise KeyError(f"Can't locate attribute 'cart' for dataset = '{tens_key}/{J_key}/{key}' in file = {filename}") from None
-
-            assert (len(nnz) == len(irreps)), \
-                f"Number of elements in 'nnz' and 'irreps' are not equal: {len(nnz)} != {len(irreps)}; " + \
-                f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-            assert (sum(nnz) == len(data)), \
-                f"Number of elements in 'data' in sum('nnz') are not equal: {len(data)} != {sum(nnz)}; " + \
-                f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-            assert (cart == cart_), \
-                f"Cartesian label '{cart}' in dataset key does not match that in attribute = '{cart_}'; " + \
-                f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-
-            try:
-                key_row = 'mmat_'+cart+'_row'
-                row = J_group[key_row][()]
-            except KeyError:
-                raise KeyError(f"Can't locate dataset '{tens_key}/{J_key}/{key_row}' in file {filename}") from None
-            try:
-                key_col = 'mmat_'+cart+'_col'
-                col = J_group[key_col][()]
-            except KeyError:
-                raise KeyError(f"Can't locate dataset '{tens_key}/{J_key}/{key_col}' in file {filename}") from None
-
-            assert (len(row) == len(data)), \
-                f"Number of elements in 'row' and 'data' are not equal: {len(row)} != {len(data)}; " + \
-                f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-            assert (len(col) == len(data)), \
-                f"Number of elements in 'col' and 'data' are not equal: {len(col)} != {len(data)}; " + \
-                f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-
-            mmat.append((cart, irreps, nnz, data, row, col))
-
-    fl.close()
-
-    return swapJ, mmat
-
-
-def read_kmat(filename, tens, J1, J2):
-    """Reads K-matrix for selected tensor and pair of J quanta.
-
-    Args:
-        filename : str
-            Name of richmol HDF5 file.
-        tens : str
-            Name of tensor.
-        J1, J2 : float
-            Values of bra (J1) and ket (J2) rotational angular momentum quanta.
-
-    Returns:
-        swapJ : bool
-            If True, the returned K-matrix data is for swapped J1 and J2 quanta.
-        kmat : set
-            The elements of set are the following:
-                irreps (list): list of irreducible representations
-                nnz (list) : number of non-zero elements for each irreducible representation in irreps
-                data (array(nnz)): non-zero elements concatenated across all irreps
-                row (array(nnz)): row indices of non-zero elements, concatenated across all irreps
-                col (array(nnz)): column indices of non-zero elements, concatenated across all irreps
-    """
-    fl = h5py.File(filename, 'r')
-
-    try:
-        tens_key = tens_group_key(tens)
-        tens_group = fl[tens_key]
-    except KeyError:
-        raise KeyError(f"Can't locate data group '{tens_key}' in file {filename}") from None
-
-    try:
-        J_key = J_group_key(J1, J2)
-        J_group = tens_group[J_key]
-        swapJ = False
-    except KeyError:
-        try:
-            J_key2 = J_group_key(J2, J1)
-            J_group = tens_group[J_key2]
-            swapJ = True
-            J_key = J_key2
-        except KeyError:
-            raise KeyError(f"Can't locate data group '{tens_key}/{J_key}' neither '{tens_key}/{J_key2}' " + \
-                f"in file {filename}") from None
-
-    try:
-        key = 'kmat_data'
-        dat = J_group[key]
-    except KeyError:
-        raise KeyError(f"Can't locate data group '{tens_key}/{J_key}/{key}'") from None
-
-    data = dat[()]
-
-    try:
-        irreps = dat.attrs['irreps']
-    except KeyError:
-        raise KeyError(f"Can't locate attribute 'irreps' for dataset = '{tens_key}/{J_key}/{key}' in file = {filename}") from None
-    try:
-        nnz = dat.attrs['nnz']
-    except KeyError:
-        raise KeyError(f"Can't locate attribute 'nnz' for dataset = '{tens_key}/{J_key}/{key}' in file = {filename}") from None
-
-    assert (len(nnz) == len(irreps)), \
-        f"Number of elements in 'nnz' and 'irreps' are not equal: {len(nnz)} != {len(irreps)}; " + \
-        f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-    assert (sum(nnz) == len(data)), \
-        f"Number of elements in 'data' in sum('nnz') are not equal: {len(data)} != {sum(nnz)}; " + \
-        f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-
-    try:
-        key_row = 'kmat_row'
-        row = J_group[key_row][()]
-    except KeyError:
-        raise KeyError(f"Can't locate dataset '{tens_key}/{J_key}/{key_row}' in file {filename}") from None
-    try:
-        key_col = 'kmat_col'
-        col = J_group[key_col][()]
-    except KeyError:
-        raise KeyError(f"Can't locate dataset '{tens_key}/{J_key}/{key_col}' in file {filename}") from None
-
-    assert (len(row) == len(data)), \
-        f"Number of elements in 'row' and 'data' are not equal: {len(row)} != {len(data)}; " + \
-        f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-    assert (len(col) == len(data)), \
-        f"Number of elements in 'col' and 'data' are not equal: {len(col)} != {len(data)}; " + \
-        f"dataset = '{tens_key}/{J_key}/{key}', file = {filename}"
-
-    kmat  = (irreps, nnz, data, row, col)
-
-    fl.close()
-
-    return swapJ, kmat
-
-
-def read_descr(filename):
-    fl = h5py.File(filename, 'r')
-    try:
-        descr = "".join(elem.decode() for elem in fl['descr'])
-    except KeyError:
-        descr = None
-    return descr
-
-
-def read_states(filename, tens, J):
-    """Reads field-free states.
-
-    Args:
-        filename : str
-            Name of richmol HDF5 file.
-        tens : str
-            Name of dataset containing diagonal tensor H0 that stores basis states.
-        J : int or float
-            J quantum number for which stated to be pulled out.
-
-    Returns:
-        enr : array (no_states)
-            State energies.
-        id : array (no_states)
-            State ID numbers.
-        ideg : array (no_states)
-            State degenerate component indices.
-        sym : array (no_states)
-            State symmetries.
-        assign : array (no_states)
-            State assignments.
-        units : str
-            Energy units.
-    """
-    fl = h5py.File(filename, 'r')
-
-    try:
-        J_grp = fl[tens_group_key(tens)][J_group_key(J, J)]
-    except KeyError:
-        raise KeyError(f"Can't locate data group {tens_group_key(tens)}/{J_group_key(J, J)} in file {filename}") from None
-
-    # read units
-    try:
-        units = fl[tens_group_key(tens)].attrs['units']
-    except KeyError:
-        units = None
-
-    # read energies
-    try:
-        enr = J_grp['enr'][()]
-    except KeyError:
-        enr = None
-
-    # read assignments
-    try:
-        assign = [elem.decode() for elem in J_grp['assign']]
-    except KeyError:
-        assign = None
-
-    # read symmetries
-    try:
-        sym = [elem.decode() for elem in J_grp['sym']]
-    except KeyError:
-        sym = None
-
-    # read IDs
-    try:
-        id = J_grp['id'][()]
-    except KeyError:
-        id = None
-
-    # read idegs
-    try:
-        ideg = J_grp['ideg'][()]
-    except KeyError:
-        ideg = None
-
-    fl.close()
-
-    return enr, id, ideg, sym, assign, units
-
-
-def old_to_new_richmol(h5_file, states_file, tens_file=None, replace=False, store_states=True, \
-                       me_tol=1e-40, **kwargs):
-    """Converts richmol old formatted text file format into to new hdf5 file format.
-
-    Args:
-        h5_fname : str
-            Name of new richmol hdf5 file.
-        states_fname : str
-            Name of old richmol states file.
-        tens_fname : str
-            Template for generating names of old richmol tensor matrix elements files.
-            For example, for filename="matelem_alpha_j<j1>_j<j2>.rchm" following files will be
-            searched: matelem_alpha_j0_j0.rchm, matelem_alpha_j0_j1.rchm,
-            matelem_alpha_j0_j2.rchm and so on, where <j1> and <j2> will be replaced by integer
-            numbers running through all J quanta spanned by all states listed in file states_fname.
-            NOTE: in old richmol format, j1 and j2 are treated as ket and bra state quanta, respectively.
-            For half-integer numbers (e.g., F quanta), substitute <j1> and <j2> in the template
-            tens_fname by <f1> and <f2>, which will then be replaced by floating point numbers
-            rounded to the first decimal.
-        replace : bool
-            Set True to replace existing hdf5 file.
-        store_states : bool
-            Set True to write richmol states data into hdf5 file, or False if you call this function
-            multiple times to convert different tensors and don't want each time to rewrite the states
-            data. The states file however need to be loaded for every new tensor.
-        me_tol : float
-            Threshold for neglecting matrix elements.
-    Kwargs:
-        descr : str or list
-            Description of richmol data. Old richmol file format does not contain description
-            of the data, this can be added into hdf5 file by passing a string or list of strings
-            in descr variable. The description can be added only if store_states=True.
-        tens_descr : str or list
-            Description of tensor.
-        tens_units : str
-            Tensor units.
-        enr_units : str
-            Energy units.
-        tens_name : str
-            If provided, the name of tensor read from richmol file will be replaced with tens_name.
-            Tensor name is used to generate data group name for matrix elements of tensor in hdf5 file.
-            For state energies, the data group name is 'h0'.
-    """
-    if replace == True:
-        store_states_ = True
-    else:
-        store_states_ = store_states
-
-    try:
-        descr = kwargs['descr']
-    except KeyError:
-        descr = None
-
-    try:
-        tens_descr = kwargs['tens_descr']
-    except KeyError:
-        tens_descr = None
-
-    try:
-        tens_units = kwargs['tens_units']
-    except KeyError:
-        tens_units = None
-
-    try:
-        enr_units = kwargs['enr_units']
-    except KeyError:
-        enr_units = None
-
-    try:
-        tens_name = kwargs['tens_name']
-    except KeyError:
-        tens_name = None
-
-    # read states data
-    print(f"Read states data from richmol formatted text file {states_file}")
-    fl = open(states_file, "r")
-    maxid = {}
-    for line in fl:
-        w = line.split()
-        J = round(float(w[0]),1)
-        id = np.int64(w[1])
-        try:
-            maxid[J] = max(maxid[J], id)
-        except KeyError:
-            maxid[J] = id
-    fl.seek(0)
-    map_id_to_istate = {J : np.zeros(maxid[J]+1, dtype=np.int64) for J in maxid.keys()}
-    for J, elem in map_id_to_istate.items():
-        elem[:] = -1
-    states = {}
-    nstates = {J : 0 for J in maxid.keys()}
-    for line in fl:
-        w = line.split()
-        J = round(float(w[0]),1)
-        id = np.int64(w[1])
-        sym = w[2]
-        ndeg = int(w[3])
-        enr = float(w[4])
-        qstr = ' '.join([w[i] for i in range(5,len(w))])
-        try:
-            map_id_to_istate[J][id] = nstates[J]
-        except KeyError:
-            map_id_to_istate[J][id] = 0
-        try:
-            x = states[J][0]
-        except (IndexError, KeyError):
-            states[J] = []
-        for ideg in range(ndeg):
-            states[J].append((nstates[J], sym, ideg, enr, qstr))
-            nstates[J] += 1
-    fl.close()
-
-    # store states data
-    if store_states_ == True:
-        print(f"Write states data into richmol hdf5 file {h5_file}, replace={replace}")
-        for iJ, J in enumerate(states.keys()):
-            id = [elem[0] for elem in states[J]]
-            sym = [elem[1] for elem in states[J]]
-            ideg = [elem[2] for elem in states[J]]
-            enr = [elem[3] for elem in states[J]]
-            qstr = [elem[4] for elem in states[J]]
-            store(h5_file, 'h0', J, J, enr=enr, id=id, sym=sym, ideg=ideg, assign=qstr, \
-                  replace=(replace if iJ == 0 else False), descr=descr, units=enr_units)
-
-    # read matrix elements data and store into hdf5 file
-    print(f"Convert richmol matrix elements data {tens_file} --> {h5_file}, tol={me_tol}")
-    for J1 in states.keys():
-        for J2 in states.keys():
+    # read M and K tensors for different pairs of J quanta
+
+    Jlist1 = states.Jlist1
+    Jlist2 = states.Jlist2
+
+    mmat = dict()
+    kmat = dict()
+    tens_cart = []
+    tens_nirrep = None
+    tens_ncart = None
+
+    for J1 in Jlist1:
+        for J2 in Jlist2:
 
             F1_str = str(round(J1,1))
             F2_str = str(round(J2,1))
             J1_str = str(int(round(J1,0)))
             J2_str = str(int(round(J2,0)))
 
-            fname = re.sub(r"\<f1\>", F1_str, tens_file)
+            fname = re.sub(r"\<f1\>", F1_str, filename)
             fname = re.sub(r"\<f2\>", F2_str, fname)
             fname = re.sub(r"\<j1\>", J1_str, fname)
             fname = re.sub(r"\<j2\>", J2_str, fname)
 
-            if not os.path.exists(fname):
+            if not opersys.path.exists(fname):
                 continue
 
-            print(f"Read matrix elements from richmol formatted text file {fname}")
-            fl = open(fname, "r")
+            with open(fname, "r") as fl:
 
-            iline = 0
-            eof = False
-            read_m = False
-            read_k = False
-            icart = None
+                iline = 0
+                eof = False
+                read_m = False
+                read_k = False
 
-            for line in fl:
-                strline = line.rstrip('\n')
+                for line in fl:
+                    strline = line.rstrip('\n')
 
-                if iline==0:
-                    if strline!="Start richmol format":
-                        raise RuntimeError(f"Matrix-elements file '{fname}' has bogus header = '{strline}'")
-                    iline+=1
-                    continue
+                    if iline == 0:
+                        if strline != "Start richmol format":
+                            raise Exception(f"matrix elements file '{fname}' has bogus header '{strline}'")
+                        iline+=1
+                        continue
 
-                if strline == "End richmol format":
-                    eof = True
-                    break
+                    if strline == "End richmol format":
+                        eof = True
+                        break
 
-                if iline==1:
-                    w = strline.split()
-                    if tens_name is None:
+                    if iline == 1:
+                        w = strline.split()
                         tens_name = w[0]
-                    nomega = int(w[1])
-                    ncart = int(w[2])
-                    iline+=1
-                    continue
+                        nirrep = int(w[1])
+                        ncart = int(w[2])
+                        if tens_nirrep is not None and tens_nirrep != nirrep:
+                            raise Exception(f"'nirrep' = {nirrep} read from file {fname} is different from " + \
+                                f"the value {tens_nirrep} read from previous files") from None
+                        if tens_ncart is not None and tens_ncart != ncart:
+                            raise Exception(f"'ncart' = {ncart} read from file {fname} is different from " + \
+                                f"the value {tens_ncart} read from previous files") from None
+                        tens_nirrep = nirrep
+                        tens_ncart = ncart
+                        iline+=1
+                        continue
 
-                if strline=="M-tensor":
-                    read_m = True
-                    read_k = False
-                    mvec = {}
-                    im1 = {}
-                    im2 = {}
-                    iline+=1
-                    continue
+                    if strline == "M-tensor":
+                        read_m = True
+                        read_k = False
+                        mdata = dict()
+                        mrow = dict()
+                        mcol = dict()
+                        iline+=1
+                        continue
 
-                if strline=="K-tensor":
-                    read_m = False
-                    read_k = True
-                    kvec = [[] for i in range(nomega)]
-                    ik1 = [[] for i in range(nomega)]
-                    ik2 = [[] for i in range(nomega)]
-                    iline+=1
-                    continue
+                    if strline == "K-tensor":
+                        read_m = False
+                        read_k = True
+                        kdata = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        krow = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        kcol = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
+                        iline+=1
+                        continue
 
-                if read_m is True and strline.split()[0]=="alpha":
-                    w = strline.split()
-                    icart = int(w[1])
-                    icmplx = int(w[2])
-                    scart = w[3].lower()
-                    cmplx_fac = (1j, 1)[icmplx+1]
-                    mvec[scart] = [[] for i in range(nomega)]
-                    im1[scart] = [[] for i in range(nomega)]
-                    im2[scart] = [[] for i in range(nomega)]
-                    iline+=1
-                    continue
+                    if read_m is True and strline.split()[0] == "alpha":
+                        w = strline.split()
+                        icmplx = int(w[2])
+                        cart = w[3].lower()
+                        tens_cart = list(set(tens_cart + [cart]))
+                        cmplx_fac = (1j, 1)[icmplx+1]
+                        mdata[cart] = dict()
+                        mrow[cart] = dict()
+                        mcol[cart] = dict()
+                        iline+=1
+                        continue
 
-                if read_m is True:
-                    w = strline.split()
-                    m1 = float(w[0])
-                    m2 = float(w[1])
-                    i1, i2 = int(m1 + J1), int(m2 + J2)
-                    mval = [ float(val) * cmplx_fac for val in w[2:] ]
-                    ind_omega = [i for i in range(nomega) if abs(mval[i]) > me_tol]
-                    for iomega in ind_omega:
-                        im1[scart][iomega].append(i1)
-                        im2[scart][iomega].append(i2)
-                        mvec[scart][iomega].append(mval[iomega])
+                    if read_m is True:
+                        w = strline.split()
+                        m1 = float(w[0])
+                        m2 = float(w[1])
+                        try:
+                            im1 = states.map_mstates[(J1, m1)]
+                        except:
+                            continue
+                        try:
+                            im2 = states.map_mstates[(J2, m2)]
+                        except:
+                            continue
+                        mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                        if thresh is not None:
+                            irreps = [i for i in range(nirrep) if abs(mval[i]) > thresh]
+                        else:
+                            irreps = [i for i in range(nirrep)]
+                        for irrep in irreps:
+                            try:
+                                mrow[cart][irrep].append(im1)
+                                mcol[cart][irrep].append(im2)
+                                mdata[cart][irrep].append(mval[irrep])
+                            except KeyError:
+                                mrow[cart][irrep] = [im1]
+                                mcol[cart][irrep] = [im2]
+                                mdata[cart][irrep] = [mval[irrep]]
 
-                if read_k is True:
-                    w = strline.split()
-                    id1 = int(w[0])
-                    id2 = int(w[1])
-                    ideg1 = int(w[2])
-                    ideg2 = int(w[3])
-                    kval = [float(val) for val in w[4:]]
-                    istate1 = map_id_to_istate[J1][id1] + ideg1 - 1
-                    istate2 = map_id_to_istate[J2][id2] + ideg2 - 1
-                    ind_omega = [i for i in range(nomega) if abs(kval[i]) > me_tol]
-                    for iomega in ind_omega:
-                        ik1[iomega].append(istate1)
-                        ik2[iomega].append(istate2)
-                        kvec[iomega].append(kval[iomega])
+                    if read_k is True:
+                        w = strline.split()
+                        id1 = int(w[0])
+                        id2 = int(w[1])
+                        ideg1 = int(w[2])
+                        ideg2 = int(w[3])
+                        kval = [float(val) for val in w[4:]]
+                        try:
+                            istate1, sym1 = states.map_kstates[(J1, id1, ideg1)]
+                        except:
+                            continue
+                        try:
+                            istate2, sym2 = states.map_kstates[(J2, id2, ideg2)]
+                        except:
+                            continue
+                        if thresh is not None:
+                            irreps = [i for i in range(nirrep) if abs(kval[i]) > thresh]
+                        else:
+                            irreps = [i for i in range(nirrep)]
+                        sym = (sym1, sym2)
+                        for irrep in irreps:
+                            try:
+                                krow[sym][irrep].append(istate1)
+                                kcol[sym][irrep].append(istate2)
+                                kdata[sym][irrep].append(kval[irrep])
+                            except IndexError:
+                                krow[sym][irrep] = [istate1]
+                                kcol[sym][irrep] = [istate2]
+                                kdata[sym][irrep] = [kval[irrep]]
 
-                iline +=1
-            fl.close()
+                    iline +=1
 
-            if eof is False:
-                raise RuntimeError(f"Matrix-elements file '{fname}' has bogus footer = '{strline}'")
+                if eof is False:
+                    raise Exception(f"matrix-elements file '{fname}' has bogus footer '{strline}'")
 
-            print(f"Write matrix elements into richmol hdf5 file {h5_file}, me_tol = {me_tol}")
+            fshape = lambda sym: (states.dim_m1[J1][sym[0]], states.dim_m2[J2][sym[1]])
+            mmat[(J1,J2)] = {sym : {cart : {irrep :
+                             csr_matrix((mdata[cart][irrep], (mrow[cart][irrep], mcol[cart][irrep])), shape=fshape(sym))
+                             for irrep in mdata[cart].keys()}
+                             for cart in mdata.keys()}
+                             for sym in kdata.keys()}
 
-            # write M-matrix into hdf5 file
-            for cart in mvec.keys():
-                print(f"    M-tensor's {cart} component, irreps = {ind_omega}")
-                ind_omega = [iomega for iomega in range(nomega) if len(mvec[cart][iomega]) > 0]
-                mat = [ coo_matrix((mvec[cart][iomega], (im2[cart][iomega], im1[cart][iomega])), \
-                            shape=(int(2*J2+1), int(2*J1+1)) ) for iomega in ind_omega ]
-                store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, cart=cart, mmat=mat)
+            fshape = lambda sym: (states.dim_k1[J1][sym[0]], states.dim_k2[J2][sym[1]])
+            kmat[(J1,J2)] = {sym : {irrep :
+                             csr_matrix((kdata[sym][irrep], (krow[sym][irrep], kcol[sym][irrep])), shape=fshape(sym))
+                             for irrep in kdata[sym].keys()}
+                             for sym in kdata.keys()}
 
-            # write K-matrix into hdf5 file
-            print(f"    K-tensor, irreps = {ind_omega}")
-            ind_omega = [iomega for iomega in range(nomega) if len(kvec[iomega]) > 0]
-            mat = [ coo_matrix((kvec[iomega], (ik2[iomega], ik1[iomega])), shape=(nstates[J2], nstates[J1]) ) \
-                    for iomega in ind_omega ]
-            store(h5_file, tens_name, J2, J1, thresh=me_tol, irreps=ind_omega, kmat=mat, \
-                  tens_descr=tens_descr, units=tens_units)
+            # delete empty entries in kmat
+            symlist = list(kmat[(J1, J2)].keys())
+            for sym in symlist:
+                if all(mat.nnz == 0 for mat in kmat[(J1, J2)][sym].values()):
+                    del kmat[(J1, J2)][sym]
 
+            # delete empty entries in mmat
+            symlist = list(mmat[(J1, J2)].keys())
+            for sym in symlist:
+                if all(mat.nnz == 0 for tmat in mmat[(J1, J2)][sym].values() for mat in tmat.values()):
+                    del mmat[(J1, J2)][sym]
+
+    # copy some attributes from states
+
+    symlist1 = states.symlist1
+    symlist2 = states.symlist2
+    dim_m1 = states.dim_m1
+    dim_m2 = states.dim_m2
+    dim_k1 = states.dim_k1
+    dim_k2 = states.dim_k2
+    dim1 = states.dim1
+    dim2 = states.dim2
+    assign_m1 = states.assign_m1
+    assign_m2 = states.assign_m2
+    assign_k1 = states.assign_k1
+    assign_k2 = states.assign_k2
+    cart = tens_cart
+
+    # irreps[(ncart, nirrep)]
+    irreps = {(3,1) : [(1,-1), (1,0), (1,1)],                                               # rank-1 tensor
+              (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                                # traceless and symmetric rank-2 tensor
+              (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],                         # symmetric rank-2 tensor
+              (9,3) : [(0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2)]}   # non-symmetric rank-2 tensor
+
+    # ranks[ncart]
+    ranks = {3 : 1, 9 : 2}
+
+    # infer list of spherical-tensor indices
+    try:
+        os = irreps[(tens_ncart, tens_nirrep)]
+    except KeyError:
+        raise ValueError(f"can't infer Cartesian tensor irreps from the number " + \
+            f"of Cartesian components = {tens_ncart} and number of irreps = {tens_nirrep}") from None
+
+    # infer rank
+    try:
+        rank = ranks[tens_ncart]
+    except KeyError:
+        raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
+            f"of Cartesian components = {tens_ncart}") from None
+
+    # initialize field.CarTens object
+
+    loc = locals()
+    tens = field.CarTens()
+    for name in tens.attr_list:
+        setattr(tens, name, loc[name])
+    tens.check_attrs()
+
+    return tens
+
+
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]
