@@ -70,13 +70,15 @@ def add_rot_molecule(filename, mol, comment=None, replace=False):
                                    f"use replace=True to replace it") from None
         group = fl.create_group('molecule')
 
-        # store date/time
+        # date/time
         date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        group.attrs['date'] = date.replace('\n','')
+        doc = date.replace('\n','')
 
-        # store user comment
+        # user comment
         if comment is not None:
-            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
+            doc = doc + " " + " ".join(elem for elem in comment.split())
+
+        group.attrs['__doc__'] = doc
 
         # store XYZ
         try:
@@ -182,13 +184,15 @@ def add_tensor(filename, tens, name=None, comment=None, replace=False, thresh=No
                                    f"use replace=True to replace it") from None
         group = fl.create_group(name_)
 
-        # store date/time
+        # date/time
         date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        group.attrs['date'] = date.replace('\n','')
+        doc = date.replace('\n','')
 
-        # store user comment
+        # user comment
         if comment is not None:
-            group.attrs['comment'] = str.encode(" ".join(elem for elem in comment.split()))
+            doc = doc + " " + " ".join(elem for elem in comment.split())
+
+        group.attrs['__doc__'] = doc
 
         # store tensor attributes except M and K tensors, and few others
         attrs = list(set(vars(tens).keys()) - set(['mmat', 'kmat', 'molecule']))
@@ -341,7 +345,7 @@ def inspect_file(filename):
 
 
 def read_tensor(filename, name):
-    """Reads properties and matrix elements of Cartesian tensor operator
+    """Reads Cartesian tensor operator
 
     Args:
         filename : str
@@ -356,17 +360,25 @@ def read_tensor(filename, name):
     J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
     sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
 
+    # read data group attributes
+    data_groups = inspect_file(filename)
+
+    # init Cartesian tensor
+    tens = field.CarTens()
+    try:
+        tens_data = data_groups[name]
+        tens.__dict__.update(tens_data.__dict__)
+    except KeyError:
+        raise KeyError(f"file '{filename}' has no tensor dataset '{name}'")
+
+    # load M and K tensors
+
     with h5py.File(filename, 'a') as fl:
         try:
             group = fl[name]
         except KeyError:
             raise KeyError(f"file '{filename}' has no tensor dataset '{name}'") from None
 
-        # read dataset attributes
-        tens = type(name, (object,), {key:val for key,val in group.attrs.items()})
-
-        # read tensor matrix elements
-    
         tens.kmat = dict()
         tens.mmat = dict()
 
@@ -436,6 +448,7 @@ def read_tensor(filename, name):
                             except KeyError:
                                 tens.mmat[(J1, J2)] = {(sym1, sym2) : mmat}
 
+    tens.check_attrs()
     return tens
 
 
