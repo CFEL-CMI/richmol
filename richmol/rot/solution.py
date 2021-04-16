@@ -28,7 +28,7 @@ def register_ham(func):
     return func
 
 
-def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):
+def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
     """Solves rotational eigenvalue problem
 
     Args:
@@ -36,15 +36,23 @@ def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):
             Molecular parameters.
         Jmin, Jmax : int
             Min and max values of J quantum number.
-        only : dict
-            Contains various state filters to control the basis set and solution:
-            only['m'][J] for J in range(Jmin, Jmax+1) contains list of m quantum
-                numbers, by default, m runs form -J to +J
-            only['sym'][J] for J in range(Jmin, Jmax+1) contains lits of symmetries
-                for which solution to be obtained, by default, all symmetries
-                are considered
         verbose : bool
             If True, some log will be printed.
+
+    Kwargs:
+        mmin, mmax : int or float
+            Min and max values of quantum number m of Z projection of total
+            angular momentum
+        mlist : list
+            List of m values, if present, overrides mmin and mmax
+        mdict : dict
+            Dictionary mdict[J] -> list, contains list of m quantum numbers
+            for different values of J, if present, overrides mlist
+        symlist : list
+            List of state symmetries
+        symdict : dict:
+            Dictionary symdict[J] -> list, contains list of symmetries
+            for different values of J, if present, overrides symlist
 
     Returns:
         sol : nested dict
@@ -54,34 +62,61 @@ def solve(mol, Jmin=0, Jmax=10, only={}, verbose=False):
     assert(Jmax >= Jmin), f"Jmax = {Jmax} < Jmin = {Jmin}"
     Jlist = [J for J in range(Jmin, Jmax+1)]
 
+    # m-quanta filter
+
+    if 'mdict' in kwargs:
+        mdict = {J : [m for m in kwargs['mdict'][J]] for J in list(Jlist & kwargs['mdict'].keys)}
+        # for J values that are not present in kwargs['mdict'] set m ranges -J..J
+        j_out = [J for J in Jlist if J not in mdict]
+        mdict += {J : [m for m in np.linalg(-J, J, 2*J+1)] for J in j_out}
+    elif 'mlist' in kwargs:
+        mdict = {J : [m for m in kwargs['mlist'] if abs(m)<=J] for J in Jlist}
+    else:
+        mdict = dict()
+        mmin = None
+        mmax = None
+        if 'mmin' in kwargs:
+            mmin = kwargs['mmin']
+        if 'mmax' in kwargs:
+            mmax = kwargs['mmax']
+        if mmin is not None and mmax is not None:
+            assert (mmin <= mmax), f"'mmin' = {mmin} > 'mmax' = {mmax}"
+        for J in Jlist:
+            if mmin is None:
+                m1 = -J
+            else:
+                m1 = max([-J, mmin])
+            if mmax is None:
+                m2 = J
+            else:
+                m2 = min([J, mmax])
+            if m1>m2: continue
+            mdict[J] = [m for m in np.linspace(m1, m2, m2-m1+1)]
+
+    # compute solutions for different J and symmetries
+
     sol = {}
+
     for J in Jlist:
 
-        # m-quanta filter
-        if 'm' in only:
-            try:
-                try:
-                    m_list = list(only['m'][J])
-                except IndexError:
-                    raise IndexError(f"bad argument, only['m'][J] for J = {J} looks like an empty list") from None
-            except KeyError:
-                raise KeyError(f"bad argument, only['m'][J] for J = {J} does not exist") from None
-        else:
-            m_list = []
-
         # symmetry-adapted basis sets
-        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=m_list), sym=mol.sym)
+        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=mdict[J]),
+                            sym=mol.sym)
 
         sol[J] = {}
-        for sym,bas in symbas.items():
+
+        for sym, bas in symbas.items():
 
             # symmetry filter
-            if 'sym' in only:
+            if 'symdict' in kwargs:
                 try:
-                    if sym not in list(only['sym'][J]):
+                    if sym.lower() not in [elem.lower() for elem in kwargs['symdict'][J]]:
                         continue
                 except KeyError:
-                    raise KeyError(f"bad argument, only['sym'][J] for J = {J} does not exist") from None
+                    pass
+            elif 'symlist' in kwargs:
+                if sym not in kwargs['symlist']:
+                    continue
 
             if verbose is True:
                 print(f"solve for J = {J} and symmetry {sym}")
