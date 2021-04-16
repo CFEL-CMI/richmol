@@ -476,8 +476,8 @@ def read_states(filename, **kwargs):
             Min and max values of state energy
         symlist : list
             List of state symmetries
-        symdic : dict:
-            Dictionary symdic[J] -> list, contains list of symmetries
+        symdict : dict:
+            Dictionary symdict[J] -> list, contains list of symmetries
             for different values of J, if present, overrides symlist
 
     Returns:
@@ -519,9 +519,9 @@ def read_states(filename, **kwargs):
             if 'emax' in kwargs:
                 if enr > kwargs['emax']:
                     continue
-            if 'symdic' in kwargs:
+            if 'symdict' in kwargs:
                 try:
-                    if sym.lower() not in [elem.lower() for elem in kwargs['symdic'][J]]:
+                    if sym.lower() not in [elem.lower() for elem in kwargs['symdict'][J]]:
                         continue
                 except KeyError:
                     pass
@@ -555,9 +555,9 @@ def read_states(filename, **kwargs):
         if len(j_none) > 0:
             raise Exception(f"states with the following J quanta were not found: {j_none}") from None
 
-    if 'symdic' in kwargs:
-        sym_none = {J : [sym for sym in kwargs['symdic'][J] if sym not in energy[J].keys()]
-                    for J in kwargs['symdic'].keys()}
+    if 'symdict' in kwargs:
+        sym_none = {J : [sym for sym in kwargs['symdict'][J] if sym not in energy[J].keys()]
+                    for J in kwargs['symdict'].keys()}
     elif 'symlist' in kwargs:
         symlist = set([sym for J in energy.keys() for sym in energy[J].keys()])
         sym_none = [sym for sym in kwargs['symlist'] if sym not in symlist]
@@ -591,11 +591,11 @@ def read_states(filename, **kwargs):
             if mmin is None:
                 m1 = -J
             else:
-                m1 = max(-J, mmin)
+                m1 = max([-J, mmin])
             if mmax is None:
                 m2 = J
             else:
-                m2 = min(J, mmax)
+                m2 = min([J, mmax])
             if m1>m2: continue
             mdict[J] = [round(float(m),1) for m in np.linspace(m1, m2, m2-m1+1)]
 
