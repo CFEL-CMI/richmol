@@ -36,14 +36,14 @@ def store(filename, obj, *args, **kwargs):
                 field.CarTens
     """
     if isinstance(obj, molecule.Molecule):
-        add_rot_molecule(filename, obj, *args, **kwargs)
+        add_rig_molecule(filename, obj, *args, **kwargs)
     elif isinstance(obj, (labtens.LabTensor, field.CarTens)):
         add_tensor(filename, obj, *args, **kwargs)
     else:
         raise TypeError(f"unsupported type: '{type(obj)}'") from None
 
 
-def add_rot_molecule(filename, mol, comment=None, replace=False):
+def add_rig_molecule(filename, mol, comment=None, replace=False):
     """Stores molecular data
 
     Args:
