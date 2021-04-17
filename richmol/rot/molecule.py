@@ -6,7 +6,12 @@ from richmol.rot import symmetry
 import numpy as np
 import string
 import random
-
+import json
+import inspect
+import h5py
+import datetime
+import time
+import types
 
 _diag_tol = 1e-12 # for treating off-diagonal elements as zero
 _sing_tol = 1e-12 # for treating singular value as zero
@@ -360,6 +365,140 @@ class Molecule:
         self.symmetry = symmetry.group(val)
 
 
+    def store(self, filename, name=None, comment=None, replace=False):
+        """Stores object in HDF5 file
+    
+        Args:
+            filename : str
+                Name of HDF5 file
+            name : str
+                Name of the data group, dy default name of variable is used
+            comment : str
+                User comment
+            replace : bool
+                If True, the existing data set will be replaced
+        """
+        if name is None:
+            name = retrieve_name(self)
+
+        with h5py.File(filename, 'a') as fl:
+            if name in fl:
+                if replace is True:
+                    del fl[name]
+                else:
+                    raise RuntimeError(f"found existing dataset '{name}' in file " + \
+                        f"'{filename}', use replace=True to replace it") from None
+
+            group = fl.create_group(name)
+            group.attrs["__class__"] = self.__module__ + "." + self.__class__.__name__
+
+            # description of object
+            doc = "Rigid molecule description"
+
+            # add date/time
+            date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+            doc += ", store date: " + date.replace('\n','')
+
+            # add user comment
+            if comment is not None:
+                doc += ", comment: " + " ".join(elem for elem in comment.split())
+
+            group.attrs['__doc__'] = doc
+
+            # store attributes
+            attrs = list(set(vars(self).keys()))
+            for attr in attrs:
+                val = getattr(self, attr)
+                try:
+                    group.attrs[attr] = val
+                except TypeError:
+                    jd = json.dumps(val, cls=JSONEncoder)
+                    group.attrs[attr + "__json"] = jd
+
+
+    def read(self, filename):
+        """Reads object from HDF5 file
+
+        Args:
+            filename : str
+                Name of HDF5 file
+        """
+        with h5py.File(filename, 'a') as fl:
+            for name, group in fl.items():
+                try:
+                    if group.attrs["__class__"] == self.__module__ + "." + self.__class__.__name__:
+                        attr = {}
+                        for key, val in group.attrs.items():
+                            if key.find('__json') == -1:
+                                attr[key] = val
+                            else:
+                                jl = json.loads(val, object_hook=JSONDecoder)
+                                key = key.replace('__json', '')
+                                attr[key] = jl
+                        self.__dict__.update(attr)
+                except KeyError:
+                    continue
+                    
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+
+        # complex number
+        if isinstance(obj, complex):
+            return {"real":obj.real, "imag":obj.imag, "__complex__":True}
+
+        # type object
+        elif isinstance(obj, type):
+            res = {name:getattr(obj, name) for name in vars(obj).keys()}
+            res["__type__"] = True
+            return res 
+
+        # numpy ndarray
+        elif isinstance(obj, np.ndarray):
+            res = {"val":obj.tolist(), "__ndarray__":True}
+            try:
+                # structured array
+                dtype = []
+                for x,y in obj.dtype.fields.items():
+                    sdt = y[0].subdtype
+                    if sdt is not None:
+                        dtype.append((x, str(sdt[0]), sdt[1]))
+                    else:
+                        dtype.append((x, str(y[0])))
+                res["dtype"] = dtype
+            except AttributeError:
+                pass
+            return res
+
+        elif isinstance(obj, types.FunctionType):
+            return None
+        else:
+            return super().default(obj)
+
+
+def JSONDecoder(dct):
+    # complex number
+    if "__complex__" in dct:
+        return complex(dct["real"], dct["imag"])
+
+    # type object
+    elif "__type__" in dct:
+        return type("name", (object,), {key:val for key,val in dct.items()})
+
+    # numpy ndarray array
+    elif "__ndarray__" in dct:
+        if "dtype" in dct:
+            # structured array
+            dtype = [(elem[0], elem[1], elem[2]) if len(elem)>2 else (elem[0], elem[1])
+                     for elem in dct["dtype"]]
+            return np.array([tuple(elem) for elem in dct["val"]], dtype=dtype)
+        else:
+            # normal array
+            return dct["val"]
+
+    return dct
+
+
 
 def mol_tensor(val):
     """Adds user-defined new Cartesian tensor which is not declared in mol_tens module.
@@ -393,13 +532,21 @@ def mol_tensor(val):
     return type("user_mol_tens", (object,), {"val" : tens, "name" : random_name})
 
 
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]
+
+
 
 if __name__ == '__main__':
     import sys
     from richmol.rot.solution import solve
     from richmol.rot.labtens import LabTensor
     from richmol.rot.molecule import Molecule
-    from richmol.rot import rchm
+    from richmol import rchm
 
     camphor = Molecule()
     camphor.XYZ = ("angstrom", \
@@ -450,6 +597,13 @@ if __name__ == '__main__':
     print(camphor.ABC)
     camphor.frame = 'diag(inertia)'
     print(camphor.ABC)
+    camphor.store('camphor.h5', replace=True)
+    mol = Molecule()
+    mol.read('camphor.h5')
+    print(mol.dip)
+    print(mol.XYZ)
+    print(mol.XYZ['label'])
+    sys.exit()
     # print(camphor.ABC)
     # print(camphor.ABC_geom)
     sol = solve(camphor, Jmin=0, Jmax=1, verbose=True) # transform solution into a tensor format
