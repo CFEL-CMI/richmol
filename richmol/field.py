@@ -3,6 +3,12 @@ from scipy.sparse import kron, csr_matrix
 import itertools
 from itertools import chain
 import copy
+import h5py
+import inspect
+import datetime
+import time
+import json
+from richmol.rot import json_custom
 
 
 class CarTens():
@@ -337,3 +343,153 @@ class CarTens():
         return res
 
     __rmul__ = __mul__
+
+
+    def store(self, filename, name=None, comment=None, replace=False, thresh=None):
+        """Stores obejct into HDF5 file
+    
+        Args:
+            filename : str
+                Name of HDF5 file
+            name : str
+                Name of the data group, by default name of variable is used
+            comment : str
+                User comment
+            replace : bool
+                If True, the existing data set will be replaced
+            thresh : float
+                Threshold for neglecting matrix elements when writing into file
+
+        """
+        if name is None:
+            name = retrieve_name(self)
+
+        with h5py.File(filename, 'a') as fl:
+            if name in fl:
+                if replace is True:
+                    del fl[name]
+                else:
+                    raise RuntimeError(f"found existing dataset '{name}' in file " + \
+                        f"'{filename}', use replace=True to replace it") from None
+
+            group = fl.create_group(name)
+            group.attrs["__class__"] = self.__module__ + "." + self.__class__.__name__
+
+            # description of object
+            doc = "Cartesian tensor operator"
+
+            # add date/time
+            date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+            doc += ", store date: " + date.replace('\n','')
+
+            # add user comment
+            if comment is not None:
+                doc += ", comment: " + " ".join(elem for elem in comment.split())
+
+            group.attrs['__doc__'] = doc
+
+            # store attributes
+            attrs = list(set(vars(self).keys()) - set(['mmat', 'kmat', 'molecule']))
+            for attr in attrs:
+                val = getattr(self, attr)
+                try:
+                    group.attrs[attr] = val
+                except TypeError:
+                    jd = json.dumps(val, cls=json_custom.Encoder)
+                    group.attrs[attr + "__json"] = jd
+
+            # store M and K tensors
+
+            # loop over pairs of coupled J quanta
+            for (J1, J2) in list(set(self.mmat.keys()) & set(self.kmat.keys())):
+
+                mmat_sym = self.mmat[(J1, J2)]
+                kmat_sym = self.kmat[(J1, J2)]
+
+                # loop over pairs of coupled symmetries
+                for (sym1, sym2) in list(set(mmat_sym.keys()) & set(kmat_sym.keys())):
+
+                    # store K-matrix
+
+                    # remove elements smaller that 'thresh'
+                    kmat = kmat_sym[(sym1, sym2)]
+                    kmat_ = [k for k in kmat.values()]
+                    if thresh is not None:
+                        for k in kmat_:
+                            mask = np.abs(k.data) < thresh
+                            k.data[mask] = 0
+                            k.eliminate_zeros()
+
+                    data = [k.data for k in kmat_ if k.nnz > 0]
+                    indices = [k.indices for k in kmat_ if k.nnz > 0]
+                    indptr = [k.indptr for k in kmat_ if k.nnz > 0]
+                    shape = [k.shape for k in kmat_ if k.nnz > 0]
+                    irreps = [key for key,k in zip(kmat.keys(), kmat_) if k.nnz > 0]
+                    if len(data) > 0:
+                        try:
+                            group_j = group[J_group_key(J1, J2)]
+                        except:
+                            group_j = group.create_group(J_group_key(J1, J2))
+                        try:
+                            group_sym = group_j[sym_group_key(sym1, sym2)]
+                        except:
+                            group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                        group_sym.create_dataset('kmat_data', data=np.concatenate(data))
+                        group_sym.create_dataset('kmat_indices', data=np.concatenate(indices))
+                        group_sym.create_dataset('kmat_indptr', data=np.concatenate(indptr))
+                        group_sym.attrs['kmat_nnz'] = [len(dat) for dat in data]
+                        group_sym.attrs['kmat_nind'] = [len(ind) for ind in indices]
+                        group_sym.attrs['kmat_nptr'] = [len(ind) for ind in indptr]
+                        group_sym.attrs['kmat_irreps'] = irreps
+                        group_sym.attrs['kmat_shape'] = shape
+
+                    # store M-matrix
+
+                    # remove elements smaller that 'thresh'
+                    mmat = mmat_sym[(sym1, sym2)]
+                    mmat_ = [m for mcart in mmat.values() for m in mcart.values()]
+                    if thresh is not None:
+                        for m in mmat_:
+                            mask = np.abs(m.data) < thresh
+                            m.data[mask] = 0
+                            m.eliminate_zeros()
+
+                    data = [m.data for m in mmat_ if m.nnz > 0]
+                    indices = [m.indices for m in mmat_ if m.nnz > 0]
+                    indptr = [m.indptr for m in mmat_ if m.nnz > 0]
+                    shape = [m.shape for m in mmat_ if m.nnz > 0]
+                    irreps_cart = [(key1, key2) for key2 in mmat.keys() for key1 in mmat[key2].keys()]
+                    irreps_cart = [(irrep, cart) for (irrep,cart),m in zip(irreps_cart,mmat_) if m.nnz > 0]
+                    if len(data) > 0:
+                        try:
+                            group_j = group[J_group_key(J1, J2)]
+                        except:
+                            group_j = group.create_group(J_group_key(J1, J2))
+                        try:
+                            group_sym = group_j[sym_group_key(sym1, sym2)]
+                        except:
+                            group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                        group_sym.create_dataset('mmat_data', data=np.concatenate(data))
+                        group_sym.create_dataset('mmat_indices', data=np.concatenate(indices))
+                        group_sym.create_dataset('mmat_indptr', data=np.concatenate(indptr))
+                        group_sym.attrs['mmat_nnz'] = [len(dat) for dat in data]
+                        group_sym.attrs['mmat_nind'] = [len(ind) for ind in indices]
+                        group_sym.attrs['mmat_nptr'] = [len(ind) for ind in indptr]
+                        group_sym.attrs['mmat_irreps_cart'] = irreps_cart
+                        group_sym.attrs['mmat_shape'] = shape
+
+
+def J_group_key(J1, J2):
+    return 'J:' + str(round(float(J1), 1)) + ',' + str(round(float(J2), 1))
+
+
+def sym_group_key(sym1, sym2):
+    return 'sym:' + str(sym1) + ',' + str(sym2)
+
+
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]

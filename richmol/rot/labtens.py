@@ -6,9 +6,6 @@ from scipy.sparse import csr_matrix
 from richmol.field import CarTens
 from richmol.rot.molecule import Molecule
 from richmol.rot.solution import hamiltonian
-import itertools
-import copy
-
 
 _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
 
@@ -208,6 +205,11 @@ class LabTensor(CarTens):
         self.assign_k2 = assign_k
         self.assign_m1 = assign_m
         self.assign_m2 = assign_m
+
+        # bra and ket wave functions
+
+        self.basis1 = basis
+        self.basis2 = basis
 
         # matrix elements
 
@@ -432,3 +434,5 @@ class LabTensor(CarTens):
                             del kmat[(J1, J2)][(sym1, sym2)]
 
         return kmat, mmat
+
+
