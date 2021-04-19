@@ -11,7 +11,8 @@ import inspect
 import h5py
 import datetime
 import time
-import types
+from richmol.rot import json_custom
+
 
 _diag_tol = 1e-12 # for treating off-diagonal elements as zero
 _sing_tol = 1e-12 # for treating singular value as zero
@@ -372,7 +373,7 @@ class Molecule:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, dy default name of variable is used
+                Name of the data group, by default name of variable is used
             comment : str
                 User comment
             replace : bool
@@ -412,7 +413,7 @@ class Molecule:
                 try:
                     group.attrs[attr] = val
                 except TypeError:
-                    jd = json.dumps(val, cls=JSONEncoder)
+                    jd = json.dumps(val, cls=json_custom.Encoder)
                     group.attrs[attr + "__json"] = jd
 
 
@@ -432,72 +433,12 @@ class Molecule:
                             if key.find('__json') == -1:
                                 attr[key] = val
                             else:
-                                jl = json.loads(val, object_hook=JSONDecoder)
+                                jl = json.loads(val, object_hook=json_custom.decode)
                                 key = key.replace('__json', '')
                                 attr[key] = jl
                         self.__dict__.update(attr)
                 except KeyError:
                     continue
-                    
-
-class JSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-
-        # complex number
-        if isinstance(obj, complex):
-            return {"real":obj.real, "imag":obj.imag, "__complex__":True}
-
-        # type object
-        elif isinstance(obj, type):
-            res = {name:getattr(obj, name) for name in vars(obj).keys()}
-            res["__type__"] = True
-            return res 
-
-        # numpy ndarray
-        elif isinstance(obj, np.ndarray):
-            res = {"val":obj.tolist(), "__ndarray__":True}
-            try:
-                # structured array
-                dtype = []
-                for x,y in obj.dtype.fields.items():
-                    sdt = y[0].subdtype
-                    if sdt is not None:
-                        dtype.append((x, str(sdt[0]), sdt[1]))
-                    else:
-                        dtype.append((x, str(y[0])))
-                res["dtype"] = dtype
-            except AttributeError:
-                pass
-            return res
-
-        elif isinstance(obj, types.FunctionType):
-            return None
-        else:
-            return super().default(obj)
-
-
-def JSONDecoder(dct):
-    # complex number
-    if "__complex__" in dct:
-        return complex(dct["real"], dct["imag"])
-
-    # type object
-    elif "__type__" in dct:
-        return type("name", (object,), {key:val for key,val in dct.items()})
-
-    # numpy ndarray array
-    elif "__ndarray__" in dct:
-        if "dtype" in dct:
-            # structured array
-            dtype = [(elem[0], elem[1], elem[2]) if len(elem)>2 else (elem[0], elem[1])
-                     for elem in dct["dtype"]]
-            return np.array([tuple(elem) for elem in dct["val"]], dtype=dtype)
-        else:
-            # normal array
-            return dct["val"]
-
-    return dct
-
 
 
 def mol_tensor(val):
