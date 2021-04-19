@@ -2,9 +2,13 @@ import numpy as np
 from richmol.rot.basis import SymtopBasis
 from richmol.rot.symmetry import symmetrize
 from richmol.rot.J import Jxx, Jyy, Jzz, Jxy, Jyx, Jxz, Jzx, Jyz, Jzy, JJ, Jp, Jm
-from scipy.sparse import csr_matrix
-from richmol.field import CarTens
-import itertools
+from collections import UserDict
+import inspect
+import h5py
+import datetime
+import time
+import json
+from richmol.rot import json_custom
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
@@ -26,6 +30,93 @@ def register_ham(func):
     _hamiltonians[func.__name__] = func
     _constants[func.__name__] = mol.const
     return func
+
+
+class Solution(UserDict):
+    def __init__(self, val=None):
+        if val is None:
+            val = {}
+        super().__init__(val)
+
+    def __setitem__(self, item, value):
+        super().__setitem__(item, value)
+
+    def __delitem__(self, item):
+        super().__delitem__(item)
+
+    def store(self, filename, name=None, comment=None, replace=False):
+        """Stores obejct into HDF5 file
+    
+        Args:
+            filename : str
+                Name of HDF5 file
+            name : str
+                Name of the data group, by default name of variable is used
+            comment : str
+                User comment
+            replace : bool
+                If True, the existing data set will be replaced
+        """
+        if name is None:
+            name = retrieve_name(self)
+
+        with h5py.File(filename, 'a') as fl:
+            if name in fl:
+                if replace is True:
+                    del fl[name]
+                else:
+                    raise RuntimeError(f"found existing dataset '{name}' in file " + \
+                        f"'{filename}', use replace=True to replace it") from None
+
+            group = fl.create_group(name)
+            group.attrs["__class__"] = self.__module__ + "." + self.__class__.__name__
+
+            # description of object
+            doc = "Rotational solutions"
+
+            # add date/time
+            date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+            doc += ", store date: " + date.replace('\n','')
+
+            # add user comment
+            if comment is not None:
+                doc += ", comment: " + " ".join(elem for elem in comment.split())
+
+            group.attrs['__doc__'] = doc
+
+            # store attributes
+            attrs = list(set(vars(self).keys()))
+            for attr in attrs:
+                val = getattr(self, attr)
+                try:
+                    group.attrs[attr] = val
+                except TypeError:
+                    jd = json.dumps(val, cls=json_custom.Encoder)
+                    group.attrs[attr + "__json"] = jd
+
+
+    def read(self, filename):
+        """Reads object from HDF5 file
+
+        Args:
+            filename : str
+                Name of HDF5 file
+        """
+        with h5py.File(filename, 'a') as fl:
+            for name, group in fl.items():
+                try:
+                    if group.attrs["__class__"] == self.__module__ + "." + self.__class__.__name__:
+                        attr = {}
+                        for key, val in group.attrs.items():
+                            if key.find('__json') == -1:
+                                attr[key] = val
+                            else:
+                                jl = json.loads(val, object_hook=json_custom.decode)
+                                key = key.replace('__json', '')
+                                attr[key] = jl
+                        self.__dict__.update(attr)
+                except KeyError:
+                    continue
 
 
 def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
@@ -55,14 +146,14 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
             for different values of J, if present, overrides symlist
 
     Returns:
-        sol : nested dict
+        sol : Solution
             Wave functions in symmetric-top basis (SymtopBasis class) for different values
             of J=Jmin..Jmax and different symmetries, i.e., sol[J][sym] -> SymtopBasis.
     """
     assert(Jmax >= Jmin), f"Jmax = {Jmax} < Jmin = {Jmin}"
     Jlist = [J for J in range(Jmin, Jmax+1)]
 
-    # m-quanta filter
+    # m-quanta filters, mdict, mlist, mmin and mmax
 
     if 'mdict' in kwargs:
         mdict = {J : [m for m in kwargs['mdict'][J]] for J in list(Jlist & kwargs['mdict'].keys)}
@@ -95,7 +186,7 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
 
     # compute solutions for different J and symmetries
 
-    sol = {}
+    sol = Solution()
 
     for J in Jlist:
 
@@ -294,3 +385,10 @@ def watson_s(H0, mol, bas, verbose=False):
 
     return H
 
+
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]
