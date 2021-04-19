@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 import math
 import copy
+from richmol.rot import json_custom
 
 _small = abs(np.finfo(float).eps)*10
 _large = abs(np.finfo(float).max)
@@ -638,8 +639,71 @@ class PsiTableMK():
         if isinstance(val, str):
             nstat = self.k.table['c'].shape[1]
             self.k.sym = np.array([val for istate in range(nstat)])
+        elif isinstance(val, (tuple, list)):
+            nstat = self.k.table['c'].shape[1]
+            if len(val) != nstat:
+                raise ValueError(f"length of symmetry list = {len(val)} " + \
+                    f"is not consistent with the number of states = {nstat}") from None
+            self.k.sym = np.array([elem for elem in val])
         else:
             raise TypeError(f"bad argument type '{type(val)}' for symmetry") from None
+
+
+    @json_custom.register_encoder("PsiTableMK")
+    def json_encode(self):
+        res = {}
+        res["__PsiTableMK__"] = True
+        res["k.table"] = self.k.table
+        res["m.table"] = self.m.table
+        try:
+            res["abc"] = self.abc
+        except AttributeError:
+            pass
+        try:
+            res["sym"] = self.sym.tolist()
+        except AttributeError:
+            pass
+        try:
+            res["enr"] = self.enr.tolist()
+        except AttributeError:
+            pass
+        return res
+
+    @json_custom.register_decoder("__PsiTableMK__")
+    def json_decode(dct):
+        k_table = dct["k.table"]
+        nprim = k_table['c'].shape[0]
+        nstat = k_table['c'].shape[1]
+        prim = k_table['prim'][:nprim]
+        stat = k_table['stat'][:nstat]
+        coefs = k_table['c']
+        PsiTableK = PsiTable(prim, stat, coefs)
+
+        m_table = dct["m.table"]
+        nprim = m_table['c'].shape[0]
+        nstat = m_table['c'].shape[1]
+        prim = m_table['prim'][:nprim]
+        stat = m_table['stat'][:nstat]
+        coefs = m_table['c']
+        PsiTableM = PsiTable(prim, stat, coefs)
+
+        bas = PsiTableMK(PsiTableK, PsiTableM)
+
+        try:
+            bas.abc = dct["abc"]
+        except KeyError:
+            pass
+        try:
+            bas.sym = dct["sym"]
+        except KeyError:
+            pass
+        try:
+            enr = np.array(dct["enr"])
+            rotmat = np.eye(bas.nstates, dtype=np.float64)
+            bas.rotate(krot=(rotmat, enr))
+        except KeyError:
+            pass
+        return bas
 
 
 
