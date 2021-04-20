@@ -8,31 +8,37 @@ import inspect
 import datetime
 import time
 import json
-from richmol.rot import json_custom
+import re
+from richmol import json
+from collections import defaultdict
 
 
 class CarTens():
     """General class for laboratory-frame Cartesian tensor operators
     """
 
-    # list of essential attributes, initialized externally
-    attr_list = ('Jlist1', 'Jlist2', 'symlist1', 'symlist2', 'dim_m1', 'dim_m2',
-                 'dim_k1', 'dim_k2', 'dim1', 'dim2', 'assign_m1', 'assign_m2',
-                 'assign_k1', 'assign_k2', 'cart', 'mmat', 'kmat', 'os', 'rank')
-
     prefac = 1.0
 
+    def __init__(self, **kwargs):
 
-    def __init__(self):
-        pass
+        if "file" in kwargs:
+            # read from HDF5 file
+            filename = kwargs["file"]
+            name = None
+            thresh = None
+            if "name" in kwargs:
+                name = kwargs["name"]
+            if "thresh" in kwargs:
+                thresh = kwargs["thresh"]
+            self.read(filename=filename, name=name, thresh=thresh)
 
+        #elif "states" in kwargs:
+        #    # read field-free basis from old-format richmol files
 
-    def check_attrs(self):
-        """Checks if all required attributes were initialized"""
-        attrs = list(vars(self).keys())
-        for attr in self.attr_list:
-            if attr not in attrs:
-                raise AttributeError(f"{self.__class__.__name__} attribute '{attr}' was not initialized") from None
+        #elif "trans" in kwargs:
+        #    # read tensor matrix elements from old-format richmol files
+
+        # initialize Jlist, symlist ..... here from attributes
 
 
     def tomat(self, form='block', **kwargs):
@@ -346,20 +352,19 @@ class CarTens():
 
 
     def store(self, filename, name=None, comment=None, replace=False, thresh=None):
-        """Stores obejct into HDF5 file
+        """Stores object into HDF5 file
     
         Args:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default name of variable is used
+                Name of the data group, by default name of the variable is used
             comment : str
                 User comment
             replace : bool
                 If True, the existing data set will be replaced
             thresh : float
                 Threshold for neglecting matrix elements when writing into file
-
         """
         if name is None:
             name = retrieve_name(self)
@@ -373,7 +378,9 @@ class CarTens():
                         f"'{filename}', use replace=True to replace it") from None
 
             group = fl.create_group(name)
-            group.attrs["__class__"] = self.__module__ + "." + self.__class__.__name__
+            base = list(self.__class__.__bases__)[0]
+            class_name = base.__module__ + "." + base.__name__
+            group.attrs["__class__"] = class_name
 
             # description of object
             doc = "Cartesian tensor operator"
@@ -389,13 +396,13 @@ class CarTens():
             group.attrs['__doc__'] = doc
 
             # store attributes
-            attrs = list(set(vars(self).keys()) - set(['mmat', 'kmat', 'molecule']))
+            attrs = list(set(vars(self).keys()) - set(['__class__', 'mmat', 'kmat', 'molecule']))
             for attr in attrs:
                 val = getattr(self, attr)
                 try:
                     group.attrs[attr] = val
                 except TypeError:
-                    jd = json.dumps(val, cls=json_custom.Encoder)
+                    jd = json.dumps(val)
                     group.attrs[attr + "__json"] = jd
 
             # store M and K tensors
@@ -458,7 +465,7 @@ class CarTens():
                     indices = [m.indices for m in mmat_ if m.nnz > 0]
                     indptr = [m.indptr for m in mmat_ if m.nnz > 0]
                     shape = [m.shape for m in mmat_ if m.nnz > 0]
-                    irreps_cart = [(key1, key2) for key2 in mmat.keys() for key1 in mmat[key2].keys()]
+                    irreps_cart = [(irrep, cart) for cart in mmat.keys() for irrep in mmat[cart].keys()]
                     irreps_cart = [(irrep, cart) for (irrep,cart),m in zip(irreps_cart,mmat_) if m.nnz > 0]
                     if len(data) > 0:
                         try:
@@ -479,11 +486,144 @@ class CarTens():
                         group_sym.attrs['mmat_shape'] = shape
 
 
+    def read(self, filename, name=None, thresh=None):
+        """Reads object from HDF5 file
+
+        Args:
+            filename : str
+                Name of HDF5 file
+            name : str
+                Name of the data group, by default name of the variable is used
+            thresh : float
+                Threshold for neglecting matrix elements when reading from file
+        """
+        mydict = lambda: defaultdict(mydict)
+        J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
+        sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+
+        if name is None:
+            name = retrieve_name(self)
+
+        with h5py.File(filename, 'a') as fl:
+
+            try:
+                group = fl[name]
+            except KeyError:
+                raise KeyError(f"file '{filename}' has no dataset with the name '{name}'") from None
+
+            class_name = group.attrs["__class__"]
+            if class_name != self.__module__ + "." + self.__class__.__name__:
+                raise TypeError(f"dataset with the name '{name}' in file '{filename}' " + \
+                    f"has different type: '{class_name}'") from None
+
+            # read attributes
+
+            attr = {}
+            for key, val in group.attrs.items():
+                if key.find('__json') == -1:
+                    attr[key] = val
+                else:
+                    jl = json.loads(val)
+                    key = key.replace('__json', '')
+                    attr[key] = jl
+            self.__dict__.update(attr)
+
+            # read M and K tensors
+
+            self.kmat = mydict()
+            self.mmat = mydict()
+
+            # search for J groups
+            for key in group.keys():
+
+                # pair of coupled J quanta
+                if re.match(J_key_re, key):
+                    Jpair = re.findall(f'\d+.\d+', key)
+                    J1, J2 = (round(float(elem), 1) for elem in Jpair)
+                    group_j = group[key]
+
+                    # search for symmetry groups
+                    for key2 in group_j.keys():
+
+                        # pair of coupled symmetries
+                        if re.match(sym_key_re, key2):
+                            sympair = re.findall(f'\w+', key2)
+                            _, sym1, sym2 = sympair
+                            group_sym = group_j[key2]
+
+                            # read K-matrix
+
+                            kmat = None
+                            try:
+                                nnz = group_sym.attrs['kmat_nnz']
+                                nind = group_sym.attrs['kmat_nind']
+                                nptr = group_sym.attrs['kmat_nptr']
+                                shape = group_sym.attrs['kmat_shape']
+                                irreps = group_sym.attrs['kmat_irreps']
+                                data = np.split(group_sym['kmat_data'], np.cumsum(nnz))[:-1]
+                                indices = np.split(group_sym['kmat_indices'], np.cumsum(nind))[:-1]
+                                indptr = np.split(group_sym['kmat_indptr'], np.cumsum(nptr))[:-1]
+                                kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)
+                                        for irrep,dat,ind,ptr,sh in zip(irreps,data,indices,indptr,shape)}
+                            except KeyError:
+                                pass
+
+                            # add K-matrix to tensor object
+                            if kmat is not None:
+                                # remove elements smaller that 'thresh'
+                                if thresh is not None:
+                                    for k in kmat.values():
+                                        mask = np.abs(k.data) < thresh
+                                        k.data[mask] = 0
+                                        k.eliminate_zeros()
+                                self.kmat[(J1, J2)][(sym1, sym2)] = kmat
+
+                            # read M-matrix
+
+                            mmat = None
+                            try:
+                                nnz = group_sym.attrs['mmat_nnz']
+                                nind = group_sym.attrs['mmat_nind']
+                                nptr = group_sym.attrs['mmat_nptr']
+                                shape = group_sym.attrs['mmat_shape']
+                                irreps_cart = group_sym.attrs['mmat_irreps_cart']
+                                data = np.split(group_sym['mmat_data'], np.cumsum(nnz))[:-1]
+                                indices = np.split(group_sym['mmat_indices'], np.cumsum(nind))[:-1]
+                                indptr = np.split(group_sym['mmat_indptr'], np.cumsum(nptr))[:-1]
+                                mmat = mydict()
+                                for ielem, (irrep, cart) in enumerate(irreps_cart):
+                                    dat = data[ielem]
+                                    ind = indices[ielem]
+                                    ptr = indptr[ielem]
+                                    sh = shape[ielem]
+                                    mmat[cart][int(irrep)] = csr_matrix((dat, ind, ptr), shape=sh)
+                            except KeyError:
+                                pass
+
+                            # add M-matrix to tensor object
+                            if mmat is not None:
+                                # remove elements smaller that 'thresh'
+                                if thresh is not None:
+                                    for mm in mmat.values():
+                                        for m in mm.values():
+                                            mask = np.abs(m.data) < thresh
+                                            m.data[mask] = 0
+                                            m.eliminate_zeros()
+                                self.mmat[(J1, J2)][(sym1, sym2)] = mmat
+
+
+
 def J_group_key(J1, J2):
+    """Generates HDF5 data group name for matrix elements between states
+    with bra and ket J quanta equal to J1 and J2, respectively
+    """
     return 'J:' + str(round(float(J1), 1)) + ',' + str(round(float(J2), 1))
 
 
 def sym_group_key(sym1, sym2):
+    """Generates HDF5 data group name for matrix elements between states
+    with bra and ket state symmetries equal to sym1 and sym2, respectively
+    """
     return 'sym:' + str(sym1) + ',' + str(sym2)
 
 
