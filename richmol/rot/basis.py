@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 import math
 import copy
-from richmol.rot import json_custom
+from richmol import json
 
 _small = abs(np.finfo(float).eps)*10
 _large = abs(np.finfo(float).max)
@@ -649,7 +649,7 @@ class PsiTableMK():
             raise TypeError(f"bad argument type '{type(val)}' for symmetry") from None
 
 
-    @json_custom.register_encoder("PsiTableMK")
+    @json.register_encoder("PsiTableMK")
     def json_encode(self):
         res = {}
         res["__PsiTableMK__"] = True
@@ -669,7 +669,7 @@ class PsiTableMK():
             pass
         return res
 
-    @json_custom.register_decoder("__PsiTableMK__")
+    @json.register_decoder("__PsiTableMK__")
     def json_decode(dct):
         k_table = dct["k.table"]
         nprim = k_table['c'].shape[0]

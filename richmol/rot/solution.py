@@ -7,8 +7,7 @@ import inspect
 import h5py
 import datetime
 import time
-import json
-from richmol.rot import json_custom
+from richmol import json
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
@@ -33,6 +32,9 @@ def register_ham(func):
 
 
 class Solution(UserDict):
+    """Field-free rotational solutions for different values of J quantum number
+    and different symmetries, i.e., Solution()[J][sym] -> SymtopBasis object
+    """
     def __init__(self, val=None):
         if val is None:
             val = {}
@@ -45,13 +47,13 @@ class Solution(UserDict):
         super().__delitem__(item)
 
     def store(self, filename, name=None, comment=None, replace=False):
-        """Stores obejct into HDF5 file
+        """Stores object into HDF5 file
     
         Args:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default name of variable is used
+                Name of the data group, by default name of the variable is used
             comment : str
                 User comment
             replace : bool
@@ -65,11 +67,12 @@ class Solution(UserDict):
                 if replace is True:
                     del fl[name]
                 else:
-                    raise RuntimeError(f"found existing dataset '{name}' in file " + \
+                    raise RuntimeError(f"found existing dataset with name '{name}' in file " + \
                         f"'{filename}', use replace=True to replace it") from None
 
             group = fl.create_group(name)
-            group.attrs["__class__"] = self.__module__ + "." + self.__class__.__name__
+            class_name = self.__module__ + "." + self.__class__.__name__
+            group.attrs["__class__"] = class_name
 
             # description of object
             doc = "Rotational solutions"
@@ -85,38 +88,60 @@ class Solution(UserDict):
             group.attrs['__doc__'] = doc
 
             # store attributes
-            attrs = list(set(vars(self).keys()))
+            attrs = list(set(vars(self).keys()) - set(["__class__"]))
             for attr in attrs:
                 val = getattr(self, attr)
                 try:
                     group.attrs[attr] = val
                 except TypeError:
-                    jd = json.dumps(val, cls=json_custom.Encoder)
+                    jd = json.dumps(val)
                     group.attrs[attr + "__json"] = jd
 
 
-    def read(self, filename):
+    def read(self, filename, name=None):
         """Reads object from HDF5 file
 
         Args:
             filename : str
                 Name of HDF5 file
+            name : str
+                Name of the data group, if None, the first group with matching
+                "__class__"  attribute will be loaded
         """
+        class_name = self.__module__ + "." + self.__class__.__name__
+
         with h5py.File(filename, 'a') as fl:
-            for name, group in fl.items():
+
+            # select datagroup
+
+            if name is None:
+                # take the first datagroup that has the same type
+                groups = [group for group in fl.values() if "__class__" in group.attrs.keys()]
+                group = next((group for group in groups if group.attrs["__class__"] == class_name), None)
+                if group is None:
+                    raise TypeError(f"file '{filename}' has no dataset of type '{class_name}'") from None
+            else:
+                # find datagroup by name
                 try:
-                    if group.attrs["__class__"] == self.__module__ + "." + self.__class__.__name__:
-                        attr = {}
-                        for key, val in group.attrs.items():
-                            if key.find('__json') == -1:
-                                attr[key] = val
-                            else:
-                                jl = json.loads(val, object_hook=json_custom.decode)
-                                key = key.replace('__json', '')
-                                attr[key] = jl
-                        self.__dict__.update(attr)
+                    group = fl[name]
                 except KeyError:
-                    continue
+                    raise KeyError(f"file '{filename}' has no dataset with the name '{name}'") from None
+                # check if self and datagroup types match
+                class_name_ = group.attrs["__class__"]
+                if class_name_ != class_name:
+                    raise TypeError(f"dataset with the name '{name}' in file '{filename}' " + \
+                        f"has different type: '{class_name_}'") from None
+
+            # read attributes
+            attr = {}
+            for key, val in group.attrs.items():
+                if key.find('__json') == -1:
+                    attr[key] = val
+                else:
+                    jl = json.loads(val)
+                    key = key.replace('__json', '')
+                    attr[key] = jl
+            self.__dict__.update(attr)
 
 
 def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
