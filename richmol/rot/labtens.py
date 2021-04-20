@@ -6,6 +6,8 @@ from scipy.sparse import csr_matrix
 from richmol.field import CarTens
 from richmol.rot.molecule import Molecule
 from richmol.rot.solution import hamiltonian
+from collections import defaultdict
+
 
 _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
 
@@ -215,9 +217,6 @@ class LabTensor(CarTens):
 
         self.kmat, self.mmat = self.matelem(basis, thresh)
 
-        # check is all required attributes have been initialized
-        self.check_attrs()
-
 
     def ham_proj(self, basis):
         """Computes action of field-free Hamiltonian operator onto a wave function
@@ -348,8 +347,9 @@ class LabTensor(CarTens):
 
         # compute matrix elements for different pairs of J quanta and different symmetries
 
-        mmat = dict()
-        kmat = dict()
+        mydict = lambda: defaultdict(mydict)
+        mmat = mydict()
+        kmat = mydict()
 
         for J2, symbas2 in basis.items():
             for sym2, bas2 in symbas2.items():
@@ -368,19 +368,6 @@ class LabTensor(CarTens):
                         continue
 
                     for sym1, bas1 in symbas1.items():
-
-                        if (J1, J2) in kmat:
-                            kmat[(J1, J2)][(sym1, sym2)] = {}
-                        else:
-                            kmat[(J1, J2)] = {(sym1, sym2) : {}}
-
-                        if (J1, J2) in mmat:
-                            mmat[(J1, J2)][(sym1, sym2)] = {cart : {} for cart in self.cart}
-                        else:
-                            mmat[(J1, J2)] = {(sym1, sym2) : {cart : {} for cart in self.cart}}
-
-                        nelem_k = 0
-                        nelem_m = 0
 
                         for cart, bas_cart in proj.items():
                             for irrep, bas_irrep in bas_cart.items():
@@ -405,7 +392,6 @@ class LabTensor(CarTens):
                                     # add matrix element to K-tensor
                                     if me_csr.nnz > 0:
                                         kmat[(J1, J2)][(sym1, sym2)][irrep] = me_csr
-                                        nelem_k += 1
 
                                 # M-tensor
 
@@ -425,13 +411,6 @@ class LabTensor(CarTens):
                                 # add matrix elements to M-tensor
                                 if me_csr.nnz > 0:
                                     mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
-                                    nelem_m += 1
-
-                        # delete empty entires
-                        if nelem_m == 0:
-                            del mmat[(J1, J2)][(sym1, sym2)]
-                        if nelem_k == 0:
-                            del kmat[(J1, J2)][(sym1, sym2)]
 
         return kmat, mmat
 
