@@ -2,6 +2,8 @@
 import numpy as np
 import types
 import json
+from collections.abc import Mapping
+
 
 _encoders = dict()
 _decoders = dict()
@@ -46,6 +48,39 @@ def decode(dct):
         if dec in dct.keys():
             return _decoders[dec](dct)
     return dct
+
+
+def loads(var):
+    jl = json.loads(var, object_hook=decode)
+    if isinstance(jl, Mapping):
+        jl = parse_keys(jl)
+    return jl
+
+
+def dumps(var):
+    jd = json.dumps(var, cls=Encoder, sort_keys=True)
+    return jd
+
+
+def parse_keys(node):
+    """USE WITH CARE: can delete duplicate keys, for example, "1" and 1
+    Converts keys in nested dictionary to integers and floats where possible.
+    """
+    out = dict()
+    for key, item in node.items():
+        if isinstance(item, Mapping):
+            item_ = parse_keys(item)
+        else:
+            item_ = item
+        try:
+            if key.find('.') == -1:
+                key_ = int(key)
+            else:
+                key_ = float(key)
+        except ValueError:
+            key_ = key
+        out[key_] = item_
+    return out
 
 
 @register_encoder(1+1j)
