@@ -58,13 +58,17 @@ def loads(var):
 
 
 def dumps(var):
-    jd = json.dumps(var, cls=Encoder, sort_keys=True)
+    if isinstance(var, Mapping):
+        var_ = parse_keys_rev(var)
+    else:
+        var_ = var
+    jd = json.dumps(var_, cls=Encoder, sort_keys=True)
     return jd
 
 
 def parse_keys(node):
-    """USE WITH CARE: can delete duplicate keys, for example, "1" and 1
-    Converts keys in nested dictionary to integers and floats where possible.
+    """Converts keys in nested dictionary from strings to integers and floats where possible
+    Rounds floats to first decimal
     """
     out = dict()
     for key, item in node.items():
@@ -76,7 +80,28 @@ def parse_keys(node):
             if key.find('.') == -1:
                 key_ = int(key)
             else:
-                key_ = float(key)
+                key_ = round(float(key), 1)
+        except ValueError:
+            key_ = key
+        out[key_] = item_
+    return out
+
+
+def parse_keys_rev(node):
+    """Converts keys in nested dictionary from integers and floats into strings
+    Rounds floats to first decimal
+    """
+    out = dict()
+    for key, item in node.items():
+        if isinstance(item, Mapping):
+            item_ = parse_keys_rev(item)
+        else:
+            item_ = item
+        try:
+            if isinstance(key, float):
+                key_ = str(round(key, 1))
+            else:
+                key_ = int(key)
         except ValueError:
             key_ = key
         out[key_] = item_
