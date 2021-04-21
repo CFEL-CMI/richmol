@@ -390,8 +390,7 @@ class Molecule:
                         f"'{filename}', use replace=True to replace it") from None
 
             group = fl.create_group(name)
-            class_name = self.__module__ + "." + self.__class__.__name__
-            group.attrs["__class__"] = class_name
+            group.attrs["__class_name__"] = self.class_name()
 
             # description of object
             doc = "Rigid molecule"
@@ -407,9 +406,9 @@ class Molecule:
             group.attrs['__doc__'] = doc
 
             # store attributes
-            attrs = list(set(vars(self).keys()) - set(["__class__"]))
+
+            attrs = list(set(vars(self).keys()))
             for attr in attrs:
-                print("Store attribute", attr)
                 val = getattr(self, attr)
                 try:
                     group.attrs[attr] = val
@@ -426,7 +425,7 @@ class Molecule:
                 Name of HDF5 file
             name : str
                 Name of the data group, if None, the first group with matching
-                "__class__"  attribute will be loaded
+                "__class_name__"  attribute will be loaded
         """
         class_name = self.__module__ + "." + self.__class__.__name__
 
@@ -436,10 +435,10 @@ class Molecule:
 
             if name is None:
                 # take the first datagroup that has the same type
-                groups = [group for group in fl.values() if "__class__" in group.attrs.keys()]
-                group = next((group for group in groups if group.attrs["__class__"] == class_name), None)
+                groups = [group for group in fl.values() if "__class_name__" in group.attrs.keys()]
+                group = next((group for group in groups if group.attrs["__class_name__"] == self.class_name()), None)
                 if group is None:
-                    raise TypeError(f"file '{filename}' has no dataset of type '{class_name}'") from None
+                    raise TypeError(f"file '{filename}' has no dataset of type '{self.class_name()}'") from None
             else:
                 # find datagroup by name
                 try:
@@ -447,12 +446,13 @@ class Molecule:
                 except KeyError:
                     raise KeyError(f"file '{filename}' has no dataset with the name '{name}'") from None
                 # check if self and datagroup types match
-                class_name_ = group.attrs["__class__"]
-                if class_name_ != class_name:
+                class_name = group.attrs["__class_name__"]
+                if class_name != self.class_name():
                     raise TypeError(f"dataset with the name '{name}' in file '{filename}' " + \
-                        f"has different type: '{class_name_}'") from None
+                        f"has different type: '{class_name}'") from None
 
             # read attributes
+
             attr = {}
             for key, val in group.attrs.items():
                 if key.find('__json') == -1:
@@ -462,6 +462,11 @@ class Molecule:
                     key = key.replace('__json', '')
                     attr[key] = jl
             self.__dict__.update(attr)
+
+
+    def class_name(self):
+        """Generates '__class_name__' attribute for the tensor data group in HDF5 file"""
+        return self.__module__ + "." + self.__class__.__name__
 
 
 
