@@ -7,6 +7,7 @@ from richmol.field import CarTens
 from richmol.rot.molecule import Molecule
 from richmol.rot.solution import hamiltonian
 from collections import defaultdict
+import inspect
 
 
 _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
@@ -107,7 +108,6 @@ class LabTensor(CarTens):
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)],
                  2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
-
     def __init__(self, arg, basis, thresh=1e-14):
 
         tens = None
@@ -169,7 +169,11 @@ class LabTensor(CarTens):
                     self.Ux = np.delete(self.Ux, [1,2,3], 1)
                     self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
 
-        # basis set dimensions and quanta
+        # matrix elements
+
+        self.kmat, self.mmat = self.matelem(basis, thresh)
+
+        # basis set dimensions, quanta, assignments
 
         Jlist = [J for J in basis.keys()]
         symlist = {J : [sym for sym in basis[J].keys()] for J in basis.keys()}
@@ -179,9 +183,6 @@ class LabTensor(CarTens):
                   for J, bas_J in basis.items() }
         dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym]
                for sym in symlist[J] } for J in Jlist}
-
-        # basis set assignments
-
         assign_m = { J : { sym : [ " ".join(q for q in elem)
                                    for elem in bas_sym.m.table['stat'][:dim_m[J][sym]] ]
                            for sym, bas_sym in bas_J.items() }
@@ -190,8 +191,6 @@ class LabTensor(CarTens):
                                    for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
                            for sym, bas_sym in bas_J.items() }
                      for J, bas_J in basis.items() }
-
-        # basis set dimensions and assignments for bra and ket states (used by CarTens class)
 
         self.Jlist1 = Jlist
         self.Jlist2 = Jlist
@@ -208,14 +207,15 @@ class LabTensor(CarTens):
         self.assign_m1 = assign_m
         self.assign_m2 = assign_m
 
-        # bra and ket wave functions
+        # keep the wave function coefficients if arg==Molecule
+        if isinstance(arg, Molecule):
+            self.basis = basis
 
-        self.basis1 = basis
-        self.basis2 = basis
-
-        # matrix elements
-
-        self.kmat, self.mmat = self.matelem(basis, thresh)
+        # init object as CarTens
+        # write tensor into temp file and reload in CarTens()
+        #filename = "temp.h5"
+        #self.store(filename, name=retrieve_name(self), replace=True)
+        #CarTens.__init__(self, file=filename,  name=retrieve_name(self))
 
 
     def ham_proj(self, basis):
@@ -415,3 +415,16 @@ class LabTensor(CarTens):
         return kmat, mmat
 
 
+    def class_name(self):
+        """Generates '__class__' attribute for the tensor data group in HDF5 file"""
+        base = list(self.__class__.__bases__)[0]
+        return base.__module__ + "." + base.__name__
+
+
+
+def retrieve_name(var):
+    """ Gets the name of var. Does it from the out most frame inner-wards """
+    for fi in reversed(inspect.stack()):
+        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        if len(names) > 0:
+            return names[0]

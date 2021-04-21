@@ -8,6 +8,7 @@ import h5py
 import datetime
 import time
 from richmol import json
+from collections.abc import Mapping
 
 
 _hamiltonians = dict() # Watson-type effective Hamiltonians
@@ -21,7 +22,7 @@ class dummyMolecule:
 
 def register_ham(func):
     """Decorator function to register Hamiltonian function and a set of molecular
-    attributes it is dependent on
+    attributes it depends on
     """
     bas = SymtopBasis(0)
     mol = dummyMolecule()
@@ -33,7 +34,8 @@ def register_ham(func):
 
 class Solution(UserDict):
     """Field-free rotational solutions for different values of J quantum number
-    and different symmetries, i.e., Solution()[J][sym] -> SymtopBasis object
+    and different symmetries.
+    An object of this class is returned by 'solve' function
     """
     def __init__(self, val=None):
         if val is None:
@@ -48,7 +50,7 @@ class Solution(UserDict):
 
     def store(self, filename, name=None, comment=None, replace=False):
         """Stores object into HDF5 file
-    
+
         Args:
             filename : str
                 Name of HDF5 file
@@ -71,8 +73,7 @@ class Solution(UserDict):
                         f"'{filename}', use replace=True to replace it") from None
 
             group = fl.create_group(name)
-            class_name = self.__module__ + "." + self.__class__.__name__
-            group.attrs["__class__"] = class_name
+            group.attrs["__class__"] = self.class_name()
 
             # description of object
             doc = "Rotational solutions"
@@ -108,8 +109,6 @@ class Solution(UserDict):
                 Name of the data group, if None, the first group with matching
                 "__class__"  attribute will be loaded
         """
-        class_name = self.__module__ + "." + self.__class__.__name__
-
         with h5py.File(filename, 'a') as fl:
 
             # select datagroup
@@ -117,9 +116,9 @@ class Solution(UserDict):
             if name is None:
                 # take the first datagroup that has the same type
                 groups = [group for group in fl.values() if "__class__" in group.attrs.keys()]
-                group = next((group for group in groups if group.attrs["__class__"] == class_name), None)
+                group = next((group for group in groups if group.attrs["__class__"] == self.class_name()), None)
                 if group is None:
-                    raise TypeError(f"file '{filename}' has no dataset of type '{class_name}'") from None
+                    raise TypeError(f"file '{filename}' has no dataset of type '{self.class_name()}'") from None
             else:
                 # find datagroup by name
                 try:
@@ -127,10 +126,10 @@ class Solution(UserDict):
                 except KeyError:
                     raise KeyError(f"file '{filename}' has no dataset with the name '{name}'") from None
                 # check if self and datagroup types match
-                class_name_ = group.attrs["__class__"]
-                if class_name_ != class_name:
+                class_name = group.attrs["__class__"]
+                if class_name != self.class_name():
                     raise TypeError(f"dataset with the name '{name}' in file '{filename}' " + \
-                        f"has different type: '{class_name_}'") from None
+                        f"has different type: '{class_name}'") from None
 
             # read attributes
             attr = {}
@@ -142,6 +141,11 @@ class Solution(UserDict):
                     key = key.replace('__json', '')
                     attr[key] = jl
             self.__dict__.update(attr)
+
+
+    def class_name(self):
+        """Generates '__class__' attribute for the solution data group in HDF5 file"""
+        return self.__module__ + '.' + self.__class__.__name__
 
 
 def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
