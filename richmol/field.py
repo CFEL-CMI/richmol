@@ -8,9 +8,9 @@ import inspect
 import datetime
 import time
 import re
-from richmol import json
 from collections import defaultdict
-from richmol import rot
+from richmol import json
+import os
 
 
 class CarTens():
@@ -45,12 +45,16 @@ class CarTens():
 
         elif "states" in kwargs:
             # read field-free basis from old-format richmol files
-            states = read_states(kwargs["states"])
+            kw = {elem : kwargs[elem] for elem in ("filter",) if elem in kwargs}
+            states = self.read_states(kwargs["states"], **kw)
             if "trans" in kwargs:
                 # read matrix elements from old-format richmol files
                 self.read_trans(states, kwargs["trans"], thresh=thresh)
             else:
                 self = states
+
+        # apply filters
+        # TODO: move the filters out of reading functions here
 
 
     def tomat(self, form='block', **kwargs):
@@ -514,27 +518,25 @@ class CarTens():
             thresh : float
                 Threshold for neglecting matrix elements when reading from file
             bra, ket : function(**kw)
-                User-defined filters for bra and ket states, take as arguments
-                state quantum numbers J, sym, m, and k and return True or False
-                depending on if the corresponding state is included or excluded
-                form the basis. By default, all states stored in file are included.
-                The following keyword arguments are passed into bra and ket functions:
+                State filters for bra and ket basis sets, take as arguments
+                state quantum numbers and energies J, sym, m, k, and enr
+                and return True or False depending on if the corresponding state
+                needs to be included or excluded form the basis.
+                By default, all states stored in the file are included.
+                The following keyword arguments are passed into the bra and ket functions:
                     J : float (round to first decimal)
                         Value of J quantum number
                     sym : str
                         State symmetry
+                    enr : float
+                        State energy
                     m : str
                         State assignment in the M subspace, usually just a value
                         of the m quantum number as a string
                     k : str
                         State assignment in the K subspace, which are the rotational
                         or ro-vibrational quanta joined in a string
-                To check which J, sym, m, and k are spanned by the basis in a particular
-                file, one can load full tensor and check the corresponding attributes
-                Jlist, symlist[J], quanta_m[J][sym], quanta_k[J][sym]
-
         """
-        mydict = lambda: defaultdict(mydict)
         J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
         sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
 
@@ -570,20 +572,20 @@ class CarTens():
 
             self.Jlist1 = [J for J in self.Jlist if bra(J=J)]
             self.Jlist2 = [J for J in self.Jlist if ket(J=J)]
-            self.symlist1 = {J : [sym for sym in self.symlist if bra(J=J, sym=sym)]
+            self.symlist1 = {J : [sym for sym in self.symlist[J] if bra(J=J, sym=sym)]
                              for J in self.Jlist1}
-            self.symlist2 = {J : [sym for sym in self.symlist if ket(J=J, sym=sym)]
+            self.symlist2 = {J : [sym for sym in self.symlist[J] if ket(J=J, sym=sym)]
                              for J in self.Jlist2}
-            self.quanta_k1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k) if bra(J=J, sym=sym, k=q)]
+            self.quanta_k1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k[J][sym]) if bra(J=J, sym=sym, k=q)]
                               for sym in self.symlist1[J]}
                               for J in self.Jlist1}
-            self.quanta_k2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k) if ket(J=J, sym=sym, k=q)]
+            self.quanta_k2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k[J][sym]) if ket(J=J, sym=sym, k=q)]
                               for sym in self.symlist2[J]}
                               for J in self.Jlist2}
-            self.quanta_m1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m) if bra(J=J, sym=sym, m=q)]
+            self.quanta_m1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m[J][sym]) if bra(J=J, sym=sym, m=q)]
                               for sym in self.symlist1[J]}
                               for J in self.Jlist1}
-            self.quanta_m2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m) if ket(J=J, sym=sym, m=q)]
+            self.quanta_m2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m[J][sym]) if ket(J=J, sym=sym, m=q)]
                               for sym in self.symlist2[J]}
                               for J in self.Jlist2}
             self.dim_k1 = {J : {sym : len(self.quanta_k1[J][sym])
@@ -605,9 +607,9 @@ class CarTens():
                            for sym in self.symlist2[J]}
                            for J in self.Jlist2}
 
-
             # read M and K tensors
 
+            mydict = lambda: defaultdict(mydict)
             self.kmat = mydict()
             self.mmat = mydict()
 
@@ -706,40 +708,39 @@ class CarTens():
                                 self.mmat[(J1, J2)][(sym1, sym2)] = mmat
 
 
-    def read_states(self, filename, **kwargs):
-        """Reads basis states information from old-format richmol states file
+    def read_states(self, filename, filter=lambda **kw: True):
+        """Reads basis states information from old-format richmol states file,
+        for example, files that are produced by TROVE program
 
         Args:
             filename : str
                 Name of richmol states file
-
-        Kwargs:
-            jmin, jmax : int or float
-                Min and max values of quantum number J of total angular momentum
-            jlist : list
-                List of J values, if present, overrides jmin and jmax
-            mmin, mmax : int or float
-                Min and max values of quantum number m of Z projection of total
-                angular momentum
-            mlist : list
-                List of m values, if present, overrides mmin and mmax
-            mdict : dict
-                Dictionary mdict[J] -> list, contains list of m quantum numbers
-                for different values of J, if present, overrides mlist
-            emin, emax : float
-                Min and max values of state energy
-            symlist : list
-                List of state symmetries
-            symdict : dict:
-                Dictionary symdict[J] -> list, contains list of symmetries
-                for different values of J, if present, overrides symlist
-
+            filter : function(**kw)
+                States filter function, takes as arguments state assignment
+                quanta and energy, J, sym, m, k, and enr, and returns True or False
+                depending on if the corresponding state needs to be included or excluded
+                form the basis. By default, all states stored in the file are included.
+                The following keyword arguments are passed into the filter function:
+                    J : float (round to first decimal)
+                        Value of J (or F) quantum number
+                    sym : str
+                        State symmetry
+                    enr : float
+                        State energy
+                    m : str
+                        State assignment in the M subspace, usually just a value
+                        of the m quantum number as a string
+                    k : str
+                        State assignment in the K subspace, which are the rotational
+                        or ro-vibrational quanta joined in a string
         """
         # read states file
 
-        energy = dict()
-        assign = dict()
-        map_kstates = dict()
+        mydict = lambda: defaultdict(mydict)
+        energy = mydict()
+        assign = mydict()
+        mquanta = mydict()
+        map_kstates = mydict()
 
         with open(filename, 'r') as fl:
             for line in fl:
@@ -752,152 +753,78 @@ class CarTens():
                 qstr = ' '.join([w[i] for i in range(5,len(w))])
 
                 # apply state filters
-                if 'jlist' in kwargs:
-                    if J not in [round(float(elem),1) for elem in kwargs['jlist']]:
-                        continue
-                else:
-                    if 'jmin' in kwargs:
-                        if J < kwargs['jmin']:
-                            continue
-                    if 'jmax' in kwargs:
-                        if J > kwargs['jmax']:
-                            continue
-                if 'emin' in kwargs:
-                    if enr < kwargs['emin']:
-                        continue
-                if 'emax' in kwargs:
-                    if enr > kwargs['emax']:
-                        continue
-                if 'symdict' in kwargs:
-                    try:
-                        if sym.lower() not in [elem.lower() for elem in kwargs['symdict'][J]]:
-                            continue
-                    except KeyError:
-                        pass
-                elif 'symlist' in kwargs:
-                    if sym not in kwargs['symlist']:
-                        continue
-
-                if J not in energy:
-                    energy[J] = dict()
-                    assign[J] = dict()
+                if not filter(J=J, sym=sym, k=qstr, enr=enr, id=id):
+                    continue
+                mlist = [m for m in np.linspace(-J, J, int(2*J)+1) if filter(J=J, sym=sym, m=m)]
+                if len(mlist) == 0:
+                    continue
 
                 for ideg in range(ndeg):
                     try:
                         energy[J][sym].append(enr)
                         assign[J][sym].append(qstr)
-                    except KeyError:
+                    except Exception:
                         energy[J][sym] = [enr]
                         assign[J][sym] = [qstr]
 
-                    # mapping between J,id,ideg and basis set index running
-                    # within the group of states sharing the same J and symmetry
-                    map_kstates[(J, id, ideg)] = [len(energy[J][sym])-1, sym]
+                    # mapping between (J,id,ideg) and basis set index in the group
+                    # of states sharing the same J and symmetry
+                    map_kstates[(J, id, ideg)] = (len(energy[J][sym])-1, sym)
 
-        # check how many states have passed the filters
+                mquanta[J][sym] = mlist
+
+        # check how many states have passed filter
 
         if len(list(energy.keys())) == 0:
-            raise Exception(f"zero number of states, perhaps selection filters cast out states") from None
-
-        if 'jlist' in kwargs:
-            j_none = [J for J in kwargs['jlist'] if J not in energy]
-            if len(j_none) > 0:
-                raise Exception(f"states with the following J quanta were not found: {j_none}") from None
-
-        if 'symdict' in kwargs:
-            sym_none = {J : [sym for sym in kwargs['symdict'][J] if sym not in energy[J].keys()]
-                        for J in kwargs['symdict'].keys()}
-        elif 'symlist' in kwargs:
-            symlist = set([sym for J in energy.keys() for sym in energy[J].keys()])
-            sym_none = [sym for sym in kwargs['symlist'] if sym not in symlist]
-        else:
-            sym_none = []
-        if len(sym_none) > 0:
-            raise Exception(f"states with the following symmetries were not found: {sym_none}") from None
-
-        # generate lists of m quanta for different J
-
-        if 'mdict' in kwargs:
-            mdict = {J : [round(float(elem),1) for elem in kwargs['mdict'][J]]
-                     for J in list(energy.keys() & kwargs['mdict'].keys)}
-            # for J values that are not present in kwargs['mdict'] set m ranges -J..J
-            j_out = [J for J in energy.keys() if J not in mdict]
-            mdict += {J : [round(float(m),1) for m in np.linalg(-J, J, int(2*J)+1)] for J in j_out}
-        elif 'mlist' in kwargs:
-            mdict = {J : [round(float(m),1) for m in kwargs['mlist'] if abs(round(float(m),1))<=J]
-                     for J in energy.keys()}
-        else:
-            mdict = dict()
-            mmin = None
-            mmax = None
-            if 'mmin' in kwargs:
-                mmin = round(float(kwargs['mmin']),1)
-            if 'mmax' in kwargs:
-                mmax = round(float(kwargs['mmax']),1)
-            if mmin is not None and mmax is not None:
-                assert (mmin<=mmax), f"'mmin' = {mmin} > 'mmax' = {mmax}"
-            for J in energy.keys():
-                if mmin is None:
-                    m1 = -J
-                else:
-                    m1 = max([-J, mmin])
-                if mmax is None:
-                    m2 = J
-                else:
-                    m2 = min([J, mmax])
-                if m1>m2: continue
-                mdict[J] = [round(float(m),1) for m in np.linspace(m1, m2, m2-m1+1)]
-
-        # delete entries with zero length
-        mdict = {key : val for key,val in mdict.items() if len(val)>0}
-        # check if m-quanta filters cast out some of J quanta
-        j_none = [J for J in energy.keys() if J not in mdict]
-        if len(j_none) > 0:
-            raise Exception(f"m-quanta filters cast out following J quanta: {j_none}") from None
+            raise Exception(f"zero number of states, perhaps selection filters cast out all states") from None
 
         # generate mapping beteween m quanta and basis set index
-        map_mstates = {(J, m) : ind_m for J in energy.keys() for ind_m,m in enumerate(mdict[J]) }
+        #map_mstates = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mdict[J]) }
 
         # generate attributes
 
-        Jlist = list(energy.keys())
-        symlist = {J : [sym for sym in energy[J].keys()] for J in Jlist}
-        dim_m = {J : {sym : len(mdict[J]) for sym in symlist[J]} for J in Jlist}
-        dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
-        dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
-        assign_m = {J : {sym : ["%4.1f"%m for m in mdict[J]] 
-                    for sym in symlist[J]} for J in Jlist}
-        assign_k = {J : {sym : assign[J][sym] for sym in symlist[J]} for J in Jlist}
+        self.Jlist = list(energy.keys())
+        self.symlist = {J : [sym for sym in energy[J].keys()] for J in self.Jlist}
+        self.dim_m = {J : {sym : len(mquanta[J][sym])
+                      for sym in self.symlist[J]}
+                      for J in self.Jlist}
+        self.dim_k = {J : {sym : len(energy[J][sym])
+                      for sym in self.symlist[J]}
+                      for J in self.Jlist}
+        self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
+                    for sym in self.symlist[J]}
+                    for J in self.Jlist}
+        self.quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J][sym]] 
+                         for sym in self.symlist[J]}
+                         for J in self.Jlist}
+        self.quanta_k = {J : {sym : assign[J][sym]
+                         for sym in self.symlist[J]}
+                         for J in self.Jlist}
+        self.enr_k = {J : {sym :[enr for enr in energy[J][sym]]
+                      for sym in self.symlist[J]}
+                      for J in self.Jlist}
 
         self.cart = '0'
         self.os = [(0,0)]
         self.rank = 0
 
-        self.Jlist1 = Jlist
-        self.Jlist2 = Jlist
-        self.symlist1 = symlist
-        self.symlist2 = symlist
-        self.dim1 = dim
-        self.dim2 = dim
-        self.dim_m1 = dim_m
-        self.dim_m2 = dim_m
-        self.dim_k1 = dim_k
-        self.dim_k2 = dim_k
-        self.assign_k1 = assign_k
-        self.assign_k2 = assign_k
-        self.assign_m1 = assign_m
-        self.assign_m2 = assign_m
+        self.mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mquanta[J][sym])), dtype=np.complex128)}}
+                     for sym in self.symlist[J]} for J in self.Jlist}
 
-        self.mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mdict[J])), dtype=np.complex128)}}
-                     for sym in symlist[J]} for J in Jlist}
+        self.kmat = {(J, J) : {(sym, sym) : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}
+                     for sym in self.symlist[J]} for J in self.Jlist}
 
-        self.kmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}}
-                     for sym in symlist[J]} for J in Jlist}
+        # write tensor into temp file and reload in CarTens()
+        filename = "tmp.h5"
+        self.store(filename=filename, name=retrieve_name(self))
+        CarTens.__init__(self, filename=filename,  name=retrieve_name(self))
+        if os.path.exists("tmp.h5"):
+            os.remove("tmp.h5")
 
 
     def read_trans(self, states, filename, thresh=None):
         """Reads matrix elements of Cartesian tensor from old-format richmol
-        matrix elements files
+        matrix elements files, for example, files that are produced by TROVE program
 
         Args:
             states : field.CarTens
