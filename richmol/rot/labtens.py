@@ -179,32 +179,35 @@ class LabTensor(CarTens):
         if isinstance(arg, Molecule):
             self.basis = basis
 
-        # for pure Cartesian tensor, keep in the attributes only basis set quanta
+        # for pure Cartesian tensor, keep in the attributes only basis set dimensions,
+        # basis state quanta and energies
 
-        Jlist = [J for J in basis.keys()]
-        symlist = {J : [sym for sym in basis[J].keys()] for J in basis.keys()}
-        dim_k = { J : { sym : bas_sym.k.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+        self.Jlist = [J for J in basis.keys()]
+        self.symlist = {J : [sym for sym in basis[J].keys()] for J in basis.keys()}
+        self.dim_k = { J : { sym : bas_sym.k.table['c'].shape[1]
+                  for sym, bas_sym in bas_J.items() }
                   for J, bas_J in basis.items() }
-        dim_m = { J : { sym : bas_sym.m.table['c'].shape[1] for sym, bas_sym in bas_J.items() }
+        self.dim_m = { J : { sym : bas_sym.m.table['c'].shape[1]
+                  for sym, bas_sym in bas_J.items() }
                   for J, bas_J in basis.items() }
-        quanta_m = { J : { sym : [ " ".join(q for q in elem)
-                                   for elem in bas_sym.m.table['stat'][:dim_m[J][sym]] ]
-                           for sym, bas_sym in bas_J.items() }
+        self.quanta_m = { J : { sym : [ " ".join(q for q in elem)
+                     for elem in bas_sym.m.table['stat'][:self.dim_m[J][sym]] ]
+                     for sym, bas_sym in bas_J.items() }
                      for J, bas_J in basis.items() }
-        quanta_k = { J : { sym : [ " ".join(q for q in elem)
-                                   for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
-                           for sym, bas_sym in bas_J.items() }
+        self.quanta_k = { J : { sym : [ " ".join(q for q in elem)
+                     for elem in bas_sym.k.table['stat'][:self.dim_k[J][sym]] ]
+                     for sym, bas_sym in bas_J.items() }
                      for J, bas_J in basis.items() }
-
-        loc = locals()
-        for name in ("Jlist", "symlist", "dim_m", "dim_k", "quanta_m", "quanta_k"):
-            setattr(self, name, loc[name])
-
-        # init object as CarTens (to apply state filters)
+        try:
+            self.enr_k = { J : { sym : [enr for enr in bas_sym.k.enr]
+                           for sym, bas_sym in bas_J.items() }
+                           for J, bas_J in basis.items() }
+        except AttributeError:
+            pass
 
         # write tensor into temp file and reload in CarTens()
         filename = "tmp.h5"
-        self.store(filename=filename, name=retrieve_name(self), thresh=thresh)
+        self.store(filename=filename, name=retrieve_name(self), thresh=thresh, replace=True)
         CarTens.__init__(self, filename=filename,  name=retrieve_name(self), **kwargs)
         if os.path.exists("tmp.h5"):
             os.remove("tmp.h5")
