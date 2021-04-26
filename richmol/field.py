@@ -7,7 +7,7 @@ import h5py
 import inspect
 import datetime
 import time
-import re
+import regex as re
 from collections import defaultdict
 from richmol import json
 import os
@@ -16,22 +16,47 @@ import os
 class CarTens():
     """General class for laboratory-frame Cartesian tensor operators
 
-    Kwargs:
+    Args:
         filename : str
-            Name of HDF5 file, from which the complete tensor is loaded.
-            Alternatively, one can load tensor matrix elements from the old-format
-            richmol files, e.g., created by TROVE, using 'states' and 'trans'
-            keyword arguments.
-        name : str
-            Name of the tensor data group in HDF5 file.
-        states : str
-            Name of old-format states richmol file, from which the field-free
-            basis states are loaded
-        trans : str
-            Name of old-format trans richmol file, from which the matrix elements
-            of tensor are loaded
-        thresh : float
-            Threshold for neglecting matrix elements when reading from files
+            Name of the HDF5 file from which tensor data is loaded.
+            Alternatively, one can load tensor from the old-format ascii files,
+            by providing in 'filename' the name of richmol states file
+            and in 'matelem' the template for generating the names of richmol
+            matrix elements files.
+        matelem : str
+            In old-format style, matrix elements of Cartesian tensor are stored
+            in separate files for different values of bra and ket J (or F) quanta.
+            The argument 'filename' provides a template for generating the names
+            of these files. For example, if filename = "matelem_alpha_j<j1>_j<j2>.rchm",
+            the following files will be searched: "matelem_alpha_j0_j0.rchm",
+            "matelem_alpha_j0_j1.rchm", "matelem_alpha_j0_j2.rchm",
+            "matelem_alpha_j1_j1.rchm", etc., i.e., <j1> and <j2> are replaced
+            by the integer values of bra and ket J quanta spanned by the basis
+            of stationary states.
+            For half-integer values of the F quantum number, replace <j1> and <j2>
+            in the template by <f1> and <f2>, these will be substituted
+            by the floating point values of F quanta rounded to the first decimal.
+
+    Kwargs:
+        bra, ket : function(**kw)
+            State filters for bra and ket basis sets, take as arguments
+            state quantum numbers and energies J, sym, m, k, and enr
+            and return True or False depending on if the corresponding state
+            needs to be included or excluded form the basis.
+            By default, all states stored in the file are included.
+            The following keyword arguments are passed into the bra and ket functions:
+                J : float (round to first decimal)
+                    Value of J quantum number
+                sym : str
+                    State symmetry
+                enr : float
+                    State energy
+                m : str
+                    State assignment in the M subspace, usually just a value
+                    of the m quantum number as a string
+                k : str
+                    State assignment in the K subspace, which are the rotational
+                    or ro-vibrational quanta joined in a string
     """
     prefac = 1.0
 
@@ -377,16 +402,14 @@ class CarTens():
 
         with h5py.File(filename, 'a') as fl:
             if name in fl:
-                print("name in fl")
                 if replace is True:
                     del fl[name]
                     group = fl.create_group(name)
                 else:
                     group = fl[name]
-                    print(f"found existing dataset '{name}' in file '{filename}', " + \
-                        f"will append it, potentially replacing some data")
+                    #print(f"found existing dataset '{name}' in file '{filename}', " + \
+                    #    f"will append it, potentially replacing some data")
             else:
-                print("name not in fl")
                 group = fl.create_group(name)
 
             class_name = self.class_name()
@@ -408,7 +431,12 @@ class CarTens():
 
             # store attributes
 
-            exclude = ["mmat", "kmat", "molecule", "basis", "map_kstates", "map_mstates"]
+            exclude = ["mmat", "kmat", "molecule", "basis"]
+            try:
+                exclude = exclude + [elem for elem in self.store_exclude]
+            except AttributeError:
+                pass
+
             attrs = list(set(vars(self).keys()) - set(exclude))
             for attr in attrs:
                 val = getattr(self, attr)
@@ -566,44 +594,53 @@ class CarTens():
                     attrs[key] = jl
             self.__dict__.update(attrs)
 
-            # apply filters, generate different sets of quanta for bra and ket states
+            # apply state filters, generate state indices that are included
 
-            self.Jlist1 = [J for J in self.Jlist if bra(J=J)]
-            self.Jlist2 = [J for J in self.Jlist if ket(J=J)]
-            self.symlist1 = {J : [sym for sym in self.symlist[J] if bra(J=J, sym=sym)]
+            self.Jlist1 = [J for J in self.Jlist1 if bra(J=J)]
+            self.Jlist2 = [J for J in self.Jlist2 if ket(J=J)]
+
+            self.symlist1 = {J : [sym for sym in self.symlist1[J] if bra(J=J, sym=sym)]
                              for J in self.Jlist1}
-            self.symlist2 = {J : [sym for sym in self.symlist[J] if ket(J=J, sym=sym)]
+            self.symlist2 = {J : [sym for sym in self.symlist2[J] if ket(J=J, sym=sym)]
                              for J in self.Jlist2}
-            self.quanta_k1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k[J][sym]) if bra(J=J, sym=sym, k=q)]
+
+            self.quanta_k1 = {J : {sym : [(q,e) for (q,e) in self.quanta_k1[J][sym] if bra(J=J, sym=sym, k=q, enr=e)]
                               for sym in self.symlist1[J]}
                               for J in self.Jlist1}
-            self.quanta_k2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_k[J][sym]) if ket(J=J, sym=sym, k=q)]
+            self.quanta_k2 = {J : {sym : [(q,e) for (q,e) in self.quanta_k2[J][sym] if ket(J=J, sym=sym, k=q, enr=e)]
                               for sym in self.symlist2[J]}
                               for J in self.Jlist2}
-            self.quanta_m1 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m[J][sym]) if bra(J=J, sym=sym, m=q)]
+
+            ind_k1 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k1[J][sym]) if bra(J=J, sym=sym, k=q, enr=e)]
+                           for sym in self.symlist1[J]}
+                           for J in self.Jlist1}
+            ind_k2 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k2[J][sym]) if ket(J=J, sym=sym, k=q, enr=e)]
+                           for sym in self.symlist2[J]}
+                           for J in self.Jlist2}
+
+            self.quanta_m1 = {J : {sym : [q for q in self.quanta_m1[J][sym] if bra(J=J, sym=sym, m=q)]
                               for sym in self.symlist1[J]}
                               for J in self.Jlist1}
-            self.quanta_m2 = {J : {sym : [(q,i) for i,q in enumerate(self.quanta_m[J][sym]) if ket(J=J, sym=sym, m=q)]
+            self.quanta_m2 = {J : {sym : [q for q in self.quanta_m2[J][sym] if ket(J=J, sym=sym, m=q)]
                               for sym in self.symlist2[J]}
                               for J in self.Jlist2}
-            self.dim_k1 = {J : {sym : len(self.quanta_k1[J][sym])
+
+            ind_m1 = {J : {sym : [i for i,q in enumerate(self.quanta_m1[J][sym]) if bra(J=J, sym=sym, m=q)]
                            for sym in self.symlist1[J]}
                            for J in self.Jlist1}
-            self.dim_k2 = {J : {sym : len(self.quanta_k2[J][sym])
+            ind_m2 = {J : {sym : [i for i,q in enumerate(self.quanta_m2[J][sym]) if ket(J=J, sym=sym, m=q)]
                            for sym in self.symlist2[J]}
                            for J in self.Jlist2}
-            self.dim_m1 = {J : {sym : len(self.quanta_m1[J][sym])
-                           for sym in self.symlist1[J]}
-                           for J in self.Jlist1}
-            self.dim_m2 = {J : {sym : len(self.quanta_m2[J][sym])
-                           for sym in self.symlist2[J]}
-                           for J in self.Jlist2}
+
+            self.dim_k1 = {J : {sym : len(self.quanta_k1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
+            self.dim_k2 = {J : {sym : len(self.quanta_k2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
+            self.dim_m1 = {J : {sym : len(self.quanta_m1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
+            self.dim_m2 = {J : {sym : len(self.quanta_m2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
+
             self.dim1 = {J : {sym : self.dim_k1[J][sym] * self.dim_m1[J][sym]
-                           for sym in self.symlist1[J]}
-                           for J in self.Jlist1}
+                         for sym in self.symlist1[J]} for J in self.Jlist1}
             self.dim2 = {J : {sym : self.dim_k2[J][sym] * self.dim_m2[J][sym]
-                           for sym in self.symlist2[J]}
-                           for J in self.Jlist2}
+                         for sym in self.symlist2[J]} for J in self.Jlist2}
 
             # read M and K tensors
 
@@ -638,10 +675,10 @@ class CarTens():
                                 continue
 
                             # indices of selected quanta in K and M tensors
-                            ind_k1 = [elem[1] for elem in self.quanta_k1[J1][sym1]]
-                            ind_k2 = [elem[1] for elem in self.quanta_k2[J2][sym2]]
-                            ind_m1 = [elem[1] for elem in self.quanta_m1[J1][sym1]]
-                            ind_m2 = [elem[1] for elem in self.quanta_m2[J2][sym2]]
+                            ik1 = ind_k1[J1][sym1]
+                            ik2 = ind_k2[J2][sym2]
+                            im1 = ind_m1[J1][sym1]
+                            im2 = ind_m2[J2][sym2]
 
                             # read K-matrix
 
@@ -655,7 +692,7 @@ class CarTens():
                                 data = np.split(group_sym['kmat_data'], np.cumsum(nnz))[:-1]
                                 indices = np.split(group_sym['kmat_indices'], np.cumsum(nind))[:-1]
                                 indptr = np.split(group_sym['kmat_indptr'], np.cumsum(nptr))[:-1]
-                                kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)[ind_k1, :].tocsc()[:, ind_k2].tocsr()
+                                kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)[ik1, :].tocsc()[:, ik2].tocsr()
                                         for irrep,dat,ind,ptr,sh in zip(irreps,data,indices,indptr,shape)}
 
                             except KeyError:
@@ -689,7 +726,7 @@ class CarTens():
                                     ind = indices[ielem]
                                     ptr = indptr[ielem]
                                     sh = shape[ielem]
-                                    mat = csr_matrix((dat, ind, ptr), shape=sh)[ind_m1, :].tocsc()[:, ind_m2].tocsr()
+                                    mat = csr_matrix((dat, ind, ptr), shape=sh)[im1, :].tocsc()[:, im2].tocsr()
                                     mmat[cart][int(irrep)] = mat
                             except KeyError:
                                 pass
@@ -707,22 +744,19 @@ class CarTens():
 
 
     def read_states(self, filename, **kwargs):
-        """Reads basis states information from the old-format richmol states file,
-        for example, produced by TROVE program
+        """Reads stationary basis states information from the old-format richmol
+        states file produced, for example, by TROVE program
 
         Args:
             filename : str
                 Name of richmol states file
-
-        Kwargs:
-            see CarTens.__init__
         """
         # read states file
 
         mydict = lambda: defaultdict(mydict)
         energy = mydict()
         assign = mydict()
-        self.map_kstates = dict()
+        map_kstates = dict()
 
         with open(filename, 'r') as fl:
             for line in fl:
@@ -747,7 +781,7 @@ class CarTens():
 
                     # mapping between (J,id,ideg) and basis set index in the group
                     # of states sharing the same J and symmetry
-                    self.map_kstates[(J, id, ideg+1)] = (len(energy[J][sym])-1, sym)
+                    map_kstates[(J, id, ideg+1)] = (len(energy[J][sym])-1, sym)
 
         if len(list(energy.keys())) == 0:
             raise Exception(f"zero number of states in file '{filename}'") from None
@@ -756,78 +790,98 @@ class CarTens():
         mquanta = {J : [m for m in np.linspace(-J, J, int(2*J)+1)] for J in energy.keys()}
 
         # generate mapping beteween m quanta and basis set index
-        self.map_mstates = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mquanta[J]) }
+        map_mstates = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mquanta[J]) }
 
         # generate attributes
 
-        self.Jlist = list(energy.keys())
-        self.symlist = {J : [sym for sym in energy[J].keys()] for J in self.Jlist}
-        self.dim_m = {J : {sym : len(mquanta[J])
-                      for sym in self.symlist[J]}
-                      for J in self.Jlist}
-        self.dim_k = {J : {sym : len(energy[J][sym])
-                      for sym in self.symlist[J]}
-                      for J in self.Jlist}
-        self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
-                    for sym in self.symlist[J]}
-                    for J in self.Jlist}
-        self.quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J]] 
-                         for sym in self.symlist[J]}
-                         for J in self.Jlist}
-        self.quanta_k = {J : {sym : assign[J][sym]
-                         for sym in self.symlist[J]}
-                         for J in self.Jlist}
-        self.enr_k = {J : {sym :[enr for enr in energy[J][sym]]
-                      for sym in self.symlist[J]}
-                      for J in self.Jlist}
+        Jlist = list(energy.keys())
+        symlist = {J : [sym for sym in energy[J].keys()] for J in Jlist}
+        dim_m = {J : {sym : len(mquanta[J]) for sym in symlist[J]} for J in Jlist}
+        dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
+        dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
+        quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J]] for sym in symlist[J]} for J in Jlist}
+        quanta_k = {J : {sym : [(q,e) for q,e in zip(assign[J][sym], energy[J][sym])] for sym in symlist[J]} for J in Jlist}
+
+        self.Jlist1 = Jlist
+        self.symlist1 = symlist
+        self.quanta_k1 = quanta_k
+        self.quanta_m1 = quanta_m
+        self.dim_k1 = dim_k
+        self.dim_m1 = dim_m
+        self.dim1 = dim
+
+        self.Jlist2 = Jlist
+        self.symlist2 = symlist
+        self.quanta_k2 = quanta_k
+        self.quanta_m2 = quanta_m
+        self.dim_k2 = dim_k
+        self.dim_m2 = dim_m
+        self.dim2 = dim
 
         self.cart = '0'
         self.os = [(0,0)]
         self.rank = 0
 
         self.mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mquanta[J])), dtype=np.complex128)}}
-                     for sym in self.symlist[J]} for J in self.Jlist}
+                     for sym in symlist[J]} for J in Jlist}
 
         self.kmat = {(J, J) : {(sym, sym) : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}
-                     for sym in self.symlist[J]} for J in self.Jlist}
+                     for sym in symlist[J]} for J in Jlist}
 
-        # write tensor into temp file and reload in CarTens()
+        # ====== to be used only by read_trans ======
+        self.Jlist = Jlist
+        self.dim_k = dim_k
+        self.dim_m = dim_m
+        self.map_kstates = map_kstates
+        self.map_mstates = map_mstates
+        # exclude these attributes from stroring into HDF5 file
+        # note that these attributes won't be affected by state filters in CarTens.__init_() => CarTens.read()
+        self.store_exclude = ["Jlist", "dim_m", "dim_k", "map_mstates", "map_kstates"]
+        #==========================================
 
-        fname = "tmp.h5"
-        name = retrieve_name(self)
-        self.store(filename=fname, name=name, replace=True)
-        CarTens.__init__(self, filename=fname,  name=name, **kwargs)
-        if os.path.exists("tmp.h5"):
-            os.remove("tmp.h5")
+        # write tensor into temp file
+
+        tmp_file = "tmp_read_states.h5"
+        self.store(tmp_file, replace=True, comment="loaded from richmol states file " + filename)
+
+        # re-initialize, now with state filters applied (passed in kwargs)
+
+        CarTens.__init__(self, tmp_file,  **kwargs)
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
 
 
     def read_trans(self, filename, thresh=None, **kwargs):
         """Reads matrix elements of Cartesian tensor from the old-format richmol
-        matrix elements files, for example, produced by the TROVE program
+        matrix elements files produced, for example, by TROVE program
+
+        NOTE: prior running of self.read_states(richmol_states_file) is compulsory,
+        as this function loads the necessary information about the stationary states
 
         Args:
             filename : str
-                Template for generating the names of files containing matrix elements
-                of tensor for different values of bra and ket J (or F) quanta.
-                For example, if filename = "matelem_alpha_j<j1>_j<j2>.rchm",
+                In old-format style, matrix elements of Cartesian tensor are stored
+                in separate files for different values of bra and ket J (or F) quanta.
+                The argument 'filename' provides a template for generating the names
+                of these files. For example, if filename = "matelem_alpha_j<j1>_j<j2>.rchm",
                 the following files will be searched: "matelem_alpha_j0_j0.rchm",
                 "matelem_alpha_j0_j1.rchm", "matelem_alpha_j0_j2.rchm",
                 "matelem_alpha_j1_j1.rchm", etc., i.e., <j1> and <j2> are replaced
-                by the integer values of J quanta spanned by the basis.
+                by the integer values of bra and ket J quanta spanned by the basis
+                of stationary states.
                 For half-integer values of the F quantum number, replace <j1> and <j2>
                 in the template by <f1> and <f2>, these will be substituted
                 by the floating point values of F quanta rounded to the first decimal.
             thresh : float
                 Threshold for neglecting matrix elements when reading from file
-
-        Kwargs:
-            see CarTens.__init__
         """
-        #self.mmat = dict()
-        #self.kmat = dict()
         tens_cart = []
         tens_nirrep = None
         tens_ncart = None
+
+        tmp_file = "tmp_read_trans.h5"
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
 
         for J1 in self.Jlist:
             for J2 in self.Jlist:
@@ -975,36 +1029,38 @@ class CarTens():
                 self.mmat = dict()
                 self.kmat = dict()
 
-                fshape = lambda sym: (self.dim_m[J1][sym[0]], self.dim_m[J2][sym[1]])
+                shape = {(sym1, sym2) : (self.dim_m[J1][sym1], self.dim_m[J2][sym2]) for (sym1, sym2) in kdata.keys()}
+
                 self.mmat[(J1,J2)] = {sym : {cart : {irrep :
-                                      csr_matrix((mdata[cart][irrep], (mrow[cart][irrep], mcol[cart][irrep])), shape=fshape(sym))
+                                      csr_matrix((mdata[cart][irrep], (mrow[cart][irrep], mcol[cart][irrep])), shape=shape[sym])
                                       for irrep in mdata[cart].keys()}
                                       for cart in mdata.keys()}
-                                      for sym in kdata.keys()}
+                                      for sym in shape.keys()}
 
-                fshape = lambda sym: (self.dim_k[J1][sym[0]], self.dim_k[J2][sym[1]])
+                shape = {(sym1, sym2) : (self.dim_k[J1][sym1], self.dim_k[J2][sym2]) for (sym1, sym2) in kdata.keys()}
+
                 self.kmat[(J1,J2)] = {sym : {irrep :
-                                      csr_matrix((kdata[sym][irrep], (krow[sym][irrep], kcol[sym][irrep])), shape=fshape(sym))
+                                      csr_matrix((kdata[sym][irrep], (krow[sym][irrep], kcol[sym][irrep])), shape=shape[sym])
                                       for irrep in kdata[sym].keys()}
-                                      for sym in kdata.keys()}
-
-                # write tensor into temp file and reload in CarTens()
-
-                fname = "tmp.h5"
-                name = retrieve_name(self)
-                self.store(filename=fname, name=name, replace=False)
+                                      for sym in shape.keys()}
 
                 # delete empty entries in kmat
-                #symlist = list(self.kmat[(J1, J2)].keys())
-                #for sym in symlist:
-                #    if all(mat.nnz == 0 for mat in self.kmat[(J1, J2)][sym].values()):
-                #        del self.kmat[(J1, J2)][sym]
+                symlist = list(self.kmat[(J1, J2)].keys())
+                for sym in symlist:
+                    if all(mat.nnz == 0 for mat in self.kmat[(J1, J2)][sym].values()):
+                        del self.kmat[(J1, J2)][sym]
 
                 # delete empty entries in mmat
-                #symlist = list(self.mmat[(J1, J2)].keys())
-                #for sym in symlist:
-                #    if all(mat.nnz == 0 for tmat in self.mmat[(J1, J2)][sym].values() for mat in tmat.values()):
-                #        del self.mmat[(J1, J2)][sym]
+                symlist = list(self.mmat[(J1, J2)].keys())
+                for sym in symlist:
+                    if all(mat.nnz == 0 for tmat in self.mmat[(J1, J2)][sym].values() for mat in tmat.values()):
+                        del self.mmat[(J1, J2)][sym]
+
+                # update tensor in temp HDF5 file
+
+                self.store(tmp_file, replace=False)
+
+        # init list of Cartesian components and spherical-tenson indices
 
         self.cart = tens_cart
 
@@ -1031,14 +1087,17 @@ class CarTens():
             raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
                 f"of Cartesian components = {tens_ncart}") from None
 
+        # update tensor in temp HDF5 file
         self.mmat = dict()
         self.kmat = dict()
-        fname = "tmp.h5"
-        name = retrieve_name(self)
-        self.store(filename=fname, name=name, replace=False)
-        CarTens.__init__(self, filename=fname,  name=name, **kwargs)
-        if os.path.exists("tmp.h5"):
-            os.remove("tmp.h5")
+        self.store(tmp_file, replace=False, comment="loaded from richmol matrix elements file "+str(filename))
+
+        # re-initialize, now with state filters applied (passed in kwargs)
+
+        CarTens.__init__(self, tmp_file, **kwargs)
+
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
 
 
 
