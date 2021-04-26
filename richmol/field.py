@@ -35,26 +35,16 @@ class CarTens():
     """
     prefac = 1.0
 
-    def __init__(self, **kwargs):
+    def __init__(self, filename, matelem=None, **kwargs):
 
-        if "filename" in kwargs:
-            # read data from HDF5 file
-            filename = kwargs["filename"]
-            kw = {elem : kwargs[elem] for elem in ("thresh", "name", "bra", "ket") if elem in kwargs}
-            self.read(filename=filename, **kw)
-
-        elif "states" in kwargs:
-            # read field-free basis from old-format richmol files
-            kw = {elem : kwargs[elem] for elem in ("filter",) if elem in kwargs}
-            states = self.read_states(kwargs["states"], **kw)
-            if "trans" in kwargs:
-                # read matrix elements from old-format richmol files
-                self.read_trans(states, kwargs["trans"], thresh=thresh)
-            else:
-                self = states
-
-        # apply filters
-        # TODO: move the filters out of reading functions here
+        if h5py.is_hdf5(filename):
+            # read tensor from HDF5 file
+            self.read(filename, **kwargs)
+        else:
+            # read old-format richmol files
+            self.read_states(filename, **kwargs)
+            if matelem is not None:
+                self.read_trans(matelem, **kwargs)
 
 
     def tomat(self, form='block', **kwargs):
@@ -387,32 +377,39 @@ class CarTens():
 
         with h5py.File(filename, 'a') as fl:
             if name in fl:
+                print("name in fl")
                 if replace is True:
                     del fl[name]
+                    group = fl.create_group(name)
                 else:
-                    raise RuntimeError(f"found existing dataset '{name}' in file " + \
-                        f"'{filename}', use replace=True to replace it") from None
+                    group = fl[name]
+                    print(f"found existing dataset '{name}' in file '{filename}', " + \
+                        f"will append it, potentially replacing some data")
+            else:
+                print("name not in fl")
+                group = fl.create_group(name)
 
-            group = fl.create_group(name)
             class_name = self.class_name()
             group.attrs["__class_name__"] = class_name
 
             # description of object
-            doc = "Cartesian tensor operator"
 
-            # add date/time
+            try:
+                doc = group.attrs["__doc__"]
+            except KeyError:
+                doc = "Cartesian tensor operator"
+
             date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
             doc += ", store date: " + date.replace('\n','')
-
-            # add user comment
             if comment is not None:
                 doc += ", comment: " + " ".join(elem for elem in comment.split())
 
-            group.attrs['__doc__'] = doc
+            group.attrs["__doc__"] = doc
 
             # store attributes
 
-            attrs = list(set(vars(self).keys()) - set(['mmat', 'kmat', 'molecule', 'basis']))
+            exclude = ["mmat", "kmat", "molecule", "basis", "map_kstates", "map_mstates"]
+            attrs = list(set(vars(self).keys()) - set(exclude))
             for attr in attrs:
                 val = getattr(self, attr)
                 try:
@@ -423,7 +420,7 @@ class CarTens():
 
             # store basis functions (dict(Solution()))
 
-            if hasattr(self, 'basis'):
+            if hasattr(self, "basis"):
                 group.attrs["basis__json"] = json.dumps(dict(self.basis))
 
             # store M and K tensors
@@ -462,14 +459,14 @@ class CarTens():
                             group_sym = group_j[sym_group_key(sym1, sym2)]
                         except:
                             group_sym = group_j.create_group(sym_group_key(sym1, sym2))
-                        group_sym.create_dataset('kmat_data', data=np.concatenate(data))
-                        group_sym.create_dataset('kmat_indices', data=np.concatenate(indices))
-                        group_sym.create_dataset('kmat_indptr', data=np.concatenate(indptr))
-                        group_sym.attrs['kmat_nnz'] = [len(dat) for dat in data]
-                        group_sym.attrs['kmat_nind'] = [len(ind) for ind in indices]
-                        group_sym.attrs['kmat_nptr'] = [len(ind) for ind in indptr]
-                        group_sym.attrs['kmat_irreps'] = irreps
-                        group_sym.attrs['kmat_shape'] = shape
+                        group_sym.create_dataset("kmat_data", data=np.concatenate(data))
+                        group_sym.create_dataset("kmat_indices", data=np.concatenate(indices))
+                        group_sym.create_dataset("kmat_indptr", data=np.concatenate(indptr))
+                        group_sym.attrs["kmat_nnz"] = [len(dat) for dat in data]
+                        group_sym.attrs["kmat_nind"] = [len(ind) for ind in indices]
+                        group_sym.attrs["kmat_nptr"] = [len(ind) for ind in indptr]
+                        group_sym.attrs["kmat_irreps"] = irreps
+                        group_sym.attrs["kmat_shape"] = shape
 
                     # store M-matrix
 
@@ -497,17 +494,18 @@ class CarTens():
                             group_sym = group_j[sym_group_key(sym1, sym2)]
                         except:
                             group_sym = group_j.create_group(sym_group_key(sym1, sym2))
-                        group_sym.create_dataset('mmat_data', data=np.concatenate(data))
-                        group_sym.create_dataset('mmat_indices', data=np.concatenate(indices))
-                        group_sym.create_dataset('mmat_indptr', data=np.concatenate(indptr))
-                        group_sym.attrs['mmat_nnz'] = [len(dat) for dat in data]
-                        group_sym.attrs['mmat_nind'] = [len(ind) for ind in indices]
-                        group_sym.attrs['mmat_nptr'] = [len(ind) for ind in indptr]
-                        group_sym.attrs['mmat_irreps_cart'] = irreps_cart
-                        group_sym.attrs['mmat_shape'] = shape
+                        group_sym.create_dataset("mmat_data", data=np.concatenate(data))
+                        group_sym.create_dataset("mmat_indices", data=np.concatenate(indices))
+                        group_sym.create_dataset("mmat_indptr", data=np.concatenate(indptr))
+                        group_sym.attrs["mmat_nnz"] = [len(dat) for dat in data]
+                        group_sym.attrs["mmat_nind"] = [len(ind) for ind in indices]
+                        group_sym.attrs["mmat_nptr"] = [len(ind) for ind in indptr]
+                        group_sym.attrs["mmat_irreps_cart"] = irreps_cart
+                        group_sym.attrs["mmat_shape"] = shape
 
 
-    def read(self, filename, name=None, thresh=None, bra=lambda **kw: True, ket=lambda **kw: True):
+    def read(self, filename, name=None, thresh=None, bra=lambda **kw: True,
+             ket=lambda **kw: True, **kwargs):
         """Reads object from HDF5 file
 
         Args:
@@ -708,56 +706,36 @@ class CarTens():
                                 self.mmat[(J1, J2)][(sym1, sym2)] = mmat
 
 
-    def read_states(self, filename, filter=lambda **kw: True):
-        """Reads basis states information from old-format richmol states file,
-        for example, files that are produced by TROVE program
+    def read_states(self, filename, **kwargs):
+        """Reads basis states information from the old-format richmol states file,
+        for example, produced by TROVE program
 
         Args:
             filename : str
                 Name of richmol states file
-            filter : function(**kw)
-                States filter function, takes as arguments state assignment
-                quanta and energy, J, sym, m, k, and enr, and returns True or False
-                depending on if the corresponding state needs to be included or excluded
-                form the basis. By default, all states stored in the file are included.
-                The following keyword arguments are passed into the filter function:
-                    J : float (round to first decimal)
-                        Value of J (or F) quantum number
-                    sym : str
-                        State symmetry
-                    enr : float
-                        State energy
-                    m : str
-                        State assignment in the M subspace, usually just a value
-                        of the m quantum number as a string
-                    k : str
-                        State assignment in the K subspace, which are the rotational
-                        or ro-vibrational quanta joined in a string
+
+        Kwargs:
+            see CarTens.__init__
         """
         # read states file
 
         mydict = lambda: defaultdict(mydict)
         energy = mydict()
         assign = mydict()
-        mquanta = mydict()
-        map_kstates = mydict()
+        self.map_kstates = dict()
 
         with open(filename, 'r') as fl:
             for line in fl:
                 w = line.split()
-                J = round(float(w[0]),1)
-                id = np.int64(w[1])
-                sym = w[2]
-                ndeg = int(w[3])
-                enr = float(w[4])
-                qstr = ' '.join([w[i] for i in range(5,len(w))])
-
-                # apply state filters
-                if not filter(J=J, sym=sym, k=qstr, enr=enr, id=id):
-                    continue
-                mlist = [m for m in np.linspace(-J, J, int(2*J)+1) if filter(J=J, sym=sym, m=m)]
-                if len(mlist) == 0:
-                    continue
+                try:
+                    J = round(float(w[0]),1)
+                    id = np.int(w[1])
+                    sym = w[2]
+                    ndeg = int(w[3])
+                    enr = float(w[4])
+                    qstr = ' '.join([w[i] for i in range(5,len(w))])
+                except (IndexError, ValueError):
+                    raise ValueError(f"error while reading file '{filename}'") from None
 
                 for ideg in range(ndeg):
                     try:
@@ -769,23 +747,22 @@ class CarTens():
 
                     # mapping between (J,id,ideg) and basis set index in the group
                     # of states sharing the same J and symmetry
-                    map_kstates[(J, id, ideg)] = (len(energy[J][sym])-1, sym)
-
-                mquanta[J][sym] = mlist
-
-        # check how many states have passed filter
+                    self.map_kstates[(J, id, ideg+1)] = (len(energy[J][sym])-1, sym)
 
         if len(list(energy.keys())) == 0:
-            raise Exception(f"zero number of states, perhaps selection filters cast out all states") from None
+            raise Exception(f"zero number of states in file '{filename}'") from None
+
+        # list of m quanta for different J
+        mquanta = {J : [m for m in np.linspace(-J, J, int(2*J)+1)] for J in energy.keys()}
 
         # generate mapping beteween m quanta and basis set index
-        #map_mstates = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mdict[J]) }
+        self.map_mstates = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mquanta[J]) }
 
         # generate attributes
 
         self.Jlist = list(energy.keys())
         self.symlist = {J : [sym for sym in energy[J].keys()] for J in self.Jlist}
-        self.dim_m = {J : {sym : len(mquanta[J][sym])
+        self.dim_m = {J : {sym : len(mquanta[J])
                       for sym in self.symlist[J]}
                       for J in self.Jlist}
         self.dim_k = {J : {sym : len(energy[J][sym])
@@ -794,7 +771,7 @@ class CarTens():
         self.dim = {J : {sym : self.dim_m[J][sym] * self.dim_k[J][sym]
                     for sym in self.symlist[J]}
                     for J in self.Jlist}
-        self.quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J][sym]] 
+        self.quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J]] 
                          for sym in self.symlist[J]}
                          for J in self.Jlist}
         self.quanta_k = {J : {sym : assign[J][sym]
@@ -808,55 +785,52 @@ class CarTens():
         self.os = [(0,0)]
         self.rank = 0
 
-        self.mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mquanta[J][sym])), dtype=np.complex128)}}
+        self.mmat = {(J, J) : {(sym, sym) : {'0' : {0 : csr_matrix(np.eye(len(mquanta[J])), dtype=np.complex128)}}
                      for sym in self.symlist[J]} for J in self.Jlist}
 
         self.kmat = {(J, J) : {(sym, sym) : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}
                      for sym in self.symlist[J]} for J in self.Jlist}
 
         # write tensor into temp file and reload in CarTens()
-        filename = "tmp.h5"
-        self.store(filename=filename, name=retrieve_name(self))
-        CarTens.__init__(self, filename=filename,  name=retrieve_name(self))
+
+        fname = "tmp.h5"
+        name = retrieve_name(self)
+        self.store(filename=fname, name=name, replace=True)
+        CarTens.__init__(self, filename=fname,  name=name, **kwargs)
         if os.path.exists("tmp.h5"):
             os.remove("tmp.h5")
 
 
-    def read_trans(self, states, filename, thresh=None):
-        """Reads matrix elements of Cartesian tensor from old-format richmol
-        matrix elements files, for example, files that are produced by TROVE program
+    def read_trans(self, filename, thresh=None, **kwargs):
+        """Reads matrix elements of Cartesian tensor from the old-format richmol
+        matrix elements files, for example, produced by the TROVE program
 
         Args:
-            states : field.CarTens
-                Field-free basis states (see read_states)
             filename : str
-                In the old format, matrix elements for different bra and ket J quantum
-                numbers are stored in separate files. The argument 'filename' provides
-                a template for generating the names of these files.
-                For example, for filename = "matelem_alpha_j<j1>_j<j2>.rchm",
-                the following files will be searched: matelem_alpha_j0_j0.rchm,
-                matelem_alpha_j0_j1.rchm, matelem_alpha_j0_j2.rchm,
-                matelem_alpha_j1_j1.rchm, etc., where <j1> and <j2> are replaced
-                by integer numbers running through all J quanta spanned by the basis.
-                For half-integer numbers (e.g., F quanta), replace <j1> and <j2>
-                in the template by <f1> and <f2>, these will be replaced by
-                floating point numbers rounded to the first decimal.
+                Template for generating the names of files containing matrix elements
+                of tensor for different values of bra and ket J (or F) quanta.
+                For example, if filename = "matelem_alpha_j<j1>_j<j2>.rchm",
+                the following files will be searched: "matelem_alpha_j0_j0.rchm",
+                "matelem_alpha_j0_j1.rchm", "matelem_alpha_j0_j2.rchm",
+                "matelem_alpha_j1_j1.rchm", etc., i.e., <j1> and <j2> are replaced
+                by the integer values of J quanta spanned by the basis.
+                For half-integer values of the F quantum number, replace <j1> and <j2>
+                in the template by <f1> and <f2>, these will be substituted
+                by the floating point values of F quanta rounded to the first decimal.
             thresh : float
                 Threshold for neglecting matrix elements when reading from file
+
+        Kwargs:
+            see CarTens.__init__
         """
-        # read M and K tensors for different pairs of J quanta
-
-        Jlist1 = states.Jlist1
-        Jlist2 = states.Jlist2
-
-        self.mmat = dict()
-        self.kmat = dict()
+        #self.mmat = dict()
+        #self.kmat = dict()
         tens_cart = []
         tens_nirrep = None
         tens_ncart = None
 
-        for J1 in Jlist1:
-            for J2 in Jlist2:
+        for J1 in self.Jlist:
+            for J2 in self.Jlist:
 
                 F1_str = str(round(J1,1))
                 F2_str = str(round(J2,1))
@@ -868,8 +842,16 @@ class CarTens():
                 fname = re.sub(r"\<j1\>", J1_str, fname)
                 fname = re.sub(r"\<j2\>", J2_str, fname)
 
-                if not opersys.path.exists(fname):
+                if not os.path.exists(fname):
                     continue
+
+                mydict = lambda: defaultdict(mydict)
+                mrow = mydict()
+                mcol = mydict()
+                mdata = mydict()
+                kcol = mydict()
+                krow = mydict()
+                kdata = mydict()
 
                 with open(fname, "r") as fl:
 
@@ -883,7 +865,7 @@ class CarTens():
 
                         if iline == 0:
                             if strline != "Start richmol format":
-                                raise Exception(f"matrix elements file '{fname}' has bogus header '{strline}'")
+                                raise Exception(f"file '{fname}' has bogus header '{strline}'")
                             iline+=1
                             continue
 
@@ -893,14 +875,17 @@ class CarTens():
 
                         if iline == 1:
                             w = strline.split()
-                            tens_name = w[0]
-                            nirrep = int(w[1])
-                            ncart = int(w[2])
+                            try:
+                                tens_name = w[0]
+                                nirrep = int(w[1])
+                                ncart = int(w[2])
+                            except (IndexError, ValueError):
+                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
                             if tens_nirrep is not None and tens_nirrep != nirrep:
-                                raise Exception(f"'nirrep' = {nirrep} read from file {fname} is different from " + \
+                                raise ValueError(f"'nirrep' = {nirrep} read from file {fname} is different from " + \
                                     f"the value {tens_nirrep} read from previous files") from None
                             if tens_ncart is not None and tens_ncart != ncart:
-                                raise Exception(f"'ncart' = {ncart} read from file {fname} is different from " + \
+                                raise ValueError(f"'ncart' = {ncart} read from file {fname} is different from " + \
                                     f"the value {tens_ncart} read from previous files") from None
                             tens_nirrep = nirrep
                             tens_ncart = ncart
@@ -910,48 +895,39 @@ class CarTens():
                         if strline == "M-tensor":
                             read_m = True
                             read_k = False
-                            mdata = dict()
-                            mrow = dict()
-                            mcol = dict()
                             iline+=1
                             continue
 
                         if strline == "K-tensor":
                             read_m = False
                             read_k = True
-                            kdata = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
-                            krow = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
-                            kcol = {(sym1, sym2) : {} for sym1 in states.symlist1[J1] for sym2 in states.symlist2[J2]}
                             iline+=1
                             continue
 
                         if read_m is True and strline.split()[0] == "alpha":
                             w = strline.split()
-                            icmplx = int(w[2])
-                            cart = w[3].lower()
+                            try:
+                                icmplx = int(w[2])
+                                cart = w[3].lower()
+                            except (IndexError, ValueError):
+                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
                             tens_cart = list(set(tens_cart + [cart]))
                             cmplx_fac = (1j, 1)[icmplx+1]
-                            mdata[cart] = dict()
-                            mrow[cart] = dict()
-                            mcol[cart] = dict()
                             iline+=1
                             continue
 
                         if read_m is True:
                             w = strline.split()
-                            m1 = float(w[0])
-                            m2 = float(w[1])
                             try:
-                                im1 = states.map_mstates[(J1, m1)]
-                            except:
-                                continue
-                            try:
-                                im2 = states.map_mstates[(J2, m2)]
-                            except:
-                                continue
-                            mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                                m1 = float(w[0])
+                                m2 = float(w[1])
+                                mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                            except (IndexError, ValueError):
+                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
+                            im1 = self.map_mstates[(J1, m1)]
+                            im2 = self.map_mstates[(J2, m2)]
                             if thresh is not None:
-                                irreps = [i for i in range(nirrep) if abs(mval[i]) > thresh]
+                                irreps = [i for i in range(nirrep) if abs(mval[i]) >= thresh]
                             else:
                                 irreps = [i for i in range(nirrep)]
                             for irrep in irreps:
@@ -959,28 +935,25 @@ class CarTens():
                                     mrow[cart][irrep].append(im1)
                                     mcol[cart][irrep].append(im2)
                                     mdata[cart][irrep].append(mval[irrep])
-                                except KeyError:
+                                except AttributeError:
                                     mrow[cart][irrep] = [im1]
                                     mcol[cart][irrep] = [im2]
                                     mdata[cart][irrep] = [mval[irrep]]
 
                         if read_k is True:
                             w = strline.split()
-                            id1 = int(w[0])
-                            id2 = int(w[1])
-                            ideg1 = int(w[2])
-                            ideg2 = int(w[3])
-                            kval = [float(val) for val in w[4:]]
                             try:
-                                istate1, sym1 = states.map_kstates[(J1, id1, ideg1)]
-                            except:
-                                continue
-                            try:
-                                istate2, sym2 = states.map_kstates[(J2, id2, ideg2)]
-                            except:
-                                continue
+                                id1 = int(w[0])
+                                id2 = int(w[1])
+                                ideg1 = int(w[2])
+                                ideg2 = int(w[3])
+                                kval = [float(val) for val in w[4:]]
+                            except (IndexError, ValueError):
+                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
+                            istate1, sym1 = self.map_kstates[(J1, id1, ideg1)]
+                            istate2, sym2 = self.map_kstates[(J2, id2, ideg2)]
                             if thresh is not None:
-                                irreps = [i for i in range(nirrep) if abs(kval[i]) > thresh]
+                                irreps = [i for i in range(nirrep) if abs(kval[i]) >= thresh]
                             else:
                                 irreps = [i for i in range(nirrep)]
                             sym = (sym1, sym2)
@@ -989,7 +962,7 @@ class CarTens():
                                     krow[sym][irrep].append(istate1)
                                     kcol[sym][irrep].append(istate2)
                                     kdata[sym][irrep].append(kval[irrep])
-                                except IndexError:
+                                except AttributeError:
                                     krow[sym][irrep] = [istate1]
                                     kcol[sym][irrep] = [istate2]
                                     kdata[sym][irrep] = [kval[irrep]]
@@ -997,47 +970,42 @@ class CarTens():
                         iline +=1
 
                     if eof is False:
-                        raise Exception(f"matrix-elements file '{fname}' has bogus footer '{strline}'")
+                        raise Exception(f"'{fname}' has bogus footer '{strline}'")
 
-                fshape = lambda sym: (states.dim_m1[J1][sym[0]], states.dim_m2[J2][sym[1]])
+                self.mmat = dict()
+                self.kmat = dict()
+
+                fshape = lambda sym: (self.dim_m[J1][sym[0]], self.dim_m[J2][sym[1]])
                 self.mmat[(J1,J2)] = {sym : {cart : {irrep :
                                       csr_matrix((mdata[cart][irrep], (mrow[cart][irrep], mcol[cart][irrep])), shape=fshape(sym))
                                       for irrep in mdata[cart].keys()}
                                       for cart in mdata.keys()}
                                       for sym in kdata.keys()}
 
-                fshape = lambda sym: (states.dim_k1[J1][sym[0]], states.dim_k2[J2][sym[1]])
+                fshape = lambda sym: (self.dim_k[J1][sym[0]], self.dim_k[J2][sym[1]])
                 self.kmat[(J1,J2)] = {sym : {irrep :
                                       csr_matrix((kdata[sym][irrep], (krow[sym][irrep], kcol[sym][irrep])), shape=fshape(sym))
                                       for irrep in kdata[sym].keys()}
                                       for sym in kdata.keys()}
 
+                # write tensor into temp file and reload in CarTens()
+
+                fname = "tmp.h5"
+                name = retrieve_name(self)
+                self.store(filename=fname, name=name, replace=False)
+
                 # delete empty entries in kmat
-                symlist = list(self.kmat[(J1, J2)].keys())
-                for sym in symlist:
-                    if all(mat.nnz == 0 for mat in self.kmat[(J1, J2)][sym].values()):
-                        del self.kmat[(J1, J2)][sym]
+                #symlist = list(self.kmat[(J1, J2)].keys())
+                #for sym in symlist:
+                #    if all(mat.nnz == 0 for mat in self.kmat[(J1, J2)][sym].values()):
+                #        del self.kmat[(J1, J2)][sym]
 
                 # delete empty entries in mmat
-                symlist = list(self.mmat[(J1, J2)].keys())
-                for sym in symlist:
-                    if all(mat.nnz == 0 for tmat in self.mmat[(J1, J2)][sym].values() for mat in tmat.values()):
-                        del self.mmat[(J1, J2)][sym]
+                #symlist = list(self.mmat[(J1, J2)].keys())
+                #for sym in symlist:
+                #    if all(mat.nnz == 0 for tmat in self.mmat[(J1, J2)][sym].values() for mat in tmat.values()):
+                #        del self.mmat[(J1, J2)][sym]
 
-        # copy some attributes from states
-
-        self.symlist1 = states.symlist1
-        self.symlist2 = states.symlist2
-        self.dim_m1 = states.dim_m1
-        self.dim_m2 = states.dim_m2
-        self.dim_k1 = states.dim_k1
-        self.dim_k2 = states.dim_k2
-        self.dim1 = states.dim1
-        self.dim2 = states.dim2
-        self.assign_m1 = states.assign_m1
-        self.assign_m2 = states.assign_m2
-        self.assign_k1 = states.assign_k1
-        self.assign_k2 = states.assign_k2
         self.cart = tens_cart
 
         # irreps[(ncart, nirrep)]
@@ -1049,7 +1017,7 @@ class CarTens():
         # ranks[ncart]
         ranks = {3 : 1, 9 : 2}
 
-        # infer list of spherical-tensor indices
+        # infer spherical-tensor indices
         try:
             self.os = irreps[(tens_ncart, tens_nirrep)]
         except KeyError:
@@ -1062,6 +1030,16 @@ class CarTens():
         except KeyError:
             raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
                 f"of Cartesian components = {tens_ncart}") from None
+
+        self.mmat = dict()
+        self.kmat = dict()
+        fname = "tmp.h5"
+        name = retrieve_name(self)
+        self.store(filename=fname, name=name, replace=False)
+        CarTens.__init__(self, filename=fname,  name=name, **kwargs)
+        if os.path.exists("tmp.h5"):
+            os.remove("tmp.h5")
+
 
 
     def class_name(self):
