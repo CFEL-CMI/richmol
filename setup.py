@@ -69,7 +69,7 @@ if __name__ == "__main__":
                                "of internal (hyperfine) and external (laser) electromagnetic fields"),
         license             = "GPL",
         packages            = ["richmol"],
-        cmdclass            = {'build': Build},
+        #cmdclass            = {'build': Build},
         package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
         scripts             = [],
         ext_modules         = [expokit, wigner],
