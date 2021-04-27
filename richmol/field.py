@@ -289,6 +289,52 @@ class CarTens():
             raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
 
 
+    def add_cartens(self, arg):
+        """Computes sum of tensors"""
+        if not isinstance(arg, CarTens):
+            raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
+
+        # check  if two tensors are defined with respect to the same basis set
+
+        check_dict = ("Jlist1", "Jlist2", "symlist1", "symlist2", "dim1", "dim2", "dim_k1", "dim_k2",
+                "dim_m1", "dim_m2", "quanta_k1", "quanta_k2", "quanta_m1", "quanta_m2")
+
+        nelem = 0
+        for elem in check_dict:
+            attr1 = getattr(self, elem)
+            attr2 = getattr(arg, elem)
+            if attr1 != attr2:
+                print(f"can't add two tensors: {retrieve_name(self)}.{elem} != {retrieve_name(arg)}.{elem}")
+                nelem+=1
+        if nelem>0:
+            raise ValueError(f"tensors {retrieve_name(self)} + {retrieve_name(arg)} defined with respect to different basis sets") from None
+
+        # sum M and K tensors
+
+        irreps1 = {elem : str(elem)+"_1" for elem in set(omega for (omega,sigma) in self.os)}
+        irreps2 = {elem : str(elem)+"_2" for elem in set(omega for (omega,sigma) in arg.os)}
+
+        res = type('a+b', self.__class__, dict(self.__dict__))
+
+        for Jpair in res.kmat.keys():
+            for sympair in res.kmat[Jpair].keys():
+                res.kmat[Jpair][sympair] = {irreps1[irrep] : val for irrep, val in res.kmat[Jpair][sympair].items()}
+
+        for Jpair in res.mfmat.keys():
+            for sympair in res.mfmat[Jpair].keys():
+                res.mfmat[Jpair][sympair] = {irreps1[irrep] : val for irrep, val in res.mfmat[Jpair][sympair].items()}
+
+        for Jpair in arg.kmat.keys():
+            for sympair in arg.kmat[Jpair].keys():
+                res.kmat[Jpair][sympair].update( {irreps2[irrep] : val for irrep, val in arg.kmat[Jpair][sympair].items()} )
+
+        for Jpair in arg.mmat.keys():
+            for sympair in arg.mmat[Jpair].keys():
+                res.mfmat[Jpair][sympair].update( {irreps2[irrep] : val for irrep, val in arg.mfmat[Jpair][sympair].items()} )
+
+        return res
+
+
     def field(self, field, tol=1e-12):
         """Multiplies tensor with field and sums over Cartesian components
 
@@ -313,6 +359,8 @@ class CarTens():
         field_prod = {"".join("xyz"[c] for c in comb) : np.prod(fxyz[list(comb)]) \
                       for comb in itertools.product((0,1,2), repeat=self.rank) \
                       if abs(np.prod(fxyz[list(comb)])) >= tol}
+
+        field_prod["0"] = 1 # this is to compute mfmat for product of field with field-free part (H0)
 
         nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
         res = np.zeros(nirrep, dtype=np.complex128)
@@ -422,7 +470,17 @@ class CarTens():
         return res
 
 
+    def __add__(self, arg):
+        if isinstance(arg, CarTens):
+            res = self.add_cartens(arg)
+        else:
+            raise TypeError(f"unsupported operand type(s) for '+': '{self.__class__.__name__}' and " + \
+                f"'{type(arg)}'") from None
+        return res
+
+
     __rmul__ = __mul__
+    __radd__ = __add__
 
 
     def store(self, filename, name=None, comment=None, replace=False, thresh=None):
@@ -918,6 +976,17 @@ class CarTens():
             thresh : float
                 Threshold for neglecting matrix elements when reading from file
         """
+        # irreps[(ncart, nirrep)]
+        irreps = {(3,1) : [(1,-1), (1,0), (1,1)],                                               # rank-1 tensor
+                  (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                                # traceless and symmetric rank-2 tensor
+                  (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],                         # symmetric rank-2 tensor
+                  (9,3) : [(0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2)]}   # non-symmetric rank-2 tensor
+
+        # ranks[ncart]
+        ranks = {3 : 1, 9 : 2}
+
+        self.cart = []
+
         tens_cart = []
         tens_nirrep = None
         tens_ncart = None
@@ -986,6 +1055,17 @@ class CarTens():
                                     f"the value {tens_ncart} read from previous files") from None
                             tens_nirrep = nirrep
                             tens_ncart = ncart
+                            try:
+                                self.os = irreps[(ncart, nirrep)]
+                                irreps_list = sorted(list(set(omega for omega, sigma in self.os)))
+                            except KeyError:
+                                raise ValueError(f"can't infer Cartesian tensor irreps from the number " + \
+                                    f"of Cartesian components = {ncart} and number of irreps = {nirrep}") from None
+                            try:
+                                self.rank = ranks[ncart]
+                            except KeyError:
+                                raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
+                                    f"of Cartesian components = {ncart}") from None
                             iline+=1
                             continue
 
@@ -1008,7 +1088,7 @@ class CarTens():
                                 cart = w[3].lower()
                             except (IndexError, ValueError):
                                 raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
-                            tens_cart = list(set(tens_cart + [cart]))
+                            self.cart = list(set(self.cart + [cart]))
                             cmplx_fac = (1j, 1)[icmplx+1]
                             iline+=1
                             continue
@@ -1023,19 +1103,17 @@ class CarTens():
                                 raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
                             im1 = self.map_mstates[(J1, m1)]
                             im2 = self.map_mstates[(J2, m2)]
-                            if thresh is not None:
-                                irreps = [i for i in range(nirrep) if abs(mval[i]) >= thresh]
-                            else:
-                                irreps = [i for i in range(nirrep)]
-                            for irrep in irreps:
+                            for i,irrep in enumerate(irreps_list):
+                                if thresh is not None and abs(mval[i]) < thresh:
+                                    continue
                                 try:
                                     mrow[cart][irrep].append(im1)
                                     mcol[cart][irrep].append(im2)
-                                    mdata[cart][irrep].append(mval[irrep])
+                                    mdata[cart][irrep].append(mval[i])
                                 except AttributeError:
                                     mrow[cart][irrep] = [im1]
                                     mcol[cart][irrep] = [im2]
-                                    mdata[cart][irrep] = [mval[irrep]]
+                                    mdata[cart][irrep] = [mval[i]]
 
                         if read_k is True:
                             w = strline.split()
@@ -1049,20 +1127,18 @@ class CarTens():
                                 raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
                             istate1, sym1 = self.map_kstates[(J1, id1, ideg1)]
                             istate2, sym2 = self.map_kstates[(J2, id2, ideg2)]
-                            if thresh is not None:
-                                irreps = [i for i in range(nirrep) if abs(kval[i]) >= thresh]
-                            else:
-                                irreps = [i for i in range(nirrep)]
                             sym = (sym1, sym2)
-                            for irrep in irreps:
+                            for i,irrep in enumerate(irreps_list):
+                                if thresh is not None and abs(kval[i]) < thresh:
+                                    continue
                                 try:
                                     krow[sym][irrep].append(istate1)
                                     kcol[sym][irrep].append(istate2)
-                                    kdata[sym][irrep].append(kval[irrep])
+                                    kdata[sym][irrep].append(kval[i])
                                 except AttributeError:
                                     krow[sym][irrep] = [istate1]
                                     kcol[sym][irrep] = [istate2]
-                                    kdata[sym][irrep] = [kval[irrep]]
+                                    kdata[sym][irrep] = [kval[i]]
 
                         iline +=1
 
@@ -1102,38 +1178,6 @@ class CarTens():
                 # update tensor in temp HDF5 file
 
                 self.store(tmp_file, replace=False)
-
-        # init list of Cartesian components and spherical-tenson indices
-
-        self.cart = tens_cart
-
-        # irreps[(ncart, nirrep)]
-        irreps = {(3,1) : [(1,-1), (1,0), (1,1)],                                               # rank-1 tensor
-                  (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                                # traceless and symmetric rank-2 tensor
-                  (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],                         # symmetric rank-2 tensor
-                  (9,3) : [(0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2)]}   # non-symmetric rank-2 tensor
-
-        # ranks[ncart]
-        ranks = {3 : 1, 9 : 2}
-
-        # infer spherical-tensor indices
-        try:
-            self.os = irreps[(tens_ncart, tens_nirrep)]
-        except KeyError:
-            raise ValueError(f"can't infer Cartesian tensor irreps from the number " + \
-                f"of Cartesian components = {tens_ncart} and number of irreps = {tens_nirrep}") from None
-
-        # infer rank
-        try:
-            self.rank = ranks[tens_ncart]
-        except KeyError:
-            raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
-                f"of Cartesian components = {tens_ncart}") from None
-
-        # update tensor in temp HDF5 file
-        self.mmat = dict()
-        self.kmat = dict()
-        self.store(tmp_file, replace=False, comment="loaded from richmol matrix elements file "+str(filename))
 
         # re-initialize, now with state filters applied (passed in kwargs)
 
