@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.sparse
 from scipy.sparse import kron, csr_matrix
 import itertools
 from itertools import chain
@@ -72,22 +73,27 @@ class CarTens():
                 self.read_trans(matelem, **kwargs)
 
 
-    def tomat(self, form='block', **kwargs):
+    def tomat(self, form='block', sparse=None, thresh=None, cart=None):
         """Returns full MxK matrix representation of tensor
 
         Args:
             form : str
-                Form of the output matrix, if form == 'full', a 2D dense matrix
-                will be returned, if form == 'block' (default), only non-zero matrix
-                elements will be returned in blocks for different pairs of J quanta
-                and different symmetries, i.e., mat[(J1, J2)][(sym1, sym2)] -> ndarray
-
-        Kwargs:
+                For form='block', the matrix representation is split into blocks
+                for different values of J quanta and different symmetries,
+                i.e., mat[(J1, J2)][(sym1, sym2)] -> array.
+                For form='full', the matrix representation is build as a 2D matrix.
+            sparse : str
+                Defines sparse matrix representation, for different blocks (if form='block')
+                or for full matrix (if form='full').
+                Set to one of scipy.sparse sparse matrix classes, e.g.,
+                sparse="coo_matrix" or "csr_matrix"
+            thresh : float
+                Threshold for neglecting matrix elements when converting into
+                sparse form
             cart : str
-                String denoting desired Cartesian component of tensor, e.g., cart='xx'
-                In case cart is not provided, function will assume that tensor
-                has been multiplied with external field and will return
-                the corresponding matrix representation
+                Desired Cartesian component of tensor, e.g., cart='xx'.
+                If None, the function will attempt to return matrix representation
+                of the corresponding potential (i.e. tensor times field)
 
         Returns:
             mat : nested dict or 2D ndarray
@@ -99,17 +105,16 @@ class CarTens():
         """
         assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
 
-        if 'cart' in kwargs:
-            cart = kwargs['cart']
-            if cart not in self.cart:
-                raise ValueError(f"can't find input Cartesian component '{cart}' " + \
-                    f"amongst tensor components {self.cart}") from None
-        else:
+        if cart is None:
             try:
                 x = self.mfmat
             except AttributeError:
                 raise AttributeError(f"you need to specify Cartesian component of tensor " + \
-                    f"of multiply tensor with field before computing its matrix representation") from None
+                    f"or multiply tensor with field before computing its matrix representation") from None
+        else:
+            if cart not in self.cart:
+                raise ValueError(f"input Cartesian component '{cart}' " + \
+                    f"is not contained in tensor components {self.cart}") from None
 
         mat = dict()
 
@@ -122,13 +127,13 @@ class CarTens():
             for sympair in list(set(mmat_J.keys()) & set(kmat_J.keys())):
 
                 # choose M[cart] or field-contracted MF tensor
-                if 'cart' in kwargs:
+                if cart is None:
+                    mmat = self.mfmat[Jpair][sympair]
+                else:
                     try:
                         mmat = mmat_J[sympair][cart]
                     except KeyError:
                         continue   # all MEs are zero for current J and symmetry pairs
-                else:
-                    mmat = mfmat[Jpair][sympair]
 
                 # K tensor
                 kmat = kmat_J[sympair]
@@ -141,8 +146,20 @@ class CarTens():
                 if not np.isscalar(me):
                     mat[Jpair][sympair] = me * self.prefac
 
+        # convert to sparse format
+        if form == 'block' and sparse is not None:
+            for Jpair, mat_J in mat.items():
+                for sympair, mat_sym in mat_J.items():
+                    mat_sym = getattr(scipy.sparse, sparse)(mat_sym)
+                    if thresh is not None:
+                        mask = np.abs(mat_sym.data) < thresh
+                        mat_sym[mask] = 0
+                        mat_sym.eliminate_zeros()
+                    mat[Jpair][sympair] = mat_sym
+
         if form == 'full':
-            mat = self.full_form(mat)
+            mat = self.full_form(mat, sparse, thresh)
+
         return mat
 
 
@@ -164,6 +181,8 @@ class CarTens():
                 describing M and K subspaces, list of symmetries, and list of values
                 of J quantum number, respectively, for all sates in the basis
         """
+        assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
+
         m1 = { J : { sym : self.assign_m1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
         m2 = { J : { sym : self.assign_m2[J][sym] for sym in self.symlist2[J] } for J in self.Jlist2 }
         k1 = { J : { sym : self.assign_k1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
@@ -208,13 +227,36 @@ class CarTens():
         return assign1, assign2
 
 
-    def full_form(self, mat):
-        """Converts block representation of tensor matrix into a full matrix form"""
+    def full_form(self, mat, sparse=None, thresh=None):
+        """Converts block representation of tensor matrix into a full matrix form
+
+        Args:
+            mat : nested dict
+                Block representation of matrix for different values of bra and
+                ket J quanta and different symmetries, i.e. mat[(J1, J2)][(sym1, sym2)] -> array
+            sparse : str
+                Set to one of scipy.sparse sparse matrix classes to output matrix
+                in sparse format, e.g., sparse="coo_matrix" or "csr_matrix"
+            thresh : float
+                Threshold for neglecting matrix elements when converting into
+                sparse form
+
+        Returns:
+            res : matrix
+                Matrix representation in full form, as numpy ndarray or scipy
+                sparse matrix
+        """
         res = np.block([[ mat[(J1, J2)][(sym1, sym2)]
                           if (J1, J2) in mat.keys() and (sym1, sym2) in mat[(J1, J2)].keys()
                           else np.zeros((self.dim1[J1][sym1], self.dim2[J2][sym2])) \
                           for J2 in self.Jlist2 for sym2 in self.symlist2[J2] ]
                           for J1 in self.Jlist1 for sym1 in self.symlist1[J1] ])
+        if sparse is not None:
+            res = getattr(scipy.sparse, sparse)(res)
+            if thresh is not None:
+                mask = np.abs(res.data) < thresh
+                res[mask] = 0
+                res.eliminate_zeros()
         return res
 
 
@@ -268,7 +310,7 @@ class CarTens():
                 f"which represent field's X, Y, and Z components") from None
 
         # screen out small field components
-        field_prod = {comb : np.prod(fxyz[list(comb)]) \
+        field_prod = {"".join("xyz"[c] for c in comb) : np.prod(fxyz[list(comb)]) \
                       for comb in itertools.product((0,1,2), repeat=self.rank) \
                       if abs(np.prod(fxyz[list(comb)])) >= tol}
 
@@ -282,22 +324,22 @@ class CarTens():
         for (J1, J2), mmat_J in self.mmat.items():
             for (sym1, sym2), mmat_sym in mmat_J.items():
 
-                res[:] = 0
-                for cart, mmat_irrep in mmat_sym.items():
-                    try:
-                        fprod = field_prod[cart]
-                    except KeyError:
-                        continue     # the product of field components can be neglected
+                for cart in list(set(mmat_sym.keys()) & set(field_prod.keys())):
+                    fprod = field_prod[cart]
+                    mmat_irrep = mmat_sym[cart]
 
+                    res = dict()
                     for irrep, mmat in mmat_irrep.items():
-                        res[irrep] = res[irrep] + mmat * fprod
+                        try:
+                            res[irrep] = res[irrep] + mmat * fprod
+                        except KeyError:
+                            res[irrep] = mmat * fprod
 
-                res_dict = {irrep : elem for elem in res if np.abs(elem) > tol}
-                if len(res_dict) > 0:
+                if len(res) > 0:
                     try:
-                        self.mfmat[(J1, J2)][(sym1, sym2)] = res_dict
+                        self.mfmat[(J1, J2)][(sym1, sym2)] = res
                     except KeyError:
-                        self.mfmat[(J1, J2)] = {(sym1, sym2) : res_dict}
+                        self.mfmat[(J1, J2)] = {(sym1, sym2) : res}
 
 
     def vec(self, vec):
@@ -378,6 +420,7 @@ class CarTens():
             raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
                 f"'{type(arg)}'") from None
         return res
+
 
     __rmul__ = __mul__
 
