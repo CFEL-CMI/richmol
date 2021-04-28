@@ -1,5 +1,7 @@
+import numpy as np
 from richmol.field import CarTens
 from richmol.convert_units import DebyeVm_to_invcm
+import sys
 
 
 def filter(**kwargs):
@@ -14,7 +16,7 @@ def filter(**kwargs):
         pass_m = m == _m
     if "enr" in kwargs:
         enr = kwargs["enr"]
-        pass_enr = enr <= 2000
+        pass_enr = enr <= 500
     return pass_J * pass_enr * pass_m
 
 
@@ -27,15 +29,18 @@ if __name__ == '__main__':
     matelem_file = path + "matelem_MU_j<j1>_j<j2>.rchm"
 
     fac = -1.0 * DebyeVm_to_invcm()
-    _m = 3.0
+    _m = 0.0
     h0 = CarTens(states_file, bra=filter, ket=filter)
-    mu = CarTens(states_file, matelem=matelem_file, bra=filter, ket=filter)
+    mu = CarTens(states_file, matelem=matelem_file, bra=filter, ket=filter, thresh=1e-6)
     mu.mul(fac)
     field = [0, 0, 1e6] # in V/m
     mu.field(field)
-    mat = mu.tomat(form='full', sparse='coo_matrix')
-    print(mat)
     h0.field(field)
-    print(h0.mfmat.keys())
+    # mat = h0.tomat(form='full') + mu.tomat(form='full')
     h = h0 + mu
-
+    mat = h.tomat(form='full')
+    print(mat.shape)
+    print("diag")
+    print( np.max(np.abs(mat - np.conjugate(mat).T)) )
+    e,v = np.linalg.eigh(mat)
+    print(e)
