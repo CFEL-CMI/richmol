@@ -75,6 +75,144 @@ class CarTens():
                     self.read_trans(matelem, **kwargs)
 
 
+    def filter(self, thresh=None, bra=lambda **kw: True, ket=lambda: **kw: False):
+        """Applies state selection filters
+
+        Args:
+            thresh : float
+                Threshold for neglecting matrix elements
+            bra, ket : function(**kw)
+                State filter functions for bra and ket basis sets, take as arguments
+                state quantum numbers and energies J, sym, m, k, and enr
+                and return True or False depending on if the corresponding state
+                needs to be included or excluded form the basis.
+                By default, all states stored in the file are included.
+                The following keyword arguments are passed into the bra and ket functions:
+                    J : float (round to first decimal)
+                        Value of J quantum number
+                    sym : str
+                        State symmetry
+                    enr : float
+                        State energy
+                    m : str
+                        State assignment in the M subspace, usually just a value
+                        of the m quantum number as a string
+                    k : str
+                        State assignment in the K subspace, which are the rotational
+                        or ro-vibrational quanta joined in a string
+        """
+
+        # truncate quantum numbers
+
+        self.Jlist1 = [J for J in self.Jlist1 if bra(J=J)]
+        self.Jlist2 = [J for J in self.Jlist2 if ket(J=J)]
+
+        self.symlist1 = {J : [sym for sym in self.symlist1[J] if bra(J=J, sym=sym)]
+                         for J in self.Jlist1}
+        self.symlist2 = {J : [sym for sym in self.symlist2[J] if ket(J=J, sym=sym)]
+                         for J in self.Jlist2}
+
+        self.ind_k1 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k1[J][sym]) if bra(J=J, sym=sym, k=q, enr=e)]
+                       for sym in self.symlist1[J]}
+                       for J in self.Jlist1}
+        self.ind_k2 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k2[J][sym]) if ket(J=J, sym=sym, k=q, enr=e)]
+                       for sym in self.symlist2[J]}
+                       for J in self.Jlist2}
+
+        self.ind_m1 = {J : {sym : [i for i,q in enumerate(self.quanta_m1[J][sym]) if bra(J=J, sym=sym, m=q)]
+                       for sym in self.symlist1[J]}
+                       for J in self.Jlist1}
+        self.ind_m2 = {J : {sym : [i for i,q in enumerate(self.quanta_m2[J][sym]) if ket(J=J, sym=sym, m=q)]
+                       for sym in self.symlist2[J]}
+                       for J in self.Jlist2}
+
+        self.quanta_k1 = {J : {sym : [(q,e) for (q,e) in self.quanta_k1[J][sym] if bra(J=J, sym=sym, k=q, enr=e)]
+                          for sym in self.symlist1[J]}
+                          for J in self.Jlist1}
+        self.quanta_k2 = {J : {sym : [(q,e) for (q,e) in self.quanta_k2[J][sym] if ket(J=J, sym=sym, k=q, enr=e)]
+                          for sym in self.symlist2[J]}
+                          for J in self.Jlist2}
+
+        self.quanta_m1 = {J : {sym : [q for q in self.quanta_m1[J][sym] if bra(J=J, sym=sym, m=q)]
+                          for sym in self.symlist1[J]}
+                          for J in self.Jlist1}
+        self.quanta_m2 = {J : {sym : [q for q in self.quanta_m2[J][sym] if ket(J=J, sym=sym, m=q)]
+                          for sym in self.symlist2[J]}
+                          for J in self.Jlist2}
+
+        # truncate dimensions
+
+        self.dim_k1 = {J : {sym : len(self.ind_k1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
+        self.dim_k2 = {J : {sym : len(self.ind_k2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
+        self.dim_m1 = {J : {sym : len(self.ind_m1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
+        self.dim_m2 = {J : {sym : len(self.ind_m2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
+
+        self.dim1 = {J : {sym : self.dim_k1[J][sym] * self.dim_m1[J][sym]
+                     for sym in self.symlist1[J]} for J in self.Jlist1}
+        self.dim2 = {J : {sym : self.dim_k2[J][sym] * self.dim_m2[J][sym]
+                     for sym in self.symlist2[J]} for J in self.Jlist2}
+
+        # truncate M and K tensors
+
+        for (J1, J2) in list(set(self.mmat.keys()) & set(self.kmat.keys())):
+
+            if J1 not in self.Jlist1 or J2 not in self.Jlist2:
+                continue
+
+            mmat_J = self.mmat[(J1, J2)]
+            kmat_J = self.kmat[(J1, J2)]
+
+            for (sym1, sym2) in list(set(mmat_J.keys()) & set(kmat_J.keys())):
+
+                if sym1 not in self.symlist1[J1] or sym2 not in self.symlist2[J2]:
+                    continue
+
+                mmat_sym = mmat_J[(sym1, sym2)]
+                kmat_sym = kmat_J[(sym1, sym2)]
+
+                im1 = self.ind_m1[J1][sym1]
+                im2 = self.ind_m2[J2][sym2]
+                ik1 = self.ind_k1[J1][sym1]
+                ik2 = self.ind_k2[J2][sym2]
+
+                mmat = {irrep : {cart : mat[im1, :].tocsc()[:, im2].tocsr()
+                        for cart, mat in mmat_irrep.items()}
+                        for irrep, mat_irrep in mmat_sym.items()}
+
+                kmat = {irrep : mat[ik1, :].tocsc()[:, ik2].tocsr()
+                        for irrep, mat in kmat_sym.items()}
+
+                irreps = list(set(kmat.keys()) & set(mmat.keys()))
+                for irrep in irreps:
+                    k = kmat[irrep]
+                    m = mmat[irrep]
+                    if thresh is not None:
+                        mask = abs(k.data) < thresh
+                        k.data[mask] = 0
+                        k.eliminate_zeros()
+                        m_ = dict()
+                        for cart, mm in m.items():
+                            mask = abs(mm.data) < thresh
+                            mm.data[mask] = 0
+                            mm.eliminate_zeros()
+                            if mm.nnz > 0:
+                                m_[cart] = mm
+                    if k.nnz > 0 and len(m_) > 0:
+                        mmat[irrep] = m_
+                        kmat[irrep] = k
+                    else:
+                        del mmat[irrep]
+                        del kmat[irrep]
+
+                if len(mmat) > 0 and len(kmat) > 0:
+                    self.mmat[(J1, J2)[(sym1, sym2)] = mmat
+                    self.kmat[(J1, J2)[(sym1, sym2)] = kmat
+                else:
+                    del self.mmat[(J1, J2)][(sym1, sym2)]
+                    del self.kmat[(J1, J2)][(sym1, sym2)]
+
+
+
     def tomat(self, form='block', sparse=None, thresh=None, cart=None):
         """Returns full MxK matrix representation of tensor
 
