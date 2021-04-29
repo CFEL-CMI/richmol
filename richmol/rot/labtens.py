@@ -17,67 +17,28 @@ _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
 class LabTensor(CarTens):
     """Laboratory-frame Cartesian tensor operator
 
+    This is a subclass of :py:class:`richmol.CarTens` class.
+
     Attrs:
-        rank : int
-            Rank of tensor operator.
         Us : numpy.complex128 2D array
             Cartesian-to-spherical tensor transformation matrix.
         Ux : numpy.complex128 2D array
             Spherical-to-Cartesian tensor transformation matrix (Ux = (Us^T)^*).
-        cart : list of str
-            Contains string labels of tensor Cartesian components
-            (e.g, 'x', 'y', 'z', 'xx', 'xy', 'xz', ...) in the order corresponding
-            to the order of Cartesian components in rows of 'Ux' (columns of 'Us').
-        os : [(omega,sigma) for omega in range(nirrep) for sigma in range(-omega,omega+1)]
-            List of spherical-tensor indices (omega,sigma) in the order corresponding
-            to the spherical-tensor components in columns of 'Ux' (rows of 'Us'),
-            nirrep here is the number of tensor irreducible representations.
         tens_flat : 1D array
-            Contains elements of molecular-frame Cartesian tensor, flattened
-            in the order corresponding to the order of Cartesian components in cart.
+            Flattened molecular-frame Cartesian tensor.
         molecule : rot.molecule.Molecule
             Molecular parameters.
-        Jlist1 : list
-            List of J quanta spanned by the basis.
-        Jlist2 : list
-            Equal to Jlist1.
-        symlist1 : dict
-            List of symmetries, for each J (as keys), spanned by the basis.
-        symlist2 : dict
-            Equal to symlist1.
-        dim_m1, dim_k1, dim1 : nested dict
-            Dimensions of M, K, and MxK tensors (or respective subspaces of basis set)
-            for different values of J quanta and different symmetries,
-            i.e., dim_m1[J][sym] -> int, dim_k1[J][sym] -> int.
-        dim_m2, dim_k2, dim2 : nested dict
-            Equal to respective dim_m1, dim_k1, dim1.
-        assign_m1, assign_k1 : nested dict
-            Assignments of states in M and K subspaces of basis set,
-            for different values of J quanta and different symmetries,
-            i.e., m_assign1[J][sym] -> list (len = dim_m1[J][sym]),
-            and k_assign1[J][sym] -> list (len = dim_k1[J][sym]).
-        assign_m2, assign_k2 : nested dict
-            Equal to respective assign_m1, assign_k1.
-        kmat : nested dict
-            K-tensor matrix elements (in CSR format) for different pairs of bra
-            and ket J quanta, different pairs of bra and ket symmetries,
-            and different irreducible components of tensor,
-            i.e., kmat[(J1, J2)][(sym1, sym2)][irrep].
-        mmat : nested dict
-            M-tensor matrix elements (in CSR format) for different pairs of bra
-            and ket J quanta, different pairs of bra and ket symmetries,
-            and different Cartesian and irreducible components of tensor,
-            i.e., mmat[(J1, J2)][(sym1, sym2)][cart][irrep].
 
     Args:
         arg : rot.molecule.Molecule or numpy.ndarray, list or tuple
             Molecule object or molecular-frame Cartesian tensor.
-            For arg = rot.molecule.Molecule, the resulting tensor represents
-            field-free Hamiltonian.
-        basis : nested dict
-            Wave functions in symmetric-top basis (SymtopBasis class)
-            for different values of J quantum number and different symmetries,
-            i.e., basis[J][sym] -> SymtopBasis.
+            For arg=rot.molecule.Molecule, the resulting tensor represents the field-free
+            Hamiltonian operator.
+            For arg=ndarray, list, or tuple, the resulting tensor represents the laboratory-frame
+            Cartesian tensor operator.
+        basis : rot.solution.Solution
+            Wave functions in symmetric-top basis (SymtopBasis class) for different values
+            of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
         thresh : float
             Threshold for neglecting matrix elements.
     """
@@ -109,7 +70,7 @@ class LabTensor(CarTens):
     irrep_ind = {1 : [(1,-1),(1,0),(1,1)],
                  2 : [(o,s) for o in range(3) for s in range(-o,o+1)] }
 
-    def __init__(self, arg, basis, thresh=1e-14, **kwargs):
+    def __init__(self, arg, basis, thresh=None, **kwargs):
 
         tens = None
 
@@ -222,12 +183,7 @@ class LabTensor(CarTens):
         self.dim_m2 = dim_m
         self.dim2 = dim
 
-        # write tensor into temp file and reload in CarTens()
-        tmp_file = "tmp_labtensor.h5"
-        self.store(tmp_file, replace=True)
-        CarTens.__init__(self, tmp_file, **kwargs)
-        if os.path.exists(tmp_file):
-            os.remove(tmp_file)
+        self.filter(**kwargs)
 
 
     def ham_proj(self, basis):
@@ -245,7 +201,7 @@ class LabTensor(CarTens):
         """
         H = hamiltonian(self.molecule, basis)
         irreps = set(omega for (omega,sigma) in self.os)
-        res = { cart : { irrep : H for irrep in irreps } for cart in self.cart }
+        res = { irrep : { cart : H for self.cart } for irrep in irreps }
         return res
 
 
@@ -292,8 +248,8 @@ class LabTensor(CarTens):
         stat_k = jk_table['stat'][:nstat_k]
 
         # output dictionaries
-        res = { cart : { irrep : PsiTableMK(PsiTable(prim_k, stat_k), PsiTable(prim_m, stat_m))
-                for irrep in irreps } for cart in self.cart }
+        res = { irrep : { cart : PsiTableMK(PsiTable(prim_k, stat_k), PsiTable(prim_m, stat_m))
+                for cart in self.cart } for irrep in irreps }
 
         # some initializations in pywigxjpf module for computing 3j symbols
         wig_table_init((jmax+dj_max)*2, 3)
@@ -309,7 +265,7 @@ class LabTensor(CarTens):
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
-                    res[cart0][irrep].k.table['c'][ind2,:] += me * jk_table['c'][ind1,:]
+                    res[irrep][cart0].k.table['c'][ind2,:] += me * jk_table['c'][ind1,:]
 
         # compute M|psi>
         for ind1,(j1,m1) in enumerate(jm_table['prim']):
@@ -321,7 +277,7 @@ class LabTensor(CarTens):
                     ind = os_ind[irrep]
                     me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
                     for icart,cart in enumerate(self.cart):
-                        res[cart][irrep].m.table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
+                        res[irrep][cart].m.table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
 
         # free memory in pywigxjpf module
         wig_temp_free()
@@ -330,7 +286,7 @@ class LabTensor(CarTens):
         return res
 
 
-    def matelem(self, basis, thresh=1e-14):
+    def matelem(self, basis, thresh=None):
         """Computes matrix elements of tensor operator
 
         Args:
@@ -381,18 +337,19 @@ class LabTensor(CarTens):
 
                     for sym1, bas1 in symbas1.items():
 
-                        for cart, bas_cart in proj.items():
-                            for irrep, bas_irrep in bas_cart.items():
+                        for irrep, bas_irrep in proj.items():
+                            for cart, bas_cart in bas_irrep.items():
 
                                 # K-tensor
 
                                 if cart == self.cart[0]:
 
                                     # compute matrix elements
-                                    me = bas1.overlap_k(bas_irrep)
+                                    me = bas1.overlap_k(bas_cart)
 
                                     # set to zero elements with absolute values smaller than a threshold
-                                    me[np.abs(me) < thresh] = 0
+                                    if thresh is not None:
+                                        me[np.abs(me) < thresh] = 0
                                     me_csr = csr_matrix(me)
 
                                     # check matrix dimensions
@@ -408,10 +365,11 @@ class LabTensor(CarTens):
                                 # M-tensor
 
                                 # compute matrix elements
-                                me = bas1.overlap_m(bas_irrep)
+                                me = bas1.overlap_m(bas_cart)
 
                                 # set to zero elements with absolute values smaller than a threshold
-                                me[np.abs(me) < thresh] = 0
+                                if thresh is not None:
+                                    me[np.abs(me) < thresh] = 0
                                 me_csr = csr_matrix(me)
 
                                 # check matrix dimensions
@@ -422,7 +380,7 @@ class LabTensor(CarTens):
 
                                 # add matrix elements to M-tensor
                                 if me_csr.nnz > 0:
-                                    mmat[(J1, J2)][(sym1, sym2)][cart][irrep] = me_csr
+                                    mmat[(J1, J2)][(sym1, sym2)][irrep][cart] = me_csr
 
         return kmat, mmat
 
