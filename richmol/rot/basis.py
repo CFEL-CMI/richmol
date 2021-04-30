@@ -719,7 +719,7 @@ class SymtopBasis(PsiTableMK):
             List of m quanta spanned by basis, by default m=-J..J
     """
 
-    def __init__(self, J, linear=False, m_list=[]):
+    def __init__(self, J, linear=False, m_list=None):
 
         try:
             self.J = int(round(J))
@@ -757,13 +757,13 @@ class SymtopBasis(PsiTableMK):
                 coefs[iprim,ibas] = cc
 
         # generate m-quanta
-        if len(m_list) > 0:
-            if any([abs(m) > J for m in m_list]):
-                raise ValueError(f"some of the absolute values of m quanta in " + \
-                    f"'m_list' = {m_list} are larger than the value of J = {J}") from None
-            prim_m = [(int(J),int(m)) for m in m_list]
+        if m_list is None:
+            prim_m = [(int(J), int(m)) for m in range(-J, J+1)]
         else:
-            prim_m = [(int(J),int(m)) for m in range(-J,J+1)]
+            if any([abs(m) > J for m in m_list]):
+                raise ValueError(f"some of the absolute values of the m quanta in " + \
+                    f"'m_list' = {m_list} are larger than the value of J = {J}") from None
+            prim_m = [(int(J), int(m)) for m in m_list]
         coefs_m = np.eye(len(prim_m), dtype=np.complex128)
 
         # initialize

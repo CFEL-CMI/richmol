@@ -160,7 +160,7 @@ class Solution(UserDict):
         return self.__module__ + '.' + self.__class__.__name__
 
 
-def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
+def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
     """Solves rotational eigenvalue problem
 
     Args:
@@ -170,21 +170,17 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
             Min and max values of J quantum number.
         verbose : bool
             If True, some log will be printed.
-
-    Kwargs:
-        mmin, mmax : int or float
-            Min and max values of quantum number m of Z projection of total
-            angular momentum
-        mlist : list
-            List of m values, if present, overrides mmin and mmax
-        mdict : dict
-            Dictionary mdict[J] -> list, contains list of m quantum numbers
-            for different values of J, if present, overrides mlist
-        symlist : list
-            List of state symmetries
-        symdict : dict:
-            Dictionary symdict[J] -> list, contains list of symmetries
-            for different values of J, if present, overrides symlist
+        filter : function(**kw)
+            State filter, takes as arguments the state quantum numbers J, sym, and m and returns
+            True or False depending on if the corresponding state needs to be included or excluded
+            form the basis. By default, all states spanned by J=Jmin..Jmax will be included.
+            The following keyword arguments are passed into the filter function:
+                J : int
+                    J quantum number
+                sym : str
+                    Symmetry
+                m : int
+                    M quantum number
 
     Returns:
         sol : Solution
@@ -194,61 +190,25 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
     assert(Jmax >= Jmin), f"Jmax = {Jmax} < Jmin = {Jmin}"
     Jlist = [J for J in range(Jmin, Jmax+1)]
 
-    # m-quanta filters, mdict, mlist, mmin and mmax
-
-    if 'mdict' in kwargs:
-        mdict = {J : [m for m in kwargs['mdict'][J]] for J in list(Jlist & kwargs['mdict'].keys)}
-        # for J values that are not present in kwargs['mdict'] set m ranges -J..J
-        j_out = [J for J in Jlist if J not in mdict]
-        mdict += {J : [m for m in np.linalg(-J, J, 2*J+1)] for J in j_out}
-    elif 'mlist' in kwargs:
-        mdict = {J : [m for m in kwargs['mlist'] if abs(m)<=J] for J in Jlist}
-    else:
-        mdict = dict()
-        mmin = None
-        mmax = None
-        if 'mmin' in kwargs:
-            mmin = kwargs['mmin']
-        if 'mmax' in kwargs:
-            mmax = kwargs['mmax']
-        if mmin is not None and mmax is not None:
-            assert (mmin <= mmax), f"'mmin' = {mmin} > 'mmax' = {mmax}"
-        for J in Jlist:
-            if mmin is None:
-                m1 = -J
-            else:
-                m1 = max([-J, mmin])
-            if mmax is None:
-                m2 = J
-            else:
-                m2 = min([J, mmax])
-            if m1>m2: continue
-            mdict[J] = [m for m in np.linspace(m1, m2, m2-m1+1)]
-
     # compute solutions for different J and symmetries
 
     sol = Solution()
 
     for J in Jlist:
 
-        # symmetry-adapted basis sets
-        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=mdict[J]),
-                            sym=mol.sym)
+        # list of M quanta
+        m_list = [m for m in range(-J, J+1) if filter(m=m, J=J)]
+        if len(m_list) == 0:
+            continue
 
-        sol[J] = {}
+        # symmetry-adapted basis sets
+        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=m_list),
+                            sym=mol.sym)
 
         for sym, bas in symbas.items():
 
-            # symmetry filter
-            if 'symdict' in kwargs:
-                try:
-                    if sym.lower() not in [elem.lower() for elem in kwargs['symdict'][J]]:
-                        continue
-                except KeyError:
-                    pass
-            elif 'symlist' in kwargs:
-                if sym not in kwargs['symlist']:
-                    continue
+            if not filter(sym=sym, J=J):
+                continue
 
             if verbose is True:
                 print(f"solve for J = {J} and symmetry {sym}")
@@ -259,7 +219,10 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, **kwargs):
             bas = bas.rotate(krot=(vec.T, enr))
             bas.sym = sym
             bas.abc = mol.abc
-            sol[J][sym] = bas
+            try:
+                sol[J][sym] = bas
+            except KeyError:
+                sol[J] = {sym : bas}
     return sol
 
 
