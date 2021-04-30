@@ -33,10 +33,17 @@ def register_ham(func):
 
 
 class Solution(UserDict):
-    """Field-free rotational solutions for different values of J quantum number
-    and different symmetries.
+    """Field-free rotational solutions for different of J and symmetry
+    An object of this class is returned by :py:func`solve` function
 
-    An object of this class is returned by 'solve' function
+    This is a subclass of :py:class`collections.UserDict`, use it as dictionary,
+    i.e., Solution[J][sym] -> :py:class`richmol.rot.basis.SymtopBasis`
+
+    Methods:
+        store(filename, name=None, comment=None, replace=False):
+            Stores object into HDF5 file
+        read(filename, name=None):
+            Reads object from HDF5 file
     """
     def __init__(self, val=None):
         if val is None:
@@ -77,15 +84,17 @@ class Solution(UserDict):
             group.attrs["__class_name__"] = self.class_name()
 
             # description of object
-            doc = "Rotational solutions"
+            doc = self.__doc__
+            if doc is None:
+                doc = ""
 
             # add date/time
             date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            doc += ", store date: " + date.replace('\n','')
+            doc += "\nstored in file " + filename + " date: " + date.replace('\n','')
 
             # add user comment
             if comment is not None:
-                doc += ", comment: " + " ".join(elem for elem in comment.split())
+                doc += "\ncomment: " + " ".join(elem for elem in comment.split())
 
             group.attrs['__doc__'] = doc
 
