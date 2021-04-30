@@ -201,7 +201,7 @@ class LabTensor(CarTens):
         """
         H = hamiltonian(self.molecule, basis)
         irreps = set(omega for (omega,sigma) in self.os)
-        res = { irrep : { cart : H for self.cart } for irrep in irreps }
+        res = { irrep : { cart : H for cart in self.cart } for irrep in irreps }
         return res
 
 
