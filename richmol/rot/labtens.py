@@ -4,7 +4,7 @@ from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_fr
 from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix
 from richmol.field import CarTens
-from richmol.rot.molecule import Molecule
+from richmol.rot.molecule import Molecule, mol_frames
 from richmol.rot.solution import hamiltonian
 from collections import defaultdict
 import inspect
@@ -107,12 +107,23 @@ class LabTensor(CarTens):
             except KeyError:
                 raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
 
+            # permute axes, in accord with abc <-> xyz mapping, see molecule.Molecule.abc property,
+            # and how the quantization axes are chosen in solution.hamiltonian
+            rot_mat =  mol_frames.axes_perm(basis.abc)
+            sa = "abcdefgh"
+            si = "ijklmnop"
+            key = "".join(sa[i]+si[i]+"," for i in range(rank)) \
+                + "".join(si[i] for i in range(rank)) + "->" \
+                + "".join(sa[i] for i in range(rank))
+            mat = [rot_mat for i in range(rank)]
+            tens_rot = np.einsum(key, *mat, tens)
+
             # save molecular-frame tensor in flatted form with the elements following the order in self.cart
             self.tens_flat = np.zeros(len(self.cart), dtype=tens.dtype)
             for ix,sx in enumerate(self.cart):
                 s = [ss for ss in sx]                  # e.g. split "xy" into ["x","y"]
                 ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
-                self.tens_flat[ix] = tens.item(tuple(ind))
+                self.tens_flat[ix] = tens_rot.item(tuple(ind))
 
             # special cases if tensor is symmetric and/or traceless
             if self.rank==2:

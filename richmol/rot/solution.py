@@ -39,6 +39,13 @@ class Solution(UserDict):
     This is a subclass of :py:class`collections.UserDict`, use it as dictionary,
     i.e., Solution[J][sym] -> :py:class`richmol.rot.basis.SymtopBasis`
 
+    Attrs:
+        abc : str
+            Quantization axes used for solution.
+            String containing three molecular-frame Cartesian axes in the order of x, y, and z
+            quantization axes. Applies only when the Hamiltonian is built from rotational constants
+            i.e., H = A * J[abc[0]]^2 + B * J[abc[1]]^2 + C * J[abc[2]]^2
+
     Methods:
         store(filename, name=None, comment=None, replace=False):
             Stores object into HDF5 file
@@ -218,11 +225,14 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
             enr, vec = np.linalg.eigh(hmat.real)
             bas = bas.rotate(krot=(vec.T, enr))
             bas.sym = sym
-            bas.abc = mol.abc
             try:
                 sol[J][sym] = bas
             except KeyError:
                 sol[J] = {sym : bas}
+
+    # store quantization axes used for solution
+    sol.abc = mol.abc
+
     return sol
 
 

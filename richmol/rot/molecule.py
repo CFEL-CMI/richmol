@@ -428,7 +428,7 @@ class Molecule:
     @property
     def abc(self):
         try:
-            x = self.ABC_exp
+            x = self.ABC_exp # works only if user-input (experimental) rotational constant were defined
             if self.kappa > 0:
                 return 'xyz' # "IIIr representation for near oblate-top"
             elif self.kappa <= 0:
