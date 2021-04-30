@@ -22,6 +22,103 @@ _abc_tol_perc = 5 # maximal allowed difference (in percents in units of cm^-1) b
 _USER_TENSORS = dict()
 
 class Molecule:
+    """Rigid molecule
+
+    Properties:
+        XYZ : Cartesian coordinates and masses of atoms
+            fget : structured array
+                XYZ['xyz'] - Cartesian coordinates of atoms in Angstrom
+                XYZ['mass'] - atomic masses
+                XYZ['label'] - atomic labels
+            fset(arg):
+                Defines Cartesian coordinates of atoms.
+                arg can be a tuple with atomic labels and Cartesian coordinates as elements, for example
+                arg = ("bohr",
+                       "O",  0.00000000,   0.00000000,   0.12395915,
+                       "H",  0.00000000,  -1.43102686,  -0.98366080,
+                       "H",  0.00000000,   1.43102686,  -0.98366080)
+                To define a non-standard isotoplogue, add the corresponding number next to the atom
+                label, e.g., "O18", "H2".
+                Cartesian coordinates can also be read from XYZ file, in this case arg need to be
+                a string with the name of the XYZ file.
+        frame : Molecular frame rotation
+            fget : array (3,3)
+                Frame rotation matrix
+            fset(arg):
+                Defines molecular frame.
+                arg is a string that can contain the name of the axes system (e.g., "ipas" for the
+                inertial principal axes system), or the name of a variable to be used as rotation
+                matrix, which can be combined with various linear operations (e.g., "diag" for
+                diagonalization) on the variable.
+                For example, arg="diag(inertia)" will rotate the frame to an axes system where the
+                inertia tensor is diagonal; arg="zxy" will permute the x, y, and z axes;
+                if a variable 'pol' is initialized as a (3 x 3) matrix, arg="pol" will attempt
+                to use this matrix for the frame rotation, arg="diag(pol)" will attempt to rotate
+                the frame to the diagonal representation of 'pol' matrix.
+                arg="None" or arg=None will reset the frame to the one defined by the input
+                molecular geometry.
+        ABC : Rotational constants
+            fget : (A, B, C)
+                Tuple with rotational constants (in cm^-1). Returns user-defined constants, if the
+                latter were initialized, otherwise returns constants computed from the input
+                molecular geometry.
+            fset((A, B, C))
+                User input of rotational constants (in cm^-1)
+        B : Rotational B constant for linear or spherical-top molecule
+            fget : B
+                Rotational constant (in cm^-1). Returns user-defined value, if initialized, otherwise
+                returns the value computed from the input molecular geometry
+            fset(B)
+                User input of rotational constant (in cm^-1)
+        sym : Molecular point group symmetry
+            fget : richmol.rot.symmetry.SymtopSymmetry
+                Symmetry class
+            fset(arg)
+                Defines molecular symmetry as string, e.g., arg="C1" or arg="D2"
+
+    Attrs:
+        Centrifugal distortion constants or parameters of custom user-defined effective Hamiltonians
+        watson : str
+            Type of the reduced Watson Hamiltonian, watson="A" or "S".
+            When present, invokes calculations with the corresponding Watson-type effective Hamiltonian
+        DeltaJ, DeltaJK, DeltaK, deltaJ, deltaK, d1, d2, HJ, HJK, HKJ, HK, phiJ, phiJK, phiK, h1, h2, h3 : float
+            Parameters of the Watson A- and S-reduced Hamiltonians, for details, see
+            J. K. G. Watson in "Vibrational Spectra and Structure" (Ed: J. Durig) Vol 6 p 1, Elsevier, Amsterdam, 1977
+
+            A-form:
+
+            :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
+            :math:`-\\frac{1}{2} * [ \delta_J_{1} * J^{2} + \delta_{k} * J_{z}^{2}, J_{+}^{2} + J_{-}^{2} ]_{+}`
+            :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
+            :math:`+ \\frac{1}{2} * [ \phi_{J} * J^{4} + \phi_{JK} * J^{2} * J_{z}^{2} + \phi_{K} * J_{z}^{4}, J_{+}^{2} + J_{-}^{2} ]_{+}`
+
+            S-form:
+
+            :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
+            :math:`+ d_{1} * J^{2} * (J_{+}^{2} + J_{-}^{2}) + d_{2} * (J_{+}^{4} + J_{-}^{4})`
+            :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
+            :math:`+ h_{1} * J^{4} * (J_{+}^{2} + J_{-}^{2}) + h_{2} * J^{2} * (J_{+}^{4} + J_{-}^{4})`
+
+    Methods:
+        store_xyz(file_name, comment=""):
+            Stores Cartesian coordinates of atoms in XYZ file
+        imom():
+            Returns inertia tensor
+        gmat():
+            Returns rotational kinetic energy matrix (in cm^-1)
+        linear():
+            Returns True/False if molecule is linear/non-linear
+        kappa():
+            Returns rotational asymmetry parameter
+        ABC_geom():
+            Returns rotational constants calculated from molecular geometry input
+        B_geom():
+            Returns rotational B constant for linear or spherical-top molecule, calculated from molecular geometry input
+        store(filename, name=None, comment=None, replace=False):
+            Stores object in HDF5 file
+        read(filename, name=None):
+            Reads object from HDF5 file
+    """
 
     @property
     def XYZ(self):
@@ -45,7 +142,7 @@ class Molecule:
         self.ipas = np.eye(3)    # can be used for .frame="ipas"
 
 
-    def store_xyz(self, file_name: str, comment: str = ""):
+    def store_xyz(self, file_name, comment=""):
         """Stores Cartesian coordinates of atoms into XYZ file"""
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
@@ -393,15 +490,17 @@ class Molecule:
             group.attrs["__class_name__"] = self.class_name()
 
             # description of object
-            doc = "Rigid molecule"
+            doc = self.__doc__
+            if doc is None:
+                doc= ""
 
             # add date/time
             date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-            doc += ", store date: " + date.replace('\n','')
+            doc += "\nstored in file " + filename + " date: " + date.replace('\n','')
 
             # add user comment
             if comment is not None:
-                doc += ", comment: " + " ".join(elem for elem in comment.split())
+                doc += "\ncomment: " + " ".join(elem for elem in comment.split())
 
             group.attrs['__doc__'] = doc
 
@@ -471,8 +570,14 @@ class Molecule:
 
 
 def mol_tensor(val):
-    """Adds user-defined new Cartesian tensor which is not declared in mol_tens module.
-    This will be also dynamically rotated to molecule-fixed frame
+    """Declares new user-defined Cartesian tensor which, when assigned as an attribute
+    of Molecule object, will be dynamically rotated to a molecule-fixed frame
+
+    Args:
+        val : array
+            Cartesian tensor
+    Returns:
+        object, need to be assigned to an attribute of Molecule object
     """
     try:
         tens = np.array(val)
@@ -509,102 +614,3 @@ def retrieve_name(var):
         if len(names) > 0:
             return names[0]
 
-
-
-if __name__ == '__main__':
-    import sys
-    from richmol.rot.solution import solve
-    from richmol.rot.labtens import LabTensor
-    from richmol.rot.molecule import Molecule
-    from richmol import rchm
-
-    camphor = Molecule()
-    camphor.XYZ = ("angstrom", \
-            "O",     -2.547204,    0.187936,   -0.213755, \
-            "C",     -1.382858,   -0.147379,   -0.229486, \
-            "C",     -0.230760,    0.488337,    0.565230, \
-            "C",     -0.768352,   -1.287324,   -1.044279, \
-            "C",     -0.563049,    1.864528,    1.124041, \
-            "C",      0.716269,   -1.203805,   -0.624360, \
-            "C",      0.929548,    0.325749,   -0.438982, \
-            "C",      0.080929,   -0.594841,    1.638832, \
-            "C",      0.791379,   -1.728570,    0.829268, \
-            "C",      2.305990,    0.692768,    0.129924, \
-            "C",      0.730586,    1.139634,   -1.733020, \
-            "H",     -1.449798,    1.804649,    1.756791, \
-            "H",     -0.781306,    2.571791,    0.321167, \
-            "H",      0.263569,    2.255213,    1.719313, \
-            "H",      1.413749,   -1.684160,   -1.316904, \
-            "H",     -0.928638,   -1.106018,   -2.110152, \
-            "H",     -1.245108,   -2.239900,   -0.799431, \
-            "H",      1.816886,   -1.883799,    1.170885, \
-            "H",      0.276292,   -2.687598,    0.915376, \
-            "H",     -0.817893,   -0.939327,    2.156614, \
-            "H",      0.738119,   -0.159990,    2.396232, \
-            "H",      3.085409,    0.421803,   -0.586828, \
-            "H",      2.371705,    1.769892,    0.297106, \
-            "H",      2.531884,    0.195217,    1.071909, \
-            "H",      0.890539,    2.201894,   -1.536852, \
-            "H",      1.455250,    0.830868,   -2.487875, \
-            "H",     -0.267696,    1.035608,   -2.160680)
-    # camphor.store_xyz("camphor.xyz", "some random comment")
-
-    camphor.dip = [1.21615, -0.30746, 0.01140]
-    camphor.pol = [[115.80434, -0.58739, 0.03276], \
-                   [-0.58739, 112.28245, 1.36146], \
-                   [0.03276, 1.36146, 108.47809]]
-
-    camphor.frame = 'ipas'
-    print(camphor.dip)
-    # camphor.ABC = [0.04826693384984668, 0.03947392003309187, 0.03659630461693979]
-    # camphor.ABC = [0.048, 0.039, 0.036]
-    # print(camphor.ABC)
-    camphor.sym = "D2"
-    camphor.watson = "watson_s"
-    camphor.hjka = 3
-    camphor.HjKq = 30
-    camphor.ABC = [0.036596, 0.048266, 0.039473]
-    print(camphor.ABC)
-    camphor.frame = 'diag(inertia)'
-    print(camphor.ABC)
-    camphor.store('camphor.h5', replace=True)
-    mol = Molecule()
-    mol.read('camphor.h5')
-    print(mol.dip)
-    print(mol.XYZ)
-    print(mol.XYZ['label'])
-    sys.exit()
-    # print(camphor.ABC)
-    # print(camphor.ABC_geom)
-    sol = solve(camphor, Jmin=0, Jmax=1, verbose=True) # transform solution into a tensor format
-    # print(sol[10]['B3'].enr)
-    dipole_moment = LabTensor(camphor.dip, sol)
-    #H0 = H0Tensor(camphor, sol)
-    # print(H0.kmat[(10,10)][('B3','B3')][0])
-    # print(H0.mmat[(10,10)][('B3','B3')]["0"])
-    #rchm.add_molecule('camphor.h5', camphor, replace=True, comment="this is comment for molecule object")
-    # mol = rchm.get_molecule('camphor.h5')
-    # for key in dir(mol):
-        # print(key, getattr(mol, key))
-        # print(key, getattr(mol, key))
-    # rchm.add(camphor, 'camphor.h5', descr='user descr')
-    # rchm.add(tens, 'camphor.h5', descr='user description')
-    # rchm.add(sol, 'camphor.h5', descr='user description')
-    rchm.add_tensor('camphor.h5', dipole_moment, replace=True, comment="this is long \ncomment for dipole moment")
-    #rchm.get_tensor('camphor.h5', 'dipole_moment')
-    #elems = rchm.inspect_file('camphor.h5')
-    #for key, elem in elems.items():
-    #    print("\n", key, dir(elem))
-    #    print(elem.comment)
-    #    print(elem.date)
-    #mat = dipole_moment.tomat(form='full', cart='z')
-    #mat2 = dipole_moment.tomat(form='block', cart='x')
-    #mat2 = dipole_moment.full_form(mat2)
-    #print(np.sum(abs(mat-mat2)>1e-12))
-    #vec = dipole_moment * [1,2,3]
-    #sol2 = LabTensor(camphor, sol)
-    #mat = dipole_moment.tomat(form='full', cart='z')
-    #ass1, ass2 = dipole_moment.assign(form='full')
-    #for i in range(mat.shape[0]):
-    #    for j in range(mat.shape[1]):
-    #        print(i,j, mat[i,j], ass1['J'][i], ass1['sym'][i], '---', ass2['J'][j], ass2['sym'][j])
