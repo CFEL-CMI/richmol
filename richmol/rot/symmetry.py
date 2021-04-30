@@ -24,7 +24,7 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
     Args:
         arg : PsiTableMK
             Wave functions in symmetric-top basis.
-        sym : str
+        sym : SymtopSymmetry
             Symmetry group.
         thresh : float
             Threshold for treating symmetrization and wave function superposition
