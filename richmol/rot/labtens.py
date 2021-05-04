@@ -163,17 +163,16 @@ class LabTensor(CarTens):
                   for sym, bas_sym in bas_J.items() }
                   for J, bas_J in basis.items() }
         dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
-        quanta_m = { J : { sym : [ " ".join(q for q in elem)
-                     for elem in bas_sym.m.table['stat'][:dim_m[J][sym]] ]
+        quanta_m = { J : { sym : [ int(elem[1]) for elem in bas_sym.m.table['stat'][:dim_m[J][sym]] ]
                      for sym, bas_sym in bas_J.items() }
                      for J, bas_J in basis.items() }
-        if hasattr(self, "enr_k"):
-            quanta_k = { J : { sym : [ (" ".join(q for q in elem), e)
+        try:
+            quanta_k = { J : { sym : [ (" ".join(q for q in elem[1:]), e)
                          for elem,e in zip(bas_sym.k.table['stat'][:dim_k[J][sym]], bas_sym.k.enr) ]
                          for sym, bas_sym in bas_J.items() }
                          for J, bas_J in basis.items() }
-        else:
-            quanta_k = { J : { sym : [ (" ".join(q for q in elem), None)
+        except AttributeError:
+            quanta_k = { J : { sym : [ (" ".join(q for q in elem[1:]), None)
                          for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
                          for sym, bas_sym in bas_J.items() }
                          for J, bas_J in basis.items() }
