@@ -14,13 +14,31 @@ def Debye_to_au(*args):
     return convert(fac, *args)
 
 
-def DebyeVm_to_invcm(*args):
+def Debye_x_Vm_to_invcm(*args):
     """Converts product of dipole moment (Debye) with field (Volts/meter) to cm^-1"""
     fac = constants.value('atomic unit of electric dipole mom.') \
         / (constants.value('Planck constant') \
         * constants.value('speed of light in vacuum')) \
         / 1e2 \
         * Debye_to_au()
+    return convert(fac, *args)
+
+
+def AUdip_x_Vm_to_invcm(*args):
+    """Converts product of dipole moment (atomic units) with field (Volts/meter) to cm^-1"""
+    fac = constants.value('atomic unit of electric dipole mom.') \
+        / (constants.value('Planck constant') \
+        * constants.value('speed of light in vacuum')) \
+        / 1e2
+    return convert(fac, *args)
+
+
+def AUpol_x_Vm_to_invcm(*args):
+    """Converts product of polarizability (atomic units) with field**2 (Volts**2/meter**2) to cm^-1"""
+    fac = constants.value('atomic unit of electric polarizability') \
+        / (constants.value('Planck constant') \
+        * constants.value('speed of light in vacuum')) \
+        / 1e2
     return convert(fac, *args)
 
 
