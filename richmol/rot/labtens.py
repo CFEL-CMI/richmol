@@ -154,7 +154,7 @@ class LabTensor(CarTens):
         # for pure Cartesian tensor, keep in the attributes only basis set dimensions,
         # basis state quanta and energies
 
-        Jlist = [J for J in basis.keys()]
+        Jlist = [round(float(J),1) for J in basis.keys()]
         symlist = {J : [sym for sym in basis[J].keys()] for J in basis.keys()}
         dim_k = { J : { sym : bas_sym.k.table['c'].shape[1]
                   for sym, bas_sym in bas_J.items() }
@@ -211,6 +211,11 @@ class LabTensor(CarTens):
                 i.e., res['0'][0].
         """
         H = hamiltonian(self.molecule, basis)
+
+        # since the Hamiltonian does not act on the m-part of the basis
+        # the arithmetic operations in H however de-normalize the m-matrix
+        H.m = basis.m
+
         irreps = set(omega for (omega,sigma) in self.os)
         res = { irrep : { cart : H for cart in self.cart } for irrep in irreps }
         return res
