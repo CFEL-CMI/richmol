@@ -17,14 +17,11 @@ however the computationally critical parts are implemented with Fortran and C ro
    :maxdepth: 2
    :numbered:
 
-   overview.rst
-   version.rst
-   installation.rst
    getting_started.rst
    richmol_database.rst
    education.rst
 
-Here you can also see the `PDF version <../../_build/rinoh/richmol.pdf>`_ of this manual.
+.. Here you can also see the `PDF version <../../_build/rinoh/richmol.pdf>`_ of this manual.
 
 .. Indices and tables
 .. ==================

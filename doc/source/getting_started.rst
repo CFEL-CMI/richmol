@@ -5,7 +5,6 @@ Getting started
 
    notebooks/rotations_quickstart.ipynb
    notebooks/hdf5_files.ipynb
-   notebooks/richmol_files_trove.ipynb
 
 
 
