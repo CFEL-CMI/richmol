@@ -12,4 +12,5 @@ molecular physcis through computation.
    notebooks/education/ocs_stark.ipynb
    notebooks/education/water_rigrot.ipynb
    notebooks/education/water_stark.ipynb
+   notebooks/education/three_wave_mixing.ipynb
 
