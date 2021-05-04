@@ -9,7 +9,7 @@ molecular physcis through computation.
 .. toctree::
    :maxdepth: 1
 
-   notebooks/ocs_stark.ipynb
-   notebooks/water_rigrot.ipynb
-   notebooks/water_stark.ipynb
+   notebooks/education/ocs_stark.ipynb
+   notebooks/education/water_rigrot.ipynb
+   notebooks/education/water_stark.ipynb
 
