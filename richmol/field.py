@@ -20,11 +20,10 @@ class CarTens():
 
     Args:
         filename : str
-            Name of the HDF5 file from which tensor data is loaded.
-            Alternatively, one can load tensor from the old-format ascii files,
-            by providing in 'filename' the name of richmol states file
-            and in 'matelem' the template for generating the names of richmol
-            matrix elements files.
+            Name of the HDF5 file from which tensor data is loaded. Alternatively, one can load
+            tensor from the old-format ascii files, by providing in 'filename' the name of richmol
+            states file and in 'matelem' the template for generating the names of richmol matrix
+            elements files.
         matelem : str
             In the old-format, matrix elements of Cartesian tensors for different values of bra
             and ket J (or F) quanta are stored in separate files.
@@ -42,10 +41,9 @@ class CarTens():
         thresh : float
             Threshold for neglecting matrix elements when reading from file
         bra, ket : function(**kw)
-            State filters for bra and ket basis sets, take as arguments
-            state quantum numbers and energies J, sym, m, k, and enr
-            and return True or False depending on if the corresponding state
-            needs to be included or excluded form the basis.
+            State filters for bra and ket basis sets, take as arguments state quantum numbers and
+            energies, i.e., J, sym, m, k, and enr, and return True or False depending on if
+            the corresponding state needs to be included or excluded form the basis.
             By default, all states stored in the file are included.
             The following keyword arguments are passed into the bra and ket functions:
                 J : float (round to first decimal)
@@ -55,11 +53,11 @@ class CarTens():
                 enr : float
                     State energy
                 m : str
-                    State assignment in the M subspace, usually just a value
-                    of the m quantum number as a string
+                    State assignment in the M subspace, usually just a value of the m quantum number
+                    as a string
                 k : str
-                    State assignment in the K subspace, which are the rotational
-                    or ro-vibrational quanta joined in a string
+                    State assignment in the K subspace, which are the rotational or ro-vibrational
+                    quanta joined in a string
 
     Attrs:
         rank : int
@@ -101,7 +99,40 @@ class CarTens():
             mmat[(J1, J2)][(sym1, sym2)][irrep][cart] -> scipy.sparse.csr_matrix
 
     Methods:
-        
+        filter(thresh=None, bra=lambda **kw: True, ket=lambda **kw: True):
+            Applies state selection filters to tensor matrix elements
+        tomat(form='block', sparse=None, thresh=None, cart=None:
+            Returns full (M x K) matrix representation of tensor in a block form (form='block')
+            or as a 2D matrix (form='full'), sparse argument (sparse='coo_matrix, 'csr_matrix', etc.)
+            controls the sparse format of the blocks or the 2D matrix
+        assign(form='block'):
+            Returns assignment of states for matrix representation in block form (form='block')
+            or in a form of 2D matrix (form='full')
+        full_form(mat, sparse=None, thresh=None):
+            Converts block representation of matrix into 2D matrix form, sparse argument controls
+            the sparse format of the 2D matrix
+        block_form(mat):
+            Converts 2D matrix into block form
+        mul(arg):
+            In place multiplication of tensor with a scalar 'arg'
+        add_cartens(arg):
+            Returns sum of tensor with another tensor
+        field(field, thresh=None):
+            Multiplies tensor with field
+        vec(vec):
+            Multiplies tensor with vector
+        __mul__(arg):
+            Multiplication with scalar, electric field, and vector
+        __add__(arg):
+            Sum with another tensor
+        store(filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False, thresh=None):
+            Stores tensor in HDF5 file
+        read(filename, name=None, thresh=None, **kwargs):
+            Reads tensor from HDF5 file
+        read_states(filename, **kwargs):
+            Reads old-format richmol states file
+        read_trans(filename, thresh=None, **kwargs):
+            Reads old_format richmol matrix elements files
     """
 
     def __init__(self, filename=None, matelem=None, name=None, **kwargs):
@@ -128,23 +159,7 @@ class CarTens():
             thresh : float
                 Threshold for neglecting matrix elements
             bra, ket : function(**kw)
-                State filter functions for bra and ket basis sets, take as arguments
-                state quantum numbers and energies J, sym, m, k, and enr
-                and return True or False depending on if the corresponding state
-                needs to be included or excluded form the basis.
-                The following keyword arguments are passed into the bra and ket functions:
-                    J : float (round to first decimal)
-                        Value of J (or F) quantum number
-                    sym : str
-                        State symmetry
-                    enr : float
-                        State energy
-                    m : str
-                        State assignment in the M subspace, usually just a value
-                        of the m quantum number as a string
-                    k : str
-                        State assignment in the K subspace, which are the rotational
-                        or ro-vibrational quanta joined in a string
+                State filter functions for bra and ket basis sets (see kwargs to CarTens())
         """
         # truncate quantum numbers
 
@@ -1490,7 +1505,7 @@ def filter(obj, bra, ket, thresh=None):
         obj : CarTens
             Cartesian tensor
         bra, ket : function(**kw)
-            State filters for bra and ket basis states (see kwargs to CarTens())
+            State filter functions for bra and ket basis states (see kwargs to CarTens())
 
     Returns:
         res : CarTens
