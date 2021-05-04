@@ -5,7 +5,7 @@ dipole matrix elements with the data calculated using older version of richmol
 """
 import numpy as np
 from richmol.field import CarTens, filter
-from richmol.convert_units import DebyeVm_to_invcm
+from richmol.convert_units import Debye_x_Vm_to_invcm
 import sys
 import matplotlib.pyplot as plt
 import gzip
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     matelem_file = path + "matelem_MU_j<j1>_j<j2>.rchm"
 
     # converts dipole[Debye] * field[V/m] into energy[cm^-1]
-    fac = DebyeVm_to_invcm()
+    fac = Debye_x_Vm_to_invcm()
 
     enr = {}
     vec = {}
