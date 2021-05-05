@@ -19,7 +19,7 @@ sys.setrecursionlimit(1500)
 # -- Project information -----------------------------------------------------
 
 project = 'Richmol'
-copyright = '2020, RichMol developers, https://www.controlled-molecule-imaging.org'
+copyright = '2021, RichMol developers, https://www.controlled-molecule-imaging.org'
 author = 'The RichMol developers'
 
 # The full version, including alpha/beta/rc tags
@@ -35,13 +35,10 @@ extensions = [
         'sphinx.ext.autodoc',
         'sphinx.ext.napoleon',
         'sphinx.ext.autosectionlabel',
-        'nbsphinx']#,
-#        'sphinx.ext.autosummary',
-#        'sphinx.ext.intersphinx',
-#        'sphinx.ext.viewcode',
-#        'sphinx_autodoc_typehints',
-#        'myst_parser'
-#]
+        'sphinx.ext.coverage',
+        'sphinx.ext.autosummary',
+        'nbsphinx'
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

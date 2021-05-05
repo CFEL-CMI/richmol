@@ -15,30 +15,27 @@ _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
 
 
 class LabTensor(CarTens):
-    """Laboratory-frame Cartesian tensor operator
+    """Represents matrix elements of laboratory-frame Cartesian tensor operator
 
-    This is a subclass of :py:class:`richmol.CarTens` class.
+    This is a subclass of :py:class:`richmol.field.CarTens` class.
 
     Attrs:
         Us : numpy.complex128 2D array
             Cartesian-to-spherical tensor transformation matrix.
         Ux : numpy.complex128 2D array
-            Spherical-to-Cartesian tensor transformation matrix (Ux = (Us^T)^*).
+            Spherical-to-Cartesian tensor transformation matrix, Ux = np.conj(Us).T
         tens_flat : 1D array
             Flattened molecular-frame Cartesian tensor.
-        molecule : rot.molecule.Molecule
+        molecule : :py:class:`richmol.rot.Molecule`
             Molecular parameters.
 
     Args:
-        arg : rot.molecule.Molecule or numpy.ndarray, list or tuple
-            Molecule object or molecular-frame Cartesian tensor.
-            For arg=rot.molecule.Molecule, the resulting tensor represents the field-free
-            Hamiltonian operator.
-            For arg=ndarray, list, or tuple, the resulting tensor represents the laboratory-frame
-            Cartesian tensor operator.
-        basis : rot.solution.Solution
-            Wave functions in symmetric-top basis (SymtopBasis class) for different values
-            of J quantum number and different symmetries, i.e., basis[J][sym] -> SymtopBasis.
+        arg : numpy.ndarray, list or tuple, or :py:class:`richmol.rot.Molecule`
+            Cartesian tensor in the molecular frame (if arg is ndarray, list or tuple).
+            If the argument is :py:class:`richmol.rot.Molecule` class, the resulting tensor
+            will represent the field-free Hamiltonian operator.
+        basis : :py:class:`richmol.rot.Solution`
+            Rotational wave functions.
         thresh : float
             Threshold for neglecting matrix elements.
     """

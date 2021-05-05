@@ -8,29 +8,17 @@ class Build(build):
     def run(self):
         build.run(self)
         # compile symtoplib
-        command = "cd richmol/symtoplib"
-        command += " && make clean && make"
-        print("\nBuild symtoplib:",command)
-        process = subprocess.Popen(command, shell=True)
-        process.wait()
+        #command = "cd richmol/symtoplib"
+        #command += " && make clean && make"
+        #print("\nBuild symtoplib:",command)
+        #process = subprocess.Popen(command, shell=True)
+        #process.wait()
         # compile wigxjpf
         command = "cd richmol/wigxjpf-1.5"
         command += " && make clean && make shared"
         print("\nBuild wigxjpf-1.5:",command)
         process = subprocess.Popen(command, shell=True)
         process.wait()
-        # compile blas
-        #command = "cd richmol/BLAS-3.8.0"
-        #command += " && make clean && make"
-        #print("\nBuild blas-3.8.0:",command)
-        #process = subprocess.Popen(command, shell=True)
-        #process.wait()
-        # compile lapack
-        #command = "cd richmol/lapack-3.9.0"
-        #command += " && make clean && make"
-        #print("\nBuild lapack-3.9.0:",command)
-        #process = subprocess.Popen(command, shell=True)
-        #process.wait()
 
 # expokit set of Fortran functions for computing matrix exponential
 expokit = Extension(name = 'expokit',
@@ -41,7 +29,7 @@ expokit = Extension(name = 'expokit',
                      )
 
 # modules for computing Wigner functions and symmetric-top functions
-wigner = Extension(name = 'richmol.wigner',
+wigner = Extension(name = 'richmol_wigner',
                     sources = ['wigner/symtop.pyf',
                                'wigner/accuracy.f90',
                                'wigner/dffs_m.f90',

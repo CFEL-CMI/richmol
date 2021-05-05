@@ -22,107 +22,35 @@ _abc_tol_perc = 5 # maximal allowed difference (in percents in units of cm^-1) b
 _USER_TENSORS = dict()
 
 class Molecule:
-    """Rigid molecule
-
-    Properties:
-        XYZ : Cartesian coordinates and masses of atoms
-            fget : structured array
-                XYZ['xyz'] - Cartesian coordinates of atoms in Angstrom
-                XYZ['mass'] - atomic masses
-                XYZ['label'] - atomic labels
-            fset(arg):
-                Defines Cartesian coordinates of atoms.
-                arg can be a tuple with atomic labels and Cartesian coordinates as elements, for example
-                arg = ("bohr",
-                       "O",  0.00000000,   0.00000000,   0.12395915,
-                       "H",  0.00000000,  -1.43102686,  -0.98366080,
-                       "H",  0.00000000,   1.43102686,  -0.98366080)
-                To define a non-standard isotoplogue, add the corresponding number next to the atom
-                label, e.g., "O18", "H2".
-                Cartesian coordinates can also be read from XYZ file, in this case arg need to be
-                a string with the name of the XYZ file.
-        frame : Molecular frame rotation
-            fget : array (3,3)
-                Frame rotation matrix
-            fset(arg):
-                Defines molecular frame.
-                arg is a string that can contain the name of the axes system (e.g., "ipas" for the
-                inertial principal axes system), or the name of a variable to be used as rotation
-                matrix, which can be combined with various linear operations (e.g., "diag" for
-                diagonalization) on the variable.
-                For example, arg="diag(inertia)" will rotate the frame to an axes system where the
-                inertia tensor is diagonal; arg="zxy" will permute the x, y, and z axes;
-                if a variable 'pol' is initialized as a (3 x 3) matrix, arg="pol" will attempt
-                to use this matrix for the frame rotation, arg="diag(pol)" will attempt to rotate
-                the frame to the diagonal representation of 'pol' matrix.
-                arg="None" or arg=None will reset the frame to the one defined by the input
-                molecular geometry.
-        ABC : Rotational constants
-            fget : (A, B, C)
-                Tuple with rotational constants (in cm^-1). Returns user-defined constants, if the
-                latter were initialized, otherwise returns constants computed from the input
-                molecular geometry.
-            fset((A, B, C))
-                User input of rotational constants (in cm^-1)
-        B : Rotational B constant for linear or spherical-top molecule
-            fget : B
-                Rotational constant (in cm^-1). Returns user-defined value, if initialized, otherwise
-                returns the value computed from the input molecular geometry
-            fset(B)
-                User input of rotational constant (in cm^-1)
-        sym : Molecular point group symmetry
-            fget : richmol.rot.symmetry.SymtopSymmetry
-                Symmetry class
-            fset(arg)
-                Defines molecular symmetry as string, e.g., arg="C1" or arg="D2"
-
-    Attrs:
-        Centrifugal distortion constants or parameters of custom user-defined effective Hamiltonians
-        watson : str
-            Type of the reduced Watson Hamiltonian, watson="A" or "S".
-            When present, invokes calculations with the corresponding Watson-type effective Hamiltonian
-        DeltaJ, DeltaJK, DeltaK, deltaJ, deltaK, d1, d2, HJ, HJK, HKJ, HK, phiJ, phiJK, phiK, h1, h2, h3 : float
-            Parameters of the Watson A- and S-reduced Hamiltonians, for details, see
-            J. K. G. Watson in "Vibrational Spectra and Structure" (Ed: J. Durig) Vol 6 p 1, Elsevier, Amsterdam, 1977
-
-            A-form:
-
-            :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
-            :math:`-\\frac{1}{2} * [ \delta_J_{1} * J^{2} + \delta_{k} * J_{z}^{2}, J_{+}^{2} + J_{-}^{2} ]_{+}`
-            :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
-            :math:`+ \\frac{1}{2} * [ \phi_{J} * J^{4} + \phi_{JK} * J^{2} * J_{z}^{2} + \phi_{K} * J_{z}^{4}, J_{+}^{2} + J_{-}^{2} ]_{+}`
-
-            S-form:
-
-            :math:`H = H_{rr} - \Delta_{J} * J^{4} - \Delta_{JK} * J^{2} * J_{z}^{2} - \Delta_{K} * J_{z}^{4}`
-            :math:`+ d_{1} * J^{2} * (J_{+}^{2} + J_{-}^{2}) + d_{2} * (J_{+}^{4} + J_{-}^{4})`
-            :math:`+ H_{J} * J^{6} + H_{JK} * J^{4} * J_{z}^{2} + H_{KJ} * J^{2} * J_{z}^{4} + H_{K} * J_{z}^{6}`
-            :math:`+ h_{1} * J^{4} * (J_{+}^{2} + J_{-}^{2}) + h_{2} * J^{2} * (J_{+}^{4} + J_{-}^{4})`
-
-    Methods:
-        store_xyz(file_name, comment=""):
-            Stores Cartesian coordinates of atoms in XYZ file
-        imom():
-            Returns inertia tensor
-        gmat():
-            Returns rotational kinetic energy matrix (in cm^-1)
-        linear():
-            Returns True/False if molecule is linear/non-linear
-        kappa():
-            Returns rotational asymmetry parameter
-        ABC_geom():
-            Returns rotational constants calculated from molecular geometry input
-        B_geom():
-            Returns rotational B constant for linear or spherical-top molecule, calculated from molecular geometry input
-        store(filename, name=None, comment=None, replace=False):
-            Stores object in HDF5 file
-        read(filename, name=None):
-            Reads object from HDF5 file
+    """Describes rigid molecule
     """
 
     @property
     def XYZ(self):
-        """Masses and Cartesian coordinates of atoms"""
+        """Cartesian coordinates and masses of atoms
+
+        Args:
+            arg
+                Atomic labels, Cartesian coordinates, and units in a tuple, for example,
+
+                .. code-block:: python
+
+                    water.XYZ = ("bohr",
+                                 "O",  0.00000000,   0.00000000,   0.12395915,
+                                 "H",  0.00000000,  -1.43102686,  -0.98366080,
+                                 "H",  0.00000000,   1.43102686,  -0.98366080)
+
+                To define a non-standard isotoplogue, add the corresponding number next
+                to the atom label, e.g., "O18", "H2".
+                Cartesian coordinates can also be read from an XYZ file, in this case `arg` needs
+                to be a string with the name of the XYZ file.
+
+        Returns:
+            structured numpy array, len = <number of atoms>
+                XYZ['xyz'] - Cartesian coordinates of atoms in Angstrom,
+                XYZ['mass'] - atomic masses,
+                XYZ['label'] - atomic labels
+        """
         try:
             x = self.atoms
         except AttributeError:
@@ -143,7 +71,14 @@ class Molecule:
 
 
     def store_xyz(self, file_name, comment=""):
-        """Stores Cartesian coordinates of atoms into XYZ file"""
+        """Stores Cartesian coordinates of atoms into XYZ file
+
+        Args:
+            file_name : str
+                Name of XYZ file
+            comment : str
+                Optional comment line
+        """
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
         lab = self.XYZ['label']
@@ -181,7 +116,32 @@ class Molecule:
 
     @property
     def frame(self):
-        """Defines molecule-fixed frame (embedding)"""
+        """Molecular frame embedding
+
+        Args:
+            arg
+                String containing the name of the axes system (e.g., "ipas" for the
+                inertial principal axes system), or the name of an attribute to be used as a rotation
+                matrix, which can be combined with various linear operations (e.g., "diag" for diagonalization).
+
+                Examples:
+
+                .. code-block:: python
+
+                    water.frame = "diag(inertia)" # rotates to a frame where the inertia tensor
+                                                  # becomes diagonal
+                    water.frame = "zxy" # permutes the x, y, and z axes
+                    water.pol = [[9.1369, 0, 0], [0, 9.8701, 0], [0, 0, 9.4486]]
+                    water.frame = "pol" # rotates frame with water.pol matrix
+                    water.frame = "diag(pol)" # rotates to a frame where water.pol tensor
+                                              # becomes diagonal
+                    water.frame = "None" # or None, resets frame to the one defined
+                                         # by the input  molecular geometry
+
+        Returns:
+            array (3,3)
+                Frame rotation matrix
+        """
         try:
             rotmat = self.frame_rotation
         except AttributeError:
@@ -211,7 +171,7 @@ class Molecule:
 
 
     def imom(self):
-        """Returns inertia tensor"""
+        """Computes inertia tensor"""
         xyz = self.XYZ['xyz']
         mass = self.XYZ['mass']
         cm = np.sum([x*m for x,m in zip(xyz,mass)], axis=0) / np.sum(mass)
@@ -231,7 +191,7 @@ class Molecule:
 
 
     def gmat(self):
-        """Computes rotational kinetic energy matrix"""
+        """Computes rotational kinetic energy matrix (in units of :math:`cm^{-1}`)"""
         convert_to_cm = constants.value('Planck constant') * constants.value('Avogadro constant') \
                       * 1e+16 / (4.0 * np.pi**2 * constants.value('speed of light in vacuum')) * 1e5
         xyz = self.XYZ['xyz']
@@ -313,7 +273,7 @@ class Molecule:
 
     @property
     def kappa(self):
-        """Returns asymmetry parameter kappa = (2*B-A-C)/(A-C)"""
+        """Returns rotational asymmetry parameter kappa = (2*B-A-C)/(A-C)"""
         A, B, C = self.ABC
         return (2*B-A-C)/(A-C)
 
@@ -325,7 +285,9 @@ class Molecule:
 
     @property
     def ABC_geom(self):
-        """Returns rotational constants in units of cm^-1 calculated from the inertia tensor"""
+        """Returns A, B, and C rotational constants (in units of :math:`cm^{-1}`),
+        calculated from molecular geometry input
+        """
         itens = self.inertia
         if np.any(np.abs( np.diag(np.diag(itens)) - itens) > _diag_tol):
             raise ValueError(f"failed to compute rotational constants since inertia tensor is not diagonal, " + \
@@ -343,7 +305,17 @@ class Molecule:
 
     @property
     def ABC(self):
-        """Returns experimental rotational constants if available, otherwise - calculated once"""
+        """Molecular rotational constants
+
+        Args:
+            arg
+                Tuple with A, B, and C user-defined rotational constants (in :math:`cm^{-1}`).
+
+        Returns:
+            Tuple with A, B, and C user-defined rotational constants,
+            if they have been initialized, otherwise returns the constants computed
+            from the input molecular geometry.
+        """
         try:
             self.check_ABC()
             return self.ABC_exp
@@ -353,7 +325,6 @@ class Molecule:
 
     @ABC.setter
     def ABC(self, val):
-        """Set experimental rotational constants, in units of cm^-1"""
         try:
             A, B, C = val
         except TypeError:
@@ -364,6 +335,7 @@ class Molecule:
 
     @property
     def B_geom(self):
+        """Returns B rotational constant (in units of :math:`cm^{-1}`), calculated from molecular geometry input"""
         if self.linear == False:
             raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
         with np.errstate(divide='ignore'): # ignore divide by zero warning
@@ -378,6 +350,16 @@ class Molecule:
 
     @property
     def B(self):
+        """Molecular rotational constant B
+
+        Args:
+            arg
+                User-defined rotational constant (in :math:`cm^{-1}`).
+
+        Returns:
+            User-defined constant, if it has been initialized, otherwise returns
+            constant computed from the input molecular geometry.
+        """
         try:
             self.check_B()
             return self.B_exp
@@ -443,6 +425,15 @@ class Molecule:
 
     @property
     def sym(self):
+        """Molecular point symmetry group
+
+        Args:
+            arg : str
+                Molecular symmetry label, e.g., "C1", "D2", "C2v"
+
+        Returns:
+            :py:class:`richmol.rot.symmetry.SymtopSymmetry` class.
+        """
         try:
             return self.symmetry
         except AttributeError:
@@ -469,7 +460,7 @@ class Molecule:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default name of the variable is used
+                Name of the data group, by default the name of the variable is used
             comment : str
                 User comment
             replace : bool
@@ -523,8 +514,8 @@ class Molecule:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, if None, the first group with matching
-                "__class_name__"  attribute will be loaded
+                Name of the data group, if None, the first group with the matching "__class_name__" 
+                attribute will be loaded
         """
         class_name = self.__module__ + "." + self.__class__.__name__
 
@@ -570,14 +561,16 @@ class Molecule:
 
 
 def mol_tensor(val):
-    """Declares new user-defined Cartesian tensor which, when assigned as an attribute
-    of Molecule object, will be dynamically rotated to a molecule-fixed frame
+    """Declares a new user-defined Cartesian tensor which, when assigned to an attribute
+    of a Molecule object, will be dynamically rotated to a chosen molecular frame :py:func:`Molecule.frame`
+    whenever the latter is changed
 
     Args:
         val : array
             Cartesian tensor
+
     Returns:
-        object, need to be assigned to an attribute of Molecule object
+        object, needs to be assigned to an attribute of Molecule class
     """
     try:
         tens = np.array(val)

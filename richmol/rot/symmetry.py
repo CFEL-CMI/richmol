@@ -1,5 +1,5 @@
 import numpy as np
-from richmol.wigner import symtop
+from richmol_wigner import symtop
 import copy
 
 

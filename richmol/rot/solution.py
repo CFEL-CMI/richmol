@@ -33,24 +33,21 @@ def register_ham(func):
 
 
 class Solution(UserDict):
-    """Field-free rotational solutions for different of J and symmetry
-    An object of this class is returned by :py:func`solve` function
+    """Represents rotational solutions for different of J and symmetry
 
-    This is a subclass of :py:class`collections.UserDict`, use it as dictionary,
-    i.e., Solution[J][sym] -> :py:class`richmol.rot.basis.SymtopBasis`
+    This is a subclass of :py:class:`collections.UserDict` class.
+
+    Args:
+        val : dict
+            Nested dictionary containing rotational wave functions :py:class:`richmol.rot.SymtopBasis`
+            for different values of `J=Jmin..Jmax` and different symmetries
 
     Attrs:
         abc : str
-            Quantization axes used for solution.
-            String containing three molecular-frame Cartesian axes in the order of x, y, and z
-            quantization axes. Applies only when the Hamiltonian is built from rotational constants
-            i.e., H = A * J[abc[0]]^2 + B * J[abc[1]]^2 + C * J[abc[2]]^2
-
-    Methods:
-        store(filename, name=None, comment=None, replace=False):
-            Stores object into HDF5 file
-        read(filename, name=None):
-            Reads object from HDF5 file
+            Quantization axes used in solution, a string containing three molecular-frame Cartesian
+            axes in the order of `x`, `y`, and `z` quantization axes.
+            For example, abc="zxy" means that `x`, `y`, and `z` are aligned along the `b`, `c`, and
+            `a` axes, respectively. Applies only when the Hamiltonian is built from rotational constants.
     """
     def __init__(self, val=None):
         if val is None:
@@ -70,7 +67,7 @@ class Solution(UserDict):
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default name of the variable is used
+                Name of the data group, by default the name of the variable is used
             comment : str
                 User comment
             replace : bool
@@ -124,8 +121,8 @@ class Solution(UserDict):
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, if None, the first group with matching
-                "__class_name__"  attribute will be loaded
+                Name of the data group, if None, the first group with the matching "__class_name__" 
+                attribute will be loaded
         """
         with h5py.File(filename, 'a') as fl:
 
@@ -173,26 +170,28 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
     Args:
         mol : Molecule
             Molecular parameters.
-        Jmin, Jmax : int
-            Min and max values of J quantum number.
+        Jmin : int
+            Min value of J quantum number.
+        Jmax : int
+            Max value of J quantum number.
         verbose : bool
             If True, some log will be printed.
         filter : function(**kw)
-            State filter, takes as arguments the state quantum numbers J, sym, and m and returns
-            True or False depending on if the corresponding state needs to be included or excluded
-            form the basis. By default, all states spanned by J=Jmin..Jmax will be included.
+            State filter, takes as arguments the state quantum numbers `J` and `m` and symmetry `sym`,
+            and returns True or False depending on if the corresponding state needs to be included
+            or excluded form the basis. By default, all states spanned by `J=Jmin..Jmax` will be included.
             The following keyword arguments are passed into the filter function:
                 J : int
                     J quantum number
                 sym : str
                     Symmetry
                 m : int
-                    M quantum number
+                    m quantum number
 
     Returns:
-        sol : Solution
-            Wave functions in symmetric-top basis (SymtopBasis class) for different values
-            of J=Jmin..Jmax and different symmetries, i.e., sol[J][sym] -> SymtopBasis.
+        :py:class:`Solution`
+            Nested dictionary containing rotational wave functions :py:class:`richmol.rot.SymtopBasis`
+            for different values of `J=Jmin..Jmax` and different symmetries
     """
     assert(Jmax >= Jmin), f"Jmax = {Jmax} < Jmin = {Jmin}"
     Jlist = [J for J in range(Jmin, Jmax+1)]

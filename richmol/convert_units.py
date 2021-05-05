@@ -3,19 +3,19 @@ import numpy as np
 
 
 def MHz_to_invcm(*args):
-    """Converts MHz to cm^-1"""
+    """Converts `MHz` to :math:`cm^{-1}`"""
     fac = 1/constants.value('speed of light in vacuum') * 1e4
     return convert(fac, *args)
 
 
 def Debye_to_au(*args):
-    """Converts dipole moment from Debye to atomic units"""
+    """Converts dipole moment from `Debye` to atomic units"""
     fac = 0.393456
     return convert(fac, *args)
 
 
 def Debye_x_Vm_to_invcm(*args):
-    """Converts product of dipole moment (Debye) with field (Volts/meter) to cm^-1"""
+    """Converts product of dipole moment (in `Debye`) with field (in `Volts/meter`) to :math:`cm^{-1}`"""
     fac = constants.value('atomic unit of electric dipole mom.') \
         / (constants.value('Planck constant') \
         * constants.value('speed of light in vacuum')) \
@@ -25,7 +25,7 @@ def Debye_x_Vm_to_invcm(*args):
 
 
 def AUdip_x_Vm_to_invcm(*args):
-    """Converts product of dipole moment (atomic units) with field (Volts/meter) to cm^-1"""
+    """Converts product of dipole moment (in atomic units) with field (in `Volts/meter`) to :math:`cm^{-1}`"""
     fac = constants.value('atomic unit of electric dipole mom.') \
         / (constants.value('Planck constant') \
         * constants.value('speed of light in vacuum')) \
@@ -34,7 +34,7 @@ def AUdip_x_Vm_to_invcm(*args):
 
 
 def AUpol_x_Vm_to_invcm(*args):
-    """Converts product of polarizability (atomic units) with field**2 (Volts**2/meter**2) to cm^-1"""
+    """Converts product of polarizability (in atomic units) with field (in :math:`Volts^2/meter^2`) to :math:`cm^{-1}`"""
     fac = constants.value('atomic unit of electric polarizability') \
         / (constants.value('Planck constant') \
         * constants.value('speed of light in vacuum')) \

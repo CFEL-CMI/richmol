@@ -1,7 +1,7 @@
 !    -*- f90 -*-
 ! Note: the context of this file is case sensitive.
 
-python module wigner ! in 
+python module richmol_wigner ! in 
     interface  ! in :wigner
         module symtop ! in :wigner:symtop.f90
             use accuracy
@@ -34,7 +34,7 @@ python module wigner ! in
             end subroutine threed_grid_wigd
         end module symtop
     end interface 
-end python module wigner
+end python module richmol_wigner
 
 ! This file was auto-generated with f2py (version:2).
 ! See http://cens.ioc.ee/projects/f2py2e/
