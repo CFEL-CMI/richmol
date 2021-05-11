@@ -321,7 +321,7 @@ class CarTens():
                     del self.kmat[(J1, J2)][(sym1, sym2)]
 
 
-    def tomat(self, form='block', sparse=None, thresh=None, cart=None):
+    def tomat(self, form='block', repres='csr_sparse', thresh=None, cart=None):
         """Returns full matrix representation of tensor
 
         Args:
@@ -329,10 +329,10 @@ class CarTens():
                 For form='block', the matrix representation is build as dictionary containing
                 matrix blocks for different pairs of J and symmetries.
                 For form='full', full 2D matrix is constructed.
-            sparse : str
-                Defines sparse representation for matrix blocks or full 2D matrix.
+            repres : str
+                Defines representation for matrix blocks or full 2D matrix.
                 Can be set to the name of one of :py:class:`scipy.sparse` matrix classes,
-                e.g., sparse="coo_matrix" or "csr_matrix".
+                e.g., structure="coo_matrix". Alternatively it can be set to "dense".
             thresh : float
                 Threshold for neglecting matrix elements when converting into the sparse form.
             cart : str
@@ -374,7 +374,7 @@ class CarTens():
                     kmat = kmat_J[sympair]
 
                     # do M \otimes K
-                    me = np.sum( kron(mmat[irrep], kmat[irrep]).todense()
+                    me = np.sum( kron(mmat[irrep], kmat[irrep])
                                  for irrep in list(set(mmat.keys()) & set(kmat.keys())) )
 
                     if not np.isscalar(me):
@@ -393,24 +393,34 @@ class CarTens():
                     kmat = kmat_J[sympair]
 
                     # do M \otimes K
-                    me = np.sum( kron(mmat[irrep], kmat[irrep]).todense()
+                    me = sum( kron(mmat[irrep], kmat[irrep])
                                  for irrep in list(set(mmat.keys()) & set(kmat.keys())) )
 
                     if not np.isscalar(me):
                         mat[Jpair][sympair] = me
 
+        if thresh is not None and thresh > 0:
+            for Jpair, mat_J in mat.items():
+                for sympair, mat_sym in mat_J.items():
+                    mat_sym = mat_sym.tocoo()
+                    mask = np.argwhere(abs(mat_sym.data) < thresh).flatten()
+                    mat_sym = csr_matrix(
+                        (mat_sym.data[mask], (mat_sym.row[mask], mat_sym.col[mask])),
+                        shape = mat_sym.shape
+                    )
+                    mat[Jpair][sympair] = mat_sym
+
         if form == 'block':
-            if sparse is not None:
-                for Jpair, mat_J in mat.items():
-                    for sympair, mat_sym in mat_J.items():
-                        mat_sym = getattr(scipy.sparse, sparse)(mat_sym)
-                        if thresh is not None:
-                            mask = np.abs(mat_sym.data) < thresh
-                            mat_sym[mask] = 0
-                            mat_sym.eliminate_zeros()
-                        mat[Jpair][sympair] = mat_sym
+            for Jpair, mat_J in mat.items():
+                for sympair, mat_sym in mat_J.items():
+                    if repres == 'dense':
+                        mat_sym = mat_sym.todense()
+                    else:
+                        mat_sym = getattr(scipy.sparse, repres)(mat_sym)
+                    mat[Jpair][sympair] = mat_sym
+
         elif form == 'full':
-            mat = self.full_form(mat, sparse, thresh)
+            mat = self.full_form(mat, repres, thresh)
 
         return mat
 
@@ -482,16 +492,16 @@ class CarTens():
         return assign1, assign2
 
 
-    def full_form(self, mat, sparse=None, thresh=None):
+    def full_form(self, mat, repres='csr_matrix', thresh=None):
         """Converts block representation of tensor matrix into 2D matrix form
 
         Args:
             mat : nested dict
                 Block representation of matrix for different values of bra and ket J quanta
                 and different symmetries
-            sparse : str
+            repres : str
                 Set to the name of one of :py:class:`scipy.sparse` matrix classes to output the matrix
-                in sparse format, e.g., sparse="coo_matrix" or "csr_matrix".
+                in sparse format, e.g., sparse="coo_matrix" or "csr_matrix". Alternatively set to "dense".
             thresh : float
                 Threshold for neglecting matrix elements when converting into sparse form.
 
@@ -499,15 +509,17 @@ class CarTens():
             array
                 2D matrix representation.
         """
-        res = np.block([[ mat[(J1, J2)][(sym1, sym2)]
-                          if (J1, J2) in mat.keys() and (sym1, sym2) in mat[(J1, J2)].keys()
-                          else np.zeros((self.dim1[J1][sym1], self.dim2[J2][sym2])) \
-                          for J2 in self.Jlist2 for sym2 in self.symlist2[J2] ]
-                          for J1 in self.Jlist1 for sym1 in self.symlist1[J1] ])
-        if sparse is not None:
-            if thresh is not None:
-                res[np.abs(res) < thresh] = 0
-            res = getattr(scipy.sparse, sparse)(res)
+        res = scipy.sparse.bmat(
+            [ [ mat[(J1, J2)][(sym1, sym2)]
+                if (J1, J2) in mat.keys() and (sym1, sym2) in mat[(J1, J2)].keys()
+                else csr_matrix(np.zeros((self.dim1[J1][sym1], self.dim2[J2][sym2])))
+                for J2 in self.Jlist2 for sym2 in self.symlist2[J2] ]
+                for J1 in self.Jlist1 for sym1 in self.symlist1[J1] ]
+        )
+        if repres == 'dense':
+            res = res.todense()
+        else:
+            res = getattr(scipy.sparse, repres)(res)
         return res
 
 

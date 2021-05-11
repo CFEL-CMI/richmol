@@ -1,23 +1,37 @@
-"""Read rotational energies and matrix elements for dipole and polarizability of R-camphor,
-calculated using older version of the program (cmirichmol), and compare them with the results
-of the same calculation done in richmol
+""" Read rotational energies and matrix elements for dipole and polarizability
+      of R-camphor, calculated using older version of the program (cmirichmol),
+      and compare them with the results of the same calculation done in Richmol.
 """
+
+
+
+
 import numpy as np
 from richmol.rot import solve, Solution, LabTensor, Molecule
 from richmol.field import CarTens
 from richmol.convert_units import MHz_to_invcm
 
 
-# First, read old-format richmol files
 
+
+# filter for reading old-format Richmol files
 def filter(**kw):
     if 'J' in kw:
         return kw['J'] <= 20
     return True
 
+
+
+
+
 if __name__ == "__main__":
 
     print(__doc__)
+
+
+
+    # READ OLD-FORMAT RICHMOL FILES
+
 
     path = "tests/benchmarks/data/r-camphor_rchm_files/"
 
@@ -28,18 +42,22 @@ if __name__ == "__main__":
     dip_file = path + "camphor_matelem_mu_j<j1>_j<j2>.rchm"
     pol_file = path + "camphor_matelem_alpha_j<j1>_j<j2>.rchm"
 
+
     # load stationary states
     states = CarTens(states_file, bra=filter, ket=filter)
 
-    # load dipole tensor and polarizability
+    # load dipole and polarizability tensors
     dip = CarTens(states_file, matelem=dip_file, bra=filter, ket=filter)
     pol = CarTens(states_file, matelem=pol_file, bra=filter, ket=filter)
 
 
-    # Second, calculate the same data using richmol
+
+    # CALCULATE THE SAME DATA USING RICHMOL
+
 
     camphor = Molecule()
-    camphor.XYZ = ("angstrom",
+    camphor.XYZ = (
+        "angstrom",
         "O",      2.547204,    0.187936,   -0.213755,
         "C",      1.382858,   -0.147379,   -0.229486,
         "C",      0.230760,    0.488337,    0.565230,
@@ -66,13 +84,16 @@ if __name__ == "__main__":
         "H",     -2.531884,    0.195217,    1.071909,
         "H",     -0.890539,    2.201894,   -1.536852,
         "H",     -1.455250,    0.830868,   -2.487875,
-        "H",      0.267696,    1.035608,   -2.160680)
+        "H",      0.267696,    1.035608,   -2.160680
+    )
 
     camphor.dip = [-1.21615, -0.30746, 0.01140]
 
-    camphor.pol = [[115.80434, 0.58739, -0.03276], \
-                   [0.58739, 112.28245, 1.36146], \
-                   [-0.03276, 1.36146, 108.47809]]
+    camphor.pol = [
+        [115.80434,   0.58739,  -0.03276],
+        [  0.58739, 112.28245,   1.36146],
+        [ -0.03276,   1.36146, 108.47809]
+    ]
 
     camphor.frame = "ipas"
     camphor.sym = "D2"
@@ -84,47 +105,70 @@ if __name__ == "__main__":
     pol2 = LabTensor(camphor.pol, sol)
 
 
-    # Now, compare the results
+
+    # COMPARE THE RESULTS
+
 
     maxdiff = {}
 
-    # convert field-free H to block-matrix representation, do it for all Cartesian components
-    mat = {cart : states.tomat(form='block', cart=cart, sparse='csr_matrix') for cart in states.cart}
-    mat2 = {cart : states2.tomat(form='block', cart=cart, sparse='csr_matrix') for cart in states2.cart}
+    # convert field-free H to block-matrix representation;
+    #   do it for all Cartesian components
+    mat = {
+        cart : states.tomat(form='block', cart=cart, repres='csr_matrix')
+            for cart in states.cart
+    }
+    mat2 = {
+        cart : states2.tomat(form='block', cart=cart, repres='csr_matrix')
+            for cart in states2.cart
+    }
+
+    # compute relative max difference
+    for cart in mat.keys():
+        maxdiff[cart] = 0
+        for (J1, J2) in mat[cart].keys():
+            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
+                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
+                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
+                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
+
+    # convert dipoles to block-matrix representation;
+    #   do it for all Cartesian components
+    mat = {
+        cart : dip.tomat(form='block', cart=cart, repres='csr_matrix')
+            for cart in dip.cart
+    }
+    mat2 = {
+        cart : dip2.tomat(form='block', cart=cart, repres='csr_matrix')
+            for cart in dip2.cart
+    }
 
     # compute max difference
     for cart in mat.keys():
         maxdiff[cart] = 0
-        for (J1,J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1,J2)].keys():
-                m1 = mat[cart][(J1,J2)][(sym1,sym2)]
-                m2 = mat2[cart][(J1,J2)][(sym1,sym2)]
-                maxdiff[cart] = max([maxdiff[cart], np.max(np.abs(m1-m2))])
+        for (J1, J2) in mat[cart].keys():
+            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
+                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
+                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
+                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
 
-    # convert dipoles to block-matrix representation, do it for all Cartesian components
-    mat = {cart : dip.tomat(form='block', cart=cart, sparse='csr_matrix') for cart in dip.cart}
-    mat2 = {cart : dip2.tomat(form='block', cart=cart, sparse='csr_matrix') for cart in dip2.cart}
-
-    # compute max difference
-    for cart in mat.keys():
-        maxdiff[cart] = 0
-        for (J1,J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1,J2)].keys():
-                m1 = mat[cart][(J1,J2)][(sym1,sym2)]
-                m2 = mat2[cart][(J1,J2)][(sym1,sym2)]
-                maxdiff[cart] = max([maxdiff[cart], np.max(np.abs(m1-m2))])
-
-    # convert polarizabilities to block-matrix representation, do it for all Cartesian components
-    mat = {cart : pol.tomat(form='block', sparse='csr_matrix', cart=cart) for cart in pol.cart}
-    mat2 = {cart : pol2.tomat(form='block', sparse='csr_matrix', cart=cart) for cart in pol2.cart}
+    # convert polarizabilities to block-matrix representation;
+    #   do it for all Cartesian components
+    mat = {
+        cart : pol.tomat(form='block', repres='csr_matrix', cart=cart)
+            for cart in pol.cart
+    }
+    mat2 = {
+        cart : pol2.tomat(form='block', repres='csr_matrix', cart=cart)
+            for cart in pol2.cart
+    }
 
     for cart in mat.keys():
         maxdiff[cart] = 0
-        for (J1,J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1,J2)].keys():
-                m1 = mat[cart][(J1,J2)][(sym1,sym2)]
-                m2 = mat2[cart][(J1,J2)][(sym1,sym2)]
-                maxdiff[cart] = max([maxdiff[cart], np.max(np.abs(m1-m2))])
+        for (J1, J2) in mat[cart].keys():
+            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
+                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
+                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
+                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
 
     print("Print maximal matrix element differences")
     for key, val in maxdiff.items():

@@ -1,8 +1,13 @@
-"""Calculate Stark energies of water molecule using the old-format richmol files produced by TROVE
-(see "tests/benchmarks/data/h2o_rchm_files_TROVE/"), and compare the Stark shifts and the field-dressed
-dipole matrix elements with the data calculated using older version of richmol
-(see "tests/benchmarks/data/h2o_rchm_files_TROVE/richmol2_results")
+""" Calculate Stark energies of water molecule using the old-format richmol
+      files produced by TROVE (see tests/benchmarks/data/h2o_rchm_files_TROVE/),
+      and compare the Stark shifts and the field-dressed dpole matrix elements
+      with the data calculated using older version of richmol (see
+      tests/benchmarks/data/h2o_rchm_files_TROVE/richmol2_results).
 """
+
+
+
+
 import numpy as np
 from richmol.field import CarTens, filter
 from richmol.convert_units import Debye_x_Vm_to_invcm
@@ -11,7 +16,12 @@ import matplotlib.pyplot as plt
 import gzip
 
 
+
+
 Jmax = 5.0
+
+
+
 
 def filter1(**kwargs):
     """Filter function to select bra states"""
@@ -28,6 +38,8 @@ def filter1(**kwargs):
         enr = kwargs["enr"]
         pass_enr = enr <= 10000
     return pass_J * pass_enr * pass_m
+
+
 
 
 def filter2(**kwargs):
@@ -47,16 +59,20 @@ def filter2(**kwargs):
     return pass_J * pass_enr * pass_m
 
 
+
+
 if __name__ == "__main__":
 
     print(__doc__)
+
+
 
     path = "tests/benchmarks/data/h2o_rchm_files_TROVE/"
 
     # states file
     states_file = path + "energies_j0_j40_MARVEL_HITRAN.rchm"
 
-    # template for generating names of matrix elements files for different bra and ket J quanta
+    # template for generating names of matrix elements files
     matelem_file = path + "matelem_MU_j<j1>_j<j2>.rchm"
 
     # converts dipole[Debye] * field[V/m] into energy[cm^-1]
@@ -65,7 +81,7 @@ if __name__ == "__main__":
     enr = {}
     vec = {}
 
-    for m1 in np.linspace(-Jmax, Jmax, int(2*Jmax)+1):
+    for m1 in np.arange(-Jmax, Jmax + 1):
 
         print(f"Run Stark energy calculations for m = {m1}")
 
@@ -73,7 +89,9 @@ if __name__ == "__main__":
         h0 = CarTens(states_file, bra=filter1, ket=filter1)
 
         # matrix elements of dipole moment
-        mu = CarTens(states_file, matelem=matelem_file, bra=filter1, ket=filter1)
+        mu = CarTens(
+            states_file, matelem=matelem_file, bra=filter1, ket=filter1
+        )
 
         # multiply dipole with field
         mu.mul(fac)
@@ -84,10 +102,13 @@ if __name__ == "__main__":
         h = h0 - mu
 
         # diagonalize Hamiltonian
-        mat = h.tomat(form='full')
-        print("  matrix is hermitian? :", np.max(np.abs(mat - np.conjugate(mat).T)) < 1e-14)
+        mat = h.tomat(form='full', repres='dense')
+        print(
+            "  matrix is hermitian? :",
+            np.max(np.abs(mat - np.conjugate(mat).T)) < 1e-14
+        )
         e, v = np.linalg.eigh(mat)
-        enr[m1] = [elem for elem in e]
+        enr[m1] = e.tolist()
         vec[m1] = v
 
     # read Stark energies obtained with older version of richmol
@@ -125,7 +146,9 @@ if __name__ == "__main__":
             for m2 in np.linspace(-Jmax, Jmax, int(2*Jmax)+1):
                 if abs(m1-m2)>1: continue
 
-                print(f"compute dipole matrix elements for (m1, m2) = {(m1, m2)}")
+                print(
+                    f"compute dipole matrix elements for (m1, m2) = {(m1, m2)}"
+                )
 
                 # matrix elements of dipole moment
                 mu = filter(mu0, bra=filter1, ket=filter2, thresh=1e-6)
@@ -133,11 +156,22 @@ if __name__ == "__main__":
                 # bra and ket state assignments
                 assign1, assign2 = mu.assign(form='full')
 
-                mux = mu.tomat(form='full', sparse='csr_matrix', cart='x', thresh=1e-6)
-                muy = mu.tomat(form='full', sparse='csr_matrix', cart='y', thresh=1e-6)
-                muz = mu.tomat(form='full', sparse='csr_matrix', cart='z', thresh=1e-6)
+                mux = mu.tomat(
+                    form='full', repres='csr_matrix', cart='x', thresh=1e-6
+                )
+                muy = mu.tomat(
+                    form='full', repres='csr_matrix', cart='y', thresh=1e-6
+                )
+                muz = mu.tomat(
+                    form='full', repres='csr_matrix', cart='z', thresh=1e-6
+                )
 
-                print("  mux, muy, muz number of nonzero elements:", mux.nnz, muy.nnz, muz.nnz)
+                print(
+                    "  mux, muy, muz number of nonzero elements:",
+                    mux.nnz,
+                    muy.nnz,
+                    muz.nnz
+                )
 
                 # transform matrix elements to eigenfunctions representation
                 mux = np.dot(np.conjugate(vec[m1]).T, mux.dot(vec[m2]))
@@ -145,13 +179,17 @@ if __name__ == "__main__":
                 muz = np.dot(np.conjugate(vec[m1]).T, muz.dot(vec[m2]))
 
                 # linestrength (without nuclear spin statistical weights)
-                linestr = np.square(np.abs(mux)) + np.square(np.abs(muy)) + np.square(np.abs(muz))
+                linestr = np.square(abs(mux)) + np.square(abs(muy)) + \
+                     np.square(abs(muz))
+                
 
                 # super inefficient but simple printout of transitions with linestrengths
                 for i in range(linestr.shape[0]):
 
                     ind = np.argmax(np.abs(vec[m1][:,i]))
-                    (k1, e1), sym1, J1 = (assign1[key][ind] for key in ("k", "sym", "J"))
+                    (k1, e1), sym1, J1 = (
+                        assign1[key][ind] for key in ("k", "sym", "J")
+                    )
 
                     for j in range(linestr.shape[1]):
 
@@ -168,11 +206,18 @@ if __name__ == "__main__":
                             continue
 
                         ind = np.argmax(np.abs(vec[m2][:,j]))
-                        (k2, e2), sym2, J2 = (assign2[key][ind] for key in ("k", "sym", "J"))
+                        (k2, e2), sym2, J2 = (
+                            assign2[key][ind] for key in ("k", "sym", "J")
+                        )
 
-                        fl.write(" %6.1f"%J1 + " %6.1f"%m1 + " %12.6f"%enr1 + " %3s"%sym1 + " %s"%k1 + \
-                                 " %6.1f"%J2 + " %6.1f"%m2 + " %12.6f"%enr2 + " %3s"%sym2 + " %s"%k2 + \
-                                 " %12.6f"%(enr1-enr2) + "   %16.6e"%linestr[i,j] + "\n")
+                        fl.write(
+                            " %6.1f"%J1 + " %6.1f"%m1 + " %12.6f"%enr1 + \
+                            " %3s"%sym1 + " %s"%k1 + \
+                            " %6.1f"%J2 + " %6.1f"%m2 + " %12.6f"%enr2 + \
+                            " %3s"%sym2 + " %s"%k2 + \
+                            " %12.6f"%(enr1-enr2) + "   %16.6e"%linestr[i,j] + \
+                            "\n"
+                        )
 
     input("Press enter to compare linestrengths")
 
