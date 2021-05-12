@@ -403,7 +403,7 @@ class CarTens():
             for Jpair, mat_J in mat.items():
                 for sympair, mat_sym in mat_J.items():
                     mat_sym = mat_sym.tocoo()
-                    mask = np.argwhere(abs(mat_sym.data) < thresh).flatten()
+                    mask = np.argwhere(abs(mat_sym.data) > thresh).flatten()
                     mat_sym = csr_matrix(
                         (mat_sym.data[mask], (mat_sym.row[mask], mat_sym.col[mask])),
                         shape = mat_sym.shape
