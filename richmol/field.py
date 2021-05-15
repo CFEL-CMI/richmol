@@ -321,7 +321,7 @@ class CarTens():
                     del self.kmat[(J1, J2)][(sym1, sym2)]
 
 
-    def tomat(self, form='block', repres='csr_sparse', thresh=None, cart=None):
+    def tomat(self, form='block', repres='csr_matrix', thresh=None, cart=None):
         """Returns full matrix representation of tensor
 
         Args:
