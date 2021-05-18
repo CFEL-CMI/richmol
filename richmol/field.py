@@ -13,6 +13,9 @@ from collections import defaultdict
 from collections.abc import Mapping
 from richmol import json
 import os
+from numba import njit, prange, complex128
+import cupy as cp
+import cupyx
 
 
 class CarTens():
@@ -715,7 +718,7 @@ class CarTens():
                     self.mfmat[(J1, J2)][(sym1, sym2)] = res_
 
 
-    def vec(self, vec):
+    def vec(self, vec, matvec_lib='scipy'):
         """Computes product of tensor with vector
 
         Args:
@@ -727,6 +730,9 @@ class CarTens():
                     for J in vec.keys():
                         for sym in vec[J].keys():
                             print( vec[J][sym].shape == self.dim2[J][sym] ) # must be True
+            matvec_lib : str
+                The python library to use for SpMV. By default, this is set to
+                `scipy`. Alternatively this can be set to `numba` or `cupy`.
 
         Returns:
             nested dict
@@ -740,8 +746,35 @@ class CarTens():
         if not isinstance(vec, Mapping):
             raise TypeError(f"bad argument type for 'vec': '{type(vec)}'") from None
 
+        assert (matvec_lib in ['scipy', 'numba', 'cupy']), \
+            f"'matvec_lib' is unknown: '{matvec_lib}' (must be 'scipy' or 'numba' or 'cupy')"
+
+        def matvec_func():
+
+            if matvec_lib == 'scipy':
+                return lambda spm, v : spm.dot(v)
+
+            elif matvec_lib == 'numba':
+                @njit(parallel=True)
+                def matvec_numba(data, indices, indptr, dim1, v):
+                    u = np.zeros((dim1, v.shape[1]), dtype=complex128)
+                    for i in prange(v.shape[1]):
+                        for j in prange(dim1):
+                            for k in range(indptr[j], indptr[j + 1]):
+                                u[j, i] += data[k] * v[indices[k], i]
+                    return u
+                return lambda spm, v : matvec_numba(spm.data, spm.indices, spm.indptr, spm.shape[0], v)
+
+            elif matvec_lib == 'cupy':
+                def matvec_cupy(spm, v):
+                    spm_gpu = cupyx.scipy.sparse.csr_matrix(spm)
+                    u_gpu = spm_gpu.dot(cp.array(v))
+                    return cp.asnumpy(u_gpu)
+                return lambda spm, v : matvec_cupy(spm, v)
+
+        matvec = matvec_func()
+
         nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
-        res = np.zeros(nirrep, dtype=np.complex128)
 
         vec2 = dict()
 
@@ -751,7 +784,7 @@ class CarTens():
             kmat_J = self.kmat[(J1, J2)]
             vec2[J1] = dict()
 
-            for (sym1, sym2) in list(set(mfmat_sym.keys()) & set(kmat_sym.keys())):
+            for (sym1, sym2) in list(set(mfmat_J.keys()) & set(kmat_J.keys())):
 
                 mfmat = mfmat_J[(sym1, sym2)]
                 kmat = kmat_J[(sym1, sym2)]
@@ -765,16 +798,15 @@ class CarTens():
                 except KeyError:
                     continue
 
-                res[:] = 0
+                res = []
                 for irrep in list(set(mfmat.keys()) & set(kmat.keys())):
-                    tmat = csr_matrix.dot(kmat[irrep], vecT)
-                    v = csr_matrix.dot(mfmat[irrep], np.transpose(tmat))
-                    res[irrep] = csr_matrix.dot(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+                    tmat = matvec(kmat[irrep], vecT)
+                    res.append(matvec(mfmat[irrep], np.transpose(tmat)).reshape(dim))
 
                 try:
-                    vec2[J1][sym1] += np.sum(res)
+                    vec2[J1][sym1] += sum(res)
                 except KeyError:
-                    vec2[J1] = {sym1 : np.sum(res)}
+                    vec2[J1] = {sym1 : sum(res)}
 
         return vec2
 
