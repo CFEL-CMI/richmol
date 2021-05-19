@@ -41,6 +41,15 @@ wigner = Extension(name = 'richmol_wigner',
                     extra_compile_args = ["-O3"] 
                     )
 
+# external potential energy functions
+potentials = Extension(name = 'potentials',
+                    sources = ['potentials/potentials.pyf',
+                               'potentials/h2s_tyuterev.f90',
+                               ],
+                    extra_link_args = ["-llapack", "-lblas"],
+                    extra_compile_args = ["-O3"] 
+                    )
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
 
@@ -60,6 +69,6 @@ if __name__ == "__main__":
         #cmdclass            = {'build': Build},
         package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
         scripts             = [],
-        ext_modules         = [expokit, wigner],
+        ext_modules         = [expokit, wigner, potentials],
         long_description    = read("README.md"),
 )
