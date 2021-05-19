@@ -7,7 +7,7 @@ import inspect
 import h5py
 import datetime
 import time
-from richmol import json
+from richmol import json_ext as json
 from collections.abc import Mapping
 
 
