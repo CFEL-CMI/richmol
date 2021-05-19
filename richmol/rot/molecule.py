@@ -10,7 +10,7 @@ import inspect
 import h5py
 import datetime
 import time
-from richmol import json
+from richmol import json_ext as json
 
 
 _diag_tol = 1e-12 # for treating off-diagonal elements as zero

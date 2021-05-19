@@ -11,7 +11,7 @@ import time
 import regex as re
 from collections import defaultdict
 from collections.abc import Mapping
-from richmol import json
+from richmol import json_ext as json
 import os
 
 
