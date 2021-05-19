@@ -10,7 +10,15 @@ def MHz_to_invcm(*args):
 
 def Debye_to_au(*args):
     """Converts dipole moment from `Debye` to atomic units"""
-    fac = 0.393456
+    fac = 1e-21 / constants.value('speed of light in vacuum') \
+        / constants.value('elementary charge') \
+        / constants.value('Bohr radius')
+    return convert(fac, *args)
+
+
+def Debye_to_sqrt_erg_x_sqrt_cm3(*args):
+    """Converts dipole moment from `Debye` to `erg^(1/2)*cm^(3/2)`"""
+    fac = 1e-18
     return convert(fac, *args)
 
 
@@ -21,6 +29,19 @@ def Debye_x_Vm_to_invcm(*args):
         * constants.value('speed of light in vacuum')) \
         / 1e2 \
         * Debye_to_au()
+    return convert(fac, *args)
+
+
+def Buckingham_to_au(*args):
+    """Converts quadrupole moment from `Buckingham` to atomic units"""
+    fac = Debye_to_au() * constants.value('angstrom') \
+        / constants.value('Bohr radius')
+    return convert(fac, *args)
+
+
+def Buckingham_to_sqrt_erg_x_sqrt_cm5(*args):
+    """Converts quadrupole moment from `Buckinghom` to `erg^(1/2)*cm^(5/2)`"""
+    fac = Debye_to_sqrt_erg_x_sqrt_cm3() * constants.value('angstrom')
     return convert(fac, *args)
 
 
