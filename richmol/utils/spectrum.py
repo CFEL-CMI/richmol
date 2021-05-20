@@ -1,144 +1,975 @@
+from richmol.convert_units import (
+    Debye_to_au, Debye_to_si,
+    Debye_to_sqrt_erg_x_sqrt_cm3,
+    Buckingham_to_au,
+    Buckingham_to_si,
+    Buckingham_to_sqrt_erg_x_sqrt_cm5
+)
+from richmol.field import CarTens
 import numpy as np
-from scipy.sparse import coo_matrix
-import sys
+import scipy as sp
+import scipy.constants as const
+import h5py, sys, time
+from mpi4py import MPI
+import matplotlib.pyplot as plt
 
 
-planck = 6.62606896e-27 # Planck constant
-avogno = 6.0221415e+23  # Avogadro constant
-vellgt = 2.99792458e+10 # Speed of light constant
-boltz  = 1.380658e-16   # Boltzmann constant
+class field_free_spectrum():
+    """ Class for field-free spectrum
 
+        Attrs:
+            filename : str
+                Name of the HDF5 file from which tensor data is loaded.
+                Alternatively, one can load tensor from the old-format ASCII
+                files, by providing in `filename` the name of the richmol
+                states file and in `matelem` a template for generating the
+                names of the richmol matrix elements files.
+            matelem : str
+                In the old-format, matrix elements of Cartesian tensors for
+                different values of bra and ket J (or F) quanta are stored in
+                separate files.
+            out_f : str
+                Name of the HDF5 file to which results are written.
+            type : str
+                The type of coupling moment ('elec', 'magn'). Set to 'elec' by
+                default.
+            order : str
+                The order of coupling moment. If `matelem` is given, order will
+                be deduced from `matelem`. Else must be specified here ('dip',
+                'quad').
+            j_min : int, float
+                The minimum value of J (or F). Set to 0.0 (for integer) or 0.5
+                (for half-integer) by default.
+            j_max : int, float
+                The maximum value of J (or F). Set to 1.0 (for 'dip') or 2.0
+                (for 'quad') for integer by default. Set to 0.5 (for 'dip') or
+                1.5 (for 'quad') for half-integer by default.
+            e_max : int, float
+                The maximum value of energy. Set to 1.0e9 by default.
+            units : str
+                The units of coupling moment. Set to 'Debye' by default.
+            linestr_thresh : int, float
+                The linestrength threshold below which to neglect transitions.
+                Set to 0 by default.
+            abun : int, float
+                The natural terrestrial isotopic abundance. Set to 1.0 by
+                default.
+            temp : int, float
+                The temperature. Set to 296.0 by default.
+            part_sum : int, float
+                The total internal partition sum. Set to 1.0 by default.
+            tran_types: dict
+                The types of transitions to filter out absorption intensities
+                for. Set to {'all' : []} by default.
+            abs_intens_thresh : int, float
+                The absorption intensity threshold below which to neglect
+                transitions. Set to 0 by default.
 
-def read_states_field(fname):
-    """Reads field-dressed states from a file.
-
-    Args:
-        fname (str): The name of file with field-dressed energies.
-
-    Returns:
-        states : numpy named array states['name'][istate]
-            'name' can take the following values:
-                'id' - integer state ID number,
-                'enr' - state energy,
-                'qstr' - string representing state quantum numbers.
-            istate is the state running index.
+        Methods:
+            __init__(filename, matelem=None, **kwargs)
+                Initializes field-free spectrum object, computes assignments.
+            linestr(**kwargs)
+                Computes linestrengths.
+            abs_intens(**kwargs)
+                Computes, filters and plots  absorption intensities.
+            totxt(**kwargs)
+                Writes results into ASCII file.
     """
-    with open(fname, "r") as fl:
-        lines = fl.readlines()
 
-    nstates = len(lines)
-    states = np.zeros(nstates, dtype={'names':('id', 'enr', 'qstr'), 'formats':('i8', 'f8', 'U30')})
+    def __init__(self, filename, matelem=None, **kwargs):
+        """ Initializes a field-free spectrum object.
 
-    for istate,line in enumerate(lines):
-        w = line.split()
-        id = np.int64(w[0])
-        enr = np.float64(w[1])
-        qstr = ' '.join([w[i] for i in range(2,len(w))])
-        states['id'][istate] = id
-        states['enr'][istate] = enr
-        states['qstr'][istate] = qstr
+            Args:
+                filename : str
+                    Name of the HDF5 file from which tensor data is loaded.
+                    Alternatively, one can load tensor from the old-format
+                    ASCII files, by providing in `filename` the name of the
+                    richmol states file and in `matelem` a template for
+                    generating the names of the richmol matrix elements files.
+                matelem : str
+                    In the old-format, matrix elements of Cartesian tensors for
+                    different values of bra and ket J (or F) quanta are stored
+                    in separate files.
 
-    return states
+            Kwargs:
+                type : str
+                    The type of coupling moment ('elec', 'magn'). Set to 'elec'
+                    by default.
+                order : str
+                    The order of coupling moment. If `matelem` is given, order
+                    will be deduced from `matelem`. Else must be specified here
+                    ('dip', 'quad').
+                j_max : int, float
+                    The maximum value of J (or F). If `j_min` is 0.0, set to
+                    1.0 (for 'dip') or 2.0 (for 'quad') by default. If `j_min`
+                    is 0.5, set to 0.5 (for 'dip') or 1.5 (for 'quad') by
+                    default.
+                e_max : int, float
+                    The maximum value of energy. Set to 1.0e9 by default.
+                units : str
+                    The units of coupling moment. Set to 'Debye' by default.
+        """
+
+        # set main filename
+        self.filename = filename
+
+        # set matelem filename
+        self.matelem = matelem
+
+        # set molecular structure
+        assert ('_j' in filename or '_f' in filename), \
+            f"'structure' not found in 'filename' = '{filename}'" \
+                + f"(must contain '_j', '_f')"
+        if '_j' in filename:
+            self.structure = 'rovib'
+        else:
+            self.structure = 'hyfi'
+
+        # set coupling moment type
+        if 'type' in kwargs:
+            assert (kwargs['type'] in ['elec', 'magn']), \
+                f"'type' unknown '{kwargs['type']}'" \
+                    + f"(must be 'elec', 'magn')"
+            self.type = kwargs['type']
+        else:
+            self.type = 'elec'
+
+        # set coupling moment order
+        if matelem is not None:
+            assert ('_MU' in matelem or '_QUAD' in matelem), \
+                f"'order' not found in 'matelem' = '{matelem}'" \
+                    + f"(must contain '_MU', '_QUAD')"
+            if '_MU' in matelem:
+                self.order = 'dip'
+            else:
+                self.order = 'quad'
+        else:
+            assert ('order' in kwargs), \
+                f"'order' not found in keyword arguments" \
+                    + f"(set to 'dip', 'quad')"
+            assert (kwargs['order'] in ['dip', 'quad']), \
+                f"'order' unknown" \
+                    + f"(set to 'dip', 'quad')"
+            self.order = kwargs['order']
+
+        # set minimum and maximum J
+        if 'j_max' in kwargs:
+            assert (type(kwargs['j_max']) in [int, float]), \
+                f"'j_max' has bad type: '{type(kwargs['j_max'])}'" \
+                    + f"(must be 'int' or 'float')"
+            assert (abs(kwargs['j_max'] % 0.5) in [0.0, 0.5]), \
+                f"'j_max' has bad value: '{kwargs['j_max']}'" \
+                    + f"(must be 'int', 'half-int')"
+            if abs(kwargs['j_max'] % 1.0) == 0.0:
+                self.j_min = 0.0
+                j_max_min = {'dip' : 1.0, 'quad' : 2.0}[self.order]
+                assert (kwargs['j_max'] >= j_max_min), \
+                   f"'j_max' has bad value: '{kwargs['j_max']}'" \
+                        + f"(must be >= '{j_max_min}')"
+            else:
+                self.j_min = 0.5
+                j_max_min = {'dip' : 0.5, 'quad' : 1.5}[self.order]
+                assert (kwargs['j_max'] >= j_max_min), \
+                   f"'j_max' has bad value: '{kwargs['j_max']}'" \
+                        + f"(must be >= '{j_max_min}')"
+            self.j_max = round(float(kwargs['j_max']), 1)
+        else:
+            self.j_min = 0.0
+            self.j_max = {'dip' : 1.0, 'quad' : 2.0}[self.order]
+
+        # set maximum enr
+        if 'e_max' in kwargs:
+            assert ((type(kwargs['e_max']) in [int, float])), \
+                f"'e_max' has bad type '{type(kwargs['e_max'])}'" \
+                    + f"(must be 'int' or 'float')"
+            assert (kwargs['e_max'] > 0), \
+                f"'e_max' has bad value '{kwargs['e_max']}'" \
+                    + f"(must be > '0')"
+            self.e_max = kwargs['e_max']
+        else:
+            self.e_max = 1.0e9
+
+        # set physical units of moment
+        if 'units' in kwargs:
+            if self.order == 'dip':
+                assert (kwargs['units'] in ['Debye', 'a.u.', 'S.I.']), \
+                    f"'units' unknown: '{kwargs['units']}'" \
+                        + f"(must be 'Debye', 'a.u.', 'S.I.')"
+            else:
+                assert (kwargs['units'] in ['Buckingham', 'a.u.', 'S.I.']), \
+                    f"'units' unknown: '{kwargs['units']}'" \
+                        + f"(must be 'Buckingham', 'a.u.', 'S.I.')"
+            self.units = kwargs['units']
+        else:
+            self.units = 'Debye'
+
+        # construct output filename
+        self.out_f = '{}_{}_jmax{}.hdf5'.format(
+            self.structure, self.order, self.j_max
+        )
+
+        # assignments
+        self._assign()
 
 
+    def _assign(self):
+        """ Assigns properties (energy, symmetry, nuclear spin, ...) to
+              field-free states.
 
-def read_matelem_field(fname):
-    """ Reads matrix elements of an operator in the basis of field-dressed states """
-    fl = open(fname, "r")
-    id1 = []
-    id2 = []
-    val = []
-    for line in fl:
-        w = line.split()
-        id1.append(np.int64(w[0]))
-        id2.append(np.int64(w[1]))
-        val.append([np.float64(ww) for ww in w[2:]])
-    fl.close()
-    nstates1 = max(id1)
-    nstates2 = max(id2)
-    val = np.array(val, dtype=np.float64)
-    nelem = val.shape[1]
-    csrmat = []
-    for ielem in range(nelem):
-        coomat = coo_matrix( (val[:,ielem], (id1, id2)), shape=(nstates1+1,nstates2+1), dtype=np.float64 )
-        csrmat.append(coomat.tocsr())
-    return csrmat
+            Results are saved into 'self.out_f'. Assignments are saved as
+              structured arrays into datasets '<J>' of the group 'assign'. Such
+              an array has the fields 'enr' (energy), 'sym' (symmetry), 'ns'
+              (nuclear spin) and 'assign' (other assignments).
+        """
+
+        # initialize MPI variables
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        world_size = comm.Get_size()
+
+        # input / output file
+        f = h5py.File(self.out_f, 'w', driver='mpio', comm=MPI.COMM_WORLD)
+
+        # neglects all bra states
+        def filt_bra(**kwargs): return False
+
+        # filters ket states w.r.t. J, M and energy
+        def filt_ket(**kwargs):
+            pass_J, pass_M, pass_enr = True, True, True
+            if 'J' in kwargs:
+                pass_J = kwargs['J'] == j
+            if 'm' in kwargs:
+                pass_M = kwargs['m'] == ' 0.0'
+            if 'enr' in kwargs:
+                pass_enr = kwargs['enr'] <= self.e_max
+            return pass_J and pass_M and pass_enr
+
+        # datatype of assignment
+        assign_dtype = [
+            ('enr', 'f8'), ('sym', 'S2'), ('ns', 'f4'), ('assign', '<S50')
+        ]
+
+        # assignments
+        assigns, shapes = {}, {}
+        j = self.j_min + rank
+        while j <= self.j_max:
+
+            # field-free states
+            free_states = CarTens(self.filename, bra=filt_bra, ket=filt_ket)
+
+            # assignment
+            _, assign_ket = free_states.assign(form='full')
+            assign = []
+            for ind in range(len(assign_ket['J'])):
+                 k, enr = assign_ket['k'][ind]
+                 sym, ns = assign_ket['sym'][ind], 0.0
+                 if self.structure == 'hyfi':
+                     ns = float(k.split()[-1])
+                 assign.append((enr, sym, ns, k))
+
+            assigns[j] = np.array(assign, dtype=assign_dtype)
+            shapes[j] = assigns[j].shape
+
+            j += world_size
+
+        # broadcast shapes...
+        shapes_ = {}
+        for rank_ in range(world_size):
+            if rank_ == rank:
+                data = shapes
+            else:
+                data = None
+            shapes_.update(comm.bcast(data, root=rank_))
+
+        # ...to collectively create datasets...
+        f.create_group('assign')
+        for j in list(shapes_.keys()):
+            f['assign'].create_dataset(str(j), shapes_[j], dtype=assign_dtype)
+
+        # ...and write into datasets in parallel
+        for j in list(assigns.keys()):
+            f['assign'][str(j)][:] = assigns[j]
+
+        # print to console
+        if rank == 0:
+            print('\n  COMPUTED ASSIGNMENTS ...\n')
+            for attr in ['filename',  'structure', 'j_min', 'j_max', 'e_max']:
+                print('      {} = {}'.format(attr, getattr(self, attr)))
+
+        comm.Barrier()
 
 
+    def linestr(self, **kwargs):
+        """ Computes linestrengths of transitions from lower field-free states
+              to higher field-free states.
 
-def partition_function(states_fname, temperature, **kwargs):
+            Results are saved into 'self.out_f'. Linestrengths are saved as
+              structured arrays into datasets '(<J_bra>, <J_ket>)' of the group
+              'spec'. Such an array has the fields 'bra ind' (assignment index
+              of bra state), 'ket ind' (assignment index of ket state), 'freq'
+              (frequency of transition), 'linestr' (linestrength of
+              transition), 'intens' (absorption intensity of transition).
 
-    boltz_beta = planck * vellgt / (boltz * temperature)
+            Kwargs:
+                thresh : float
+                    The linestrength threshold below which to neglect
+                    transitions. Set to 0 by default.
+        """
 
-    states = read_states_field(states_fname)
+        # set linestrength threshold
+        if 'thresh' in kwargs:
+            assert (type(kwargs['thresh']) in [int, float]), \
+                f"'thresh' has bad type: '{type(kwargs['thresh'])}'" \
+                   + f"(must be 'int', 'float')"
+            assert (kwargs['thresh'] >= 0), \
+                f"'thresh' has bad value: '{kwargs['thresh']}'" \
+                    + f"(must be >= '0')"
+            self.linestr_thresh = thresh
+        else:
+            self.linestr_thresh = 0.0
 
-    if "zpe" in kwargs:
-        zpe = kwargs["zpe"]
-    else:
-        zpe = np.min(states['enr'])
+        # initialize MPI variables
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        world_size = comm.Get_size()
 
-    return np.sum( np.exp(-(states['enr']-zpe) * boltz_beta) )
+        # input / output file
+        f = h5py.File(self.out_f, 'a', driver='mpio', comm=MPI.COMM_WORLD)
+
+        # filters states w.r.t. J, M and energy
+        def filt(j):
+
+            def filter_(**kwargs):
+                pass_J, pass_enr = True, True
+                if 'J' in kwargs:
+                    pass_J = kwargs['J'] == j
+                if 'enr' in kwargs:
+                    pass_enr = kwargs['enr'] <= self.e_max
+                return pass_J and pass_enr
+
+            return filter_
+
+        # datatype of spectrum
+        spec_dtype = [
+            ('bra ind', 'i4'),
+            ('ket ind', 'i4'),
+            ('freq', 'f8'),
+            ('linestr', 'f8'),
+            ('intens', 'f8')
+        ]
+
+        # linestrengths
+        specs, shapes = {}, {}
+        j_bra = self.j_min + rank
+        while j_bra <= self.j_max:
+
+            for j_ket in np.arange(self.j_min, self.j_max + 1):
+                # selection rules
+                if self.order == 'dip':
+                    if abs(j_ket - j_bra) > 1 or (j_ket + j_bra) < 1: continue
+                elif self.order == 'quad':
+                    if abs(j_ket - j_bra) > 2 or (j_ket + j_bra) < 2: continue
+
+                # Cartesian tensor operator
+                moment = CarTens(
+                    self.filename,
+                    matelem = self.matelem,
+                    bra = filt(j_bra),
+                    ket = filt(j_ket)
+                )
+
+                # linestrength
+                linestr = []
+                for cart in moment.cart:
+
+                    # block form
+                    moment_blocks = moment.tomat(cart=cart)[(j_bra, j_ket)]
+
+                    linestr_blocks = {}
+                    for symsym, block in moment_blocks.items():
+
+                        dim_bra, dim_ket = block.shape
+                        dim_m_bra = int(dim_bra / (2 * j_bra + 1))
+                        dim_m_ket = int(dim_ket / (2 * j_ket + 1))
+
+                        # linestrength of block
+                        linestren_ = block.multiply(block.conjugate())
+
+                        # sum up rows of different M_bra
+                        linestren_ = sum(
+                            [ linestren_[i * dim_m_bra : (i + 1) * dim_m_bra, :] 
+                                for i in range(int(2 * j_bra + 1)) ]
+                        ).tocsc()
+
+                        # sum up cols of different M_ket
+                        linestren_ = sum(
+                            [ linestren_[:, i * dim_m_ket : (i + 1) * dim_m_ket] 
+                                for i in range(int(2 * j_ket + 1)) ]
+                        )
+
+                        linestr_blocks[symsym] = linestren_
+
+                    # full form
+                    linestr.append(
+                        sp.sparse.bmat(
+                            [
+                                [
+                                    linestr_blocks[(sym1, sym2)]
+                                      if (sym1, sym2) in linestr_blocks.keys()
+                                      else None
+                                      for sym2 in moment.symlist2[j_ket]
+                                ]
+                              for sym1 in moment.symlist1[j_bra]
+                            ]
+                        )
+                    )
+
+                linestr = sum(linestr).tocoo()
+
+                # structured spectrum array
+                spec = np.empty((linestr.count_nonzero(), ), dtype=spec_dtype)
+                spec['bra ind'] = linestr.row
+                spec['ket ind'] = linestr.col
+                spec['linestr'] = linestr.data.real
+            
+                # frequencies
+                enr_bra = f['assign'][str(j_bra)][:]['enr'][spec['bra ind']]
+                enr_ket = f['assign'][str(j_ket)][:]['enr'][spec['ket ind']]
+                spec['freq'] = abs(enr_bra - enr_ket)
+
+                # transitions from lower to higher state
+                spec = spec[np.argwhere(enr_ket - enr_bra < 0).flatten()]
+
+                # threshold
+                if self.linestr_thresh > 0:
+                    spec = spec[
+                        np.argwhere(
+                            spec['linestr'] > self.linestr_thresh
+                        ).flatten()
+                    ]
+
+                if spec.size > 0:
+                    specs[(j_bra, j_ket)] = spec
+                    shapes[(j_bra, j_ket)] = specs[(j_bra, j_ket)].shape
+
+            j_bra += world_size
+
+        # broadcast shapes...
+        shapes_ = {}
+        for rank_ in range(world_size):
+            if rank_ == rank:
+                data = shapes
+            else:
+                data = None
+            data = comm.bcast(data, root=rank_)
+            shapes_.update(data)
+    
+        # ...to collectively create datasets...
+        f.create_group('spec')
+        for jj in list(shapes_.keys()):
+            f['spec'].create_dataset(str(jj), shapes_[jj], dtype=spec_dtype)
+
+        # ...and write into datasets in parallel
+        for jj in list(specs.keys()):
+            f['spec'][str(jj)][:] = specs[jj]
+
+        f.close()
+
+        # print to console
+        if rank == 0:
+            print('\n  COMPUTED LINESTRENGTHS ...\n')
+            if self.matelem is None:
+                attr_list = ['filename', 'type', 'order', 'linestr_thresh']
+            else:
+                attr_list = ['matelem', 'type',  'order', 'linestr_thresh']
+            for attr in attr_list:
+                print('      {} = {}'.format(attr, getattr(self, attr))) 
+
+        comm.Barrier()
 
 
+    def abs_intens(self, temp, part_sum, **kwargs):
+        """ Wrapper for computing, filtering and plotting absorption
+              intensities.
 
-def dipole_intens_field(states_fname, matelem_fname, temperature, **kwargs):
+            Args:
+                temp : int, float
+                    The temperature.
+                part_sum : int, float
+                    The total internal partition sum.
 
-    if "partfunc" in kwargs:
-        partfunc = kwargs["partfunc"]
-    else:
-        partfunc = 1.0
+            Kwargs:
+                tran_types: dict
+                    The types of transitions to filter out absorption
+                    intensities for. Set to {'all' : []} by default.
+                abs_intens_thresh : int, float
+                    The absorption intensity threshold below which to neglect
+                    transitions. Set to 0 by default.
+        """
 
-    if "ints_tol" in kwargs:
-        ints_tol = kwargs["ints_tol"]
-    else:
-        ints_tol = 1e-34
+        # set temperature
+        assert (type(temp) in [int, float]), \
+            f"'temp' has bad type: '{type(temp)}'" \
+                + f"(must be 'int', 'float')"
+        assert (temp > 0), \
+            f"'temp' has bad value: '{temp}'" \
+                + f"(must be > '0')"
+        self.temp = temp
 
-    intens_cm_molecule = 8.0e-36*np.pi**3/(3.0*planck*vellgt)
-    boltz_beta = planck * vellgt / (boltz * temperature)
+        # set internal partition sum
+        assert (type(part_sum) in [int, float]), \
+            f"'part_sum' has bad type: '{type(part_sum)}'" \
+                + f"(must be 'int', 'float')"
+        assert (part_sum > 0), \
+            f"'part_sum' has bad value '{part_sum}'" \
+                + f"(must be > '0')"
+        self.part_sum = part_sum
 
-    states = read_states_field(states_fname)
+        # set natural terrestrial isotopic abundance
+        if 'abun' in kwargs:
+            assert (type(kwargs['abun']) in [int, float]), \
+                f"'abun' has bad type: '{type(kwargs['abun'])}'" \
+                    + f"(must be 'int', 'float')"
+            assert (kwargs['abun'] > 0), \
+                f"'abun' has bad value '{kwargs['abun']}'" \
+                     + f"(must be > 0)"
+            self.abun = kwargs['abun']
+        else:
+            self.abun = 1.0
 
-    if "zpe" in kwargs:
-        zpe = kwargs["zpe"]
-    else:
-        zpe = np.min(states['enr'])
+        # set absorption intensity threshold
+        if 'thresh' in kwargs:
+            assert (type(kwargs['thresh']) in [int, float]), \
+                f"'thresh' has bad type: '{type(kwargs['thresh'])}'" \
+                    + f"(must be 'int', 'float')"
+            assert (kwargs['thresh'] > 0), \
+                f"'thresh' has bad value '{kwargs['thresh']}'" \
+                     + f"(must be > 0)"
+            self.abs_intens_thresh = kwargs['thresh']
+        else:
+            self.abs_intens_thresh = 0.0
 
-    linestr = read_matelem_field(matelem_fname)
+        # set transition types to filter out
+        if 'tran_types' in kwargs:
+            assert (type(kwargs['tran_types']) == dict), \
+                f"'tran_types' has bad type: '{type(kwargs['tran_types'])}'" \
+                    + f"(must be 'dict')"
+            for tran_type, info in kwargs['tran_types'].items():
+                assert (type(tran_type) == str), \
+                    f"'tran_type' has bda type: '{type(tran_type)}'" \
+                        + f"(must be 'str')"
+                if len(info) > 0:
+                    assert (info[0] in ['sym', 'ns']), \
+                        f"'info[0]' is unknown: '{info[0]}'" \
+                            + f"(must be 'sym', 'ns')"
+                    assert (type(info[1]) == list), \
+                        f"'info[1]' has bda type: '{type(info[1])}'" \
+                            + f"(must be 'list')"
+                    for info_tuple in info[1]:
+                        assert (type(info_tuple) == tuple), \
+                           f"'info_tuple' has bda type: '{type(info_tuple)}' \
+                                (must be 'tuple')"
+                        assert (len(info_tuple) == 2), \
+                           f"'info_tuple' has bad length: '{len(info_tuple)}'" \
+                                + f"(must be '2')"
+            self.tran_types = kwargs['tran_types']
+        else:
+            self.tran_types = {'all' : []}
 
-    if len(linestr)>1:
-        sys.exit(f"Matrix elements file {matelem_fname} has more than a single data column, " \
-                +f"so this file probably contains something else but not the linestrength" )
+        # absorption intensities
+        self._abs_intens()
 
-    ls = linestr[0]
-    nonzero_ind = np.array(ls.nonzero()).T
+        # filter absorption intensities
+        self._filter()
 
-    elow = np.array([ states['enr'].take(rowcol[0]) if states['enr'].take(rowcol[0]) < states['enr'].take(rowcol[1]) \
-                      else states['enr'].take(rowcol[1]) for rowcol in nonzero_ind ])
+        # plot filtered absorption intensities
+        self._plot()
 
-    freq = np.array([ abs( states['enr'].take(rowcol[0]) - states['enr'].take(rowcol[1]) ) \
-                      for rowcol in nonzero_ind ])
 
-    qstr = [ ( states['qstr'].take(rowcol[0]), states['qstr'].take(rowcol[1]) ) \
-              if states['enr'].take(rowcol[0]) < states['enr'].take(rowcol[1]) \
-              else ( states['qstr'].take(rowcol[1]), states['qstr'].take(rowcol[0]) ) \
-              for rowcol in nonzero_ind ]
-    print(states['qstr'])
+    def _abs_intens(self):
+        """ Computes absorption intensities of transitions.
 
-    boltz_fac = np.exp(-(elow-zpe) * boltz_beta) / partfunc
+            Results are saved into 'out_f'. Intensities are saved as structured
+              arrays into datasets '(<F_bra>, <F_ket>)' of the group
+              'spectrum'. See '_linestrengths(...)' for fields of such an array.
+        """
 
-    intens = ls.data * boltz_fac * freq * (1.0-np.exp(-abs(freq)*boltz_beta)) * intens_cm_molecule
+        # initialize MPI variables
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        world_size = comm.Get_size()
 
-    # print(" ".join("%s"%q[0] + "%s"%q[1] + "%16.8f"%nu + "%16.8e"%ints + "\n" \
-    #         for q,nu,ints in zip(qstr,freq,intens) if ints>=ints_tol ) )
+        # input / output file
+        f = h5py.File(self.out_f, 'a', driver='mpio', comm=MPI.COMM_WORLD)
+
+        # linestrength conversion factor
+        conversion_factor = {
+            'elec' : {
+                'dip' : { # (..) -> (Debye^2) -> (erg*cm^3)
+                    'Debye' : Debye_to_sqrt_erg_x_sqrt_cm3()**2,
+                    'a.u.' : ( Debye_to_sqrt_erg_x_sqrt_cm3() \
+                        / Debye_to_au() )**2,
+                    'S.I.' : ( Debye_to_sqrt_erg_x_sqrt_cm3() \
+                        / Debye_to_si() )**2
+                },
+                'quad' : { # (..) -> (Buckingham^2) -> (erg*cm^5)
+                    'Buckingham' : Buckingham_to_sqrt_erg_x_sqrt_cm5()**2,
+                    'a.u.' : ( Buckingham_to_sqrt_erg_x_sqrt_cm5() \
+                        / Buckingham_to_au() )**2,
+                    'S.I.' : ( Buckingham_to_sqrt_erg_x_sqrt_cm5() \
+                        / Buckingham_to_si() )**2
+                }
+            },
+            'magn' : {
+                'dip' : { # (..) -> (?^2) -> (erg*cm^5/s^2)
+                    '?' : 1.0, # TODO
+                    'a.u.' : 1.0, # TODO
+                    'S.I.' : 1.0 # TODO
+                }
+            }
+        }[self.type][self.order][self.units]
+
+        # absorption intensity coefficient
+        c_1 = const.h * 1e2 * const.c / (const.k * self.temp) # (cm)
+        c_2 = 8 * sp.pi**3 / (3 * 1.0e9  * const.h * const.c    * self.part_sum) # (1/erg/cm)
+        c_3 = 4 * sp.pi**5 / (5 * 1.0e9  * const.h * const.c    * self.part_sum) # (1/erg/cm)
+        c_4 = 8 * sp.pi**4 / (3 * 1.0e13 * const.h * const.c**3 * self.part_sum) # (s^2/erg/cm^3)
+
+        # absorption intensity function
+        abs_intens_func = {
+            'elec' : {
+                'dip' :
+                    lambda R, E_low, v : c_2 * self.abun * v * \
+                        conversion_factor * R * \
+                        np.exp(-c_1 * E_low) * (1 - np.exp(-c_1 * v)),
+                'quad' :
+                    lambda R, E_low, v : c_3 * self.abun * v**3 * \
+                        conversion_factor * R * \
+                        np.exp(-c_1 * E_low) * (1 - np.exp(-c_1 * v))
+            },
+            'magn' : {
+                'dip' :
+                    lambda R, E_low, v : c_4 * self.abun * v * \
+                        conversion_factor * R *  \
+                        np.exp(-c_1 * E_low) * (1 - np.exp(-c_1 * v))
+            }
+        }[self.type][self.order]
+
+        # absorption intensities
+        jj_list = list(f['spec'].keys())
+        ind = rank
+        while ind < len(jj_list):
+            j_bra, j_ket = [j for j in jj_list[ind][1: -1].split(', ')]
+
+            #linestrengths and assignments
+            spec = f['spec'][jj_list[ind]][:]
+            assign_ket = f['assign'][j_ket][:]
+
+            # compute intensities and consider M-degeneracies
+            spec['intens'] = abs_intens_func(
+                spec['linestr'],
+                assign_ket['enr'][spec['ket ind']],
+                spec['freq']
+            )
+
+            f['spec'][jj_list[ind]][:] = spec
+
+            ind += world_size
+
+        f.close()
+
+        # print to console
+        if rank == 0:
+            print('\n  COMPUTED ABSORPTION INTENSITIES ...\n')
+            for attr in ['type', 'order', 'units', 'abun', 'temp', 'part_sum']:
+                print('      {} = {}'.format(attr, getattr(self, attr)))
+
+        comm.Barrier()
+
+
+    def _filter(self):
+        """ Filters out intensities for given transition types.
+
+            Results are saved into 'out_f'. Filtered intensities are saved as one
+              contiguous structured array into the dataset 'raw' of the group
+              '<transition_type>'. This array has the fields 'F ket' (value of F
+              quantum number of ket state), 'F bra' (value of F quantum number of
+              bra state), 'ket index' (assignment index of ket state) 'bra index'
+              (assignment index of bra state), 'frequency' (frequency of transition)
+              and 'intensity' (absorption intensity of transition).
+        """
+
+        # initialize MPI variables
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        world_size = comm.Get_size()
+
+        # input / output file
+        f = h5py.File(self.out_f, 'a', driver='mpio', comm=MPI.COMM_WORLD)
+
+        # datatype of absorption intensities
+        intens_dtype = [
+            ('J ket', 'f4'),
+            ('J bra', 'f4'),
+            ('ket ind', 'i4'),
+            ('bra ind', 'i4'),
+            ('freq', 'f8'),
+            ('intens', 'f8')
+        ]
+
+        # filter absorption intensities
+        filt_intens = {
+            tran_type : [] for tran_type in list(self.tran_types.keys())
+        }
+        sizes = {
+            tran_type : np.zeros(world_size, dtype='i4')
+                for tran_type in list(self.tran_types.keys())
+        }
+        jj_list = list(f['spec'].keys())
+        ind = rank
+        while ind < len(jj_list):
+            j_bra, j_ket = [float(j) for j in jj_list[ind][1: -1].split(', ')]
+
+            # spectrum and assignments
+            spec = f['spec'][jj_list[ind]][:]
+            assign_bra = f['assign'][str(j_bra)][:]
+            assign_ket = f['assign'][str(j_ket)][:]
+
+            # threshold
+            spec = spec[
+                np.argwhere(spec['intens'] > self.abs_intens_thresh).flatten()
+            ]
+
+            # filter out intensities for given transition types
+            filter_inds = {}
+
+            for tran_type in list(self.tran_types.keys()):
+
+                # apply no filter
+                if tran_type == 'all':
+                    filter_inds[tran_type] = np.arange(spec.size)
+
+                # apply filter
+                else:
+
+                    if self.tran_types[tran_type][0] == 'sym':
+
+                        # symmetries of bra / ket states
+                        sym_bra = assign_bra['sym'][spec['bra ind']]
+                        sym_ket = assign_ket['sym'][spec['ket ind']]
+
+                        # indices of transitions to filter out
+                        filter_inds_= []
+                        for sym_tuple in self.tran_types[tran_type][1]:
+                            filter_inds_.append(
+                                np.argwhere(
+                                    np.logical_or(
+                                        np.logical_and(
+                                            sym_ket == sym_tuple[0],
+                                            sym_bra == sym_tuple[1]
+                                        ),
+                                        np.logical_and(
+                                            sym_ket == sym_tuple[1],
+                                            sym_bra == sym_tuple[0]
+                                        )
+                                    )
+                                ).flatten()
+                            )
+
+                        filter_inds_ = np.concatenate(tuple(filter_inds_))
+                        filter_inds[tran_type] = filter_inds_
+
+                    else:
+
+                        # nuclear spins of bra / ket states
+                        ns_bra = assign_bra['ns'][spec['bra ind']]
+                        ns_ket = assign_ket['ns'][spec['ket ind'] ]
+
+                        # indices of transition to filter outs
+                        filter_inds_= []
+                        for ns_tuple in self.tran_types[tran_type][1]:
+                            filter_inds_.append(
+                                np.argwhere(
+                                    np.logical_or(
+                                        np.logical_and(
+                                            ns_ket== ns_tuple[0],
+                                            ns_bra == ns_tuple[1]
+                                        ),
+                                        np.logical_and(
+                                            ns_ket == ns_tuple[1],
+                                            ns_bra == ns_tuple[0]
+                                        )
+                                    )
+                                ).flatten()
+                            )
+
+                        filter_inds_ = np.concatenate(tuple(filter_inds_))
+                        filter_inds[tran_type] = filter_inds_
+
+            for tran_type in list(self.tran_types.keys()):
+                inds = filter_inds[tran_type]
+                filt_spec = spec[inds]
+
+                # filter out intensities with indices
+                filt_intens_ = np.empty(inds.shape, dtype=intens_dtype)
+                filt_intens_['J ket'] = np.ones(
+                    inds.shape, dtype='f4'
+                ) * float(j_ket)
+                filt_intens_['J bra'] = np.ones(
+                    inds.shape, dtype='f4'
+                ) * float(j_bra)
+                filt_intens_['ket ind'] = filt_spec['ket ind']
+                filt_intens_['bra ind'] = filt_spec['bra ind']
+                filt_intens_['freq'] = filt_spec['freq']
+                filt_intens_['intens'] = filt_spec['intens']
+
+                # save filtered intensities into dictionary
+                filt_intens[tran_type].append(filt_intens_)
+                sizes[tran_type][rank] += inds.size
+
+            ind += world_size
+
+        for tran_type in list(filt_intens.keys()):
+
+            # broadcast shapes...
+            sizes_ = np.zeros(world_size, dtype='i4')
+            comm.Allreduce(sizes[tran_type], sizes_, MPI.SUM)
+
+            # ...to collectively create datasets...
+            f.create_dataset(
+                tran_type, (np.sum(sizes_), ), dtype=intens_dtype
+            )
+
+            # ...and write into datasets in parallel
+            if not sizes_[rank] == 0:
+                ind = np.sum(sizes_[: rank])
+                for intens in filt_intens[tran_type]:
+                    f[tran_type][ind: ind + intens.size] = intens
+                    ind += intens.size
+
+        f.close()
+
+        if rank == 0:
+            print('\n  FILTERED ABSORPTION INTENSITIES ...\n')
+            for attr in ['tran_types', 'abs_intens_thresh']:
+                print('      {} = {}'.format(attr, getattr(self, attr)))
+
+        comm.Barrier()
+
+
+    def _plot(self):
+        """ Plots filtered absorption intensities. """
+
+        # input / output file
+        f = h5py.File(self.out_f, 'r', driver='mpio', comm=MPI.COMM_WORLD)
+   
+        if MPI.COMM_WORLD.Get_rank() == 0:
+
+            colors = ['b', 'r', 'g']
+            for ind, tran_type in enumerate(list(self.tran_types.keys())):
+                ind_ = ind % len(colors)
+
+                # frequencies and intensities
+                spec = f[tran_type][:]
+
+                # plot intensities
+                plt.scatter(
+                    spec['freq'],
+                    spec['intens'],
+                    s = 1,
+                    c = colors[ind_],
+                    label = '{} transitions'.format(tran_type)
+                )
+
+            # set plot parameters and save
+            plt.xlabel(r'frequency ($cm^{-1}$)')
+            plt.ylabel(r'intensity ($cm^{-1}$/($molecule \cdot cm^{-2}$))')
+            plt.yscale('log')
+            plt.ylim(bottom = self.abs_intens_thresh)
+            plt.xlim(left = 0)
+            plt.legend(loc='best')
+            plt.title('absorption intensities')
+            plt.tight_layout()
+            plt.savefig('absorption_intensities.png', dpi=500, format='png')
+            plt.close()
+
+        # print to console
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            print('\n  PLOTTED ABSORPTION INTENSITIES ...\n')
+            for attr in ['tran_types', 'abs_intens_thresh']:
+                print('      {} = {}'.format(attr, getattr(self, attr)))
+            print('')
+
+        f.close()
+
+
+    def totxt(self, form='default'):
+        """ Writes assignments and spectrum into ASCII files.
+
+            Args:
+                form : str
+                    The file format of the ASCII file. Set to 'default'.
+        """
+
+        # set txt form
+        assert (form in ['default']), \
+            f"form is unknown: '{form}' \
+                (must be 'default')"
+
+        # input / output file
+        f = h5py.File(self.out_f, 'r', driver='mpio', comm=MPI.COMM_WORLD)
+
+        if MPI.COMM_WORLD.Get_rank() == 0:
+
+            if form == 'default':
+
+                # write assignments TXT
+                with open('assign.txt', 'w') as txt:
+                    for j in list(f['assign'].keys()):
+                        txt.write('\n    J = {}\n\n'.format(j))
+                        np.savetxt(
+                            txt, f['assign'][j][:], fmt='%10.4f %3s  %3.1f %s'
+                        )
+
+                # write spectrum TXT
+                with open('spec.txt', 'w') as txt:
+                    for jj in list(f['spec'].keys()):
+                        txt.write('\n    (J_bra, J_ket) = {}\n\n'.format(jj))
+                        np.savetxt(
+                            txt,
+                            f['spec'][jj][:],
+                            fmt = '%6.1f %6.1f %12.6f %16.6e %16.6e'
+                        )
+
+            # TODO: implement other formats (e.g. HITRAN)
+
+        # print to console
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            print('  WRITTEN RESULTS INTO ASCII FILE ...\n')
+            print('      format = {}\n'.format(form))
+
+        f.close()
 
 
 if __name__ == "__main__":
 
-    partfunc = {"296.0":174.5813}
-    temp = 296.0
 
-    states_file = "energy_10000V_F_0_3_M_3_3.txt"
-    linestr_file = "line_strength_10000V_F_0_3_M_3_3.txt"
+    # INITIALIZATION
+    filename = 'matelem/hyfor_energies_f0.0_f39.0.chk'
+    matelem = 'matelem/matelem_MU_ns_f<f1>_f<f2>.rchm'
+    spec = field_free_spectrum(filename, matelem=matelem, j_max=39)
 
-    dipole_intens_field(states_file, linestr_file, temp, partfunc=partfunc[str(temp)])
+    # LINESTRENGTH
+    spec.linestr()
 
+    # ABSORPTION INTENSITY
+    temp, part_sum= 296.0, 174.5813
+    tran_types = { 'allowed'   : ['ns', [(0.0, 0.0), (1.0, 1.0)]],
+                   'forbidden' : ['ns', [(0.0, 1.0)]]              }
+    # alternatively transition types w.r.t. symmetry...
+    #   tran_types = { 'sym. cons.' : ['sym', [('B1', 'B1'), ('B2', 'B2')]],
+    #                  'sym. break' : ['sym', [('B1', 'B2')]]                }
+    spec.abs_intens(temp, part_sum, tran_types=tran_types, thresh=1e-36)
+
+    # ASCII
+    #spec.totxt(form='default')
