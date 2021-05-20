@@ -5,18 +5,7 @@ import functools
 import operator
 import itertools
 import math
-
-
-def ovlp(bra, ket, weights, nmax=None, w=None):
-    if isinstance(bra, (tuple, list)):
-        fbra = prod2(*bra, nmax=nmax, w=w)
-    else:
-        fbra = bra
-    if isinstance (ket, (tuple, list)):
-        fket = prod2(*ket, nmax=nmax, w=w)
-    else:
-        fket = ket
-    return np.einsum('kg,lg,g->kl', np.conj(fbra), fket, weights)
+import opt_einsum
 
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
@@ -29,7 +18,7 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
-    return np.einsum('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
+    return opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
 
 
 def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
@@ -44,7 +33,8 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
     if isinstance(bra, (tuple, list)):
         assert (len(bra) == len(dbra)), f"length of `bra` (={len(bra)}) != length of `dbra` (={len(dbra)})"
         for i in range(nq):
-            bra_ = [elem for ielem,elem in enumerate(bra) if ielem != i] + [dbra[i]]
+            print(i)
+            bra_ = [elem if ielem != i else dbra[i] for ielem,elem in enumerate(bra)]
             fbra.append(prod2(*bra_, nmax=nmax, w=w))
     else:
         assert (nq == 1), f"`gmat` dimensions 1 and 2 (={gmat.shape[1]}) != length of `bra` = {len(bra)}"
@@ -56,7 +46,8 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
     if isinstance(ket, (tuple, list)):
         assert (len(ket) == len(dket)), f"length of `ket` (={len(ket)}) != length of `dket` (={len(ket)})"
         for i in range(nq):
-            ket_ = [elem for ielem,elem in enumerate(ket) if ielem != i] + [dket[i]]
+            print(i)
+            ket_ = [elem if ielem != i else dket[i] for ielem,elem in enumerate(ket)]
             fket.append(prod2(*ket_, nmax=nmax, w=w))
     else:
         assert (nq == 1), f"`gmat` dimensions 1 and 2 (={gmat.shape[1]}) != length of `ket` = {len(ket)}"
@@ -67,7 +58,9 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
 
     for i in range(gmat.shape[1]):
         for j in range(gmat.shape[2]):
-            me += np.einsum('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
+            print(i,j)
+            me = me + opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
+            # me = me + np.einsum('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
     return me
 
 
@@ -134,6 +127,8 @@ def hermite(nmax, r, r0, alpha):
 
 def legendre(nmax, r, a, b):
     """Normalized Legendre functions and derivatives
+
+    NOTE: NEED TO CHECK THE COORDINATE SCALING !!!!!
 
     f(r) = Ln(x) * (b-a)/2
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2
