@@ -40,20 +40,19 @@ def Debye_x_Vm_to_invcm(*args):
 
 def Buckingham_to_si(*args):
     """Converts quadrupole moment form `Buckingham` to international system of units"""
-    fac = Debye_to_si() * constants.value('angstrom')
+    fac = Debye_to_si() * 1e-10
     return convert(fac, *args)
 
 
 def Buckingham_to_au(*args):
     """Converts quadrupole moment from `Buckingham` to atomic units"""
-    fac = Debye_to_au() * constants.value('angstrom') \
-        / constants.value('Bohr radius')
+    fac = Debye_to_au() * 1e-10 / constants.value('Bohr radius')
     return convert(fac, *args)
 
 
 def Buckingham_to_sqrt_erg_x_sqrt_cm5(*args):
     """Converts quadrupole moment from `Buckinghom` to `erg^(1/2)*cm^(5/2)`"""
-    fac = Debye_to_sqrt_erg_x_sqrt_cm3() * constants.value('angstrom')
+    fac = Debye_to_sqrt_erg_x_sqrt_cm3() * 1e-10
     return convert(fac, *args)
 
 
