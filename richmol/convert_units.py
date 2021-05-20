@@ -8,6 +8,12 @@ def MHz_to_invcm(*args):
     return convert(fac, *args)
 
 
+def Debye_to_si(*args):
+    """Converts dipole moment form `Debye` to international system of units"""
+    fac = 1e-21 / constants.value('speed of light in vacuum')
+    return convert(fac, *args)
+
+
 def Debye_to_au(*args):
     """Converts dipole moment from `Debye` to atomic units"""
     fac = 1e-21 / constants.value('speed of light in vacuum') \
@@ -29,6 +35,12 @@ def Debye_x_Vm_to_invcm(*args):
         * constants.value('speed of light in vacuum')) \
         / 1e2 \
         * Debye_to_au()
+    return convert(fac, *args)
+
+
+def Buckingham_to_si(*args):
+    """Converts quadrupole moment form `Buckingham` to international system of units"""
+    fac = Debye_to_si() * constants.value('angstrom')
     return convert(fac, *args)
 
 
