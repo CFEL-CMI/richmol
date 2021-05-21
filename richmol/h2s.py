@@ -1,7 +1,7 @@
 import moljax
 import jax.numpy as jnp
 from potentials import h2s_tyuterev
-from quadratures import gausshermite, gausshermite1d, product_grid
+from quadratures import herm1d, prodgrid
 import numpy as np
 import basis
 import sys
@@ -35,19 +35,21 @@ if __name__ == "__main__":
 
     # equilibrium (reference) values of internal coordinates
     ref = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
-    ncoords = 3
+
+    ncoo = len(ref)
 
     # 1D solutions for each internal coordinate
 
     vec1D = []
 
-    for icoord in range(ncoords):
+    for icoo in range(ncoo):
 
         # 1D quadrature
-        quads = [gausshermite1d(100, i, ref, moljax.Gmat, h2s_tyuterev) if i == icoord else
-                 gausshermite1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(ncoords)]
-        points, weights, scale = product_grid(*quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev)
-        weights = weights[:,icoord]
+        quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) if i == icoo else
+                 herm1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(ncoo)]
+
+        points, weights, scale = prodgrid(quads, ind=[0, 1, 2], ref=ref, poten=h2s_tyuterev)
+        weights = weights[:, icoo]
 
         # operators on quadrature grid
         poten = h2s_tyuterev(*points.T)
@@ -56,28 +58,27 @@ if __name__ == "__main__":
 
         # primitive basis functions on quadrature grid
         nmax = 30
-        psi, dpsi = basis.hermite(nmax, points[:,icoord], ref[icoord], scale[icoord])
+        psi, dpsi = basis.hermite(nmax, points[:, icoo], ref[icoo], scale[icoo])
 
         # matrix elements of operators
         v = basis.potme(psi, psi, poten, weights)
         u = basis.potme(psi, psi, pseudo, weights)
-        g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,icoord:icoord+1,icoord:icoord+1], weights)
+        g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:, icoo:icoo+1, icoo:icoo+1], weights)
 
         # Hamiltonian eigenvalues and eigenvectors
         h = v + 0.5*g + u
         e, vec = np.linalg.eigh(h)
         vec1D.append(vec.T)
 
-        print(f"\n1D solutions for coordinate {icoord}")
+        print(f"\n1D solutions for coordinate {icoo}")
         print("zero-energy:", e[0])
         print(e-e[0])
 
-    # 2D stretching solutions
+    # 3D solutions
 
-    # 2D quadrature
-    quads = [gausshermite1d(100, i, ref, moljax.Gmat, h2s_tyuterev) if i in (0,1,2) else
-             gausshermite1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(len(ref))]
-    points, weights, scale = product_grid(*quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev, wthr=1e-30)
+    # quadrature
+    quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(len(ref))]
+    points, weights, scale = prodgrid(quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev, wthr=1e-30)
     weights = np.prod(weights[:,0:3], axis=1)
     print(points.shape)
 
@@ -97,17 +98,16 @@ if __name__ == "__main__":
 
     nmax = 10
     # matrix elements of operators
-    v = basis.potme(psi, psi, poten, weights, nmax=nmax)
+    v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
     print(v.shape)
-    u = basis.potme(psi, psi, pseudo, weights, nmax=nmax)
-    g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,0:3,0:3], weights, nmax=nmax)
+    u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
+    g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,0:3,0:3], weights, nmax=nmax, w=[2,2,1])
 
     # Hamiltonian eigenvalues and eigenvectors
     h = v + 0.5*g + u
-    print("diagonalize")
     e, vec = np.linalg.eigh(h)
 
-    print(f"\n2D stretching solutions")
+    print(f"\n3D solutions")
     print("zero-energy:", e[0])
     print(e-e[0])
 

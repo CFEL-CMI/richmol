@@ -63,27 +63,27 @@ def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0
     return points, weights, scaling
 
 
-def gausshermite1d(npt, ind, ref, gmat, poten, h=0.001):
+def herm1d(npt, ind, ref, gmat, poten, h=0.001):
     """One-dimensional Gauss-Hermite quadrature, shifted and scaled
 
     Args:
         npt : int
             Number of quadrature points
         ind : int
-            Index of integral coordinate for quadrature
+            Index of internal coordinate for quadrature
         ref : array (ncoords)
             Reference (equilibrium) values of all internal coordinates
         gmat : function(coords)
             Kinetic energy matrix, function of all internal coordinates `coords`
-        poten : function(coords)
+        poten : function(*coords)
             Potential energy, function of all internal coordinates `coords`
 
     Returns:
         points : array(npt)
-            Quadrature points
+            Quadrature points, points = x / scaling + ref[ind], where x are quadrature abscissas
         weights : array(npt)
             Quadrature weights
-        scale : float
+        scaling : float
             Quadrature scaling factor
     """
     x, weights = hermgauss(npt)
@@ -105,14 +105,30 @@ def gausshermite1d(npt, ind, ref, gmat, poten, h=0.001):
     return points, weights, scaling
 
 
-def product_grid(*quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
+def prodgrid(quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
+    """Direct product grid
 
+    Args:
+        quads : list of tuples (points, weights, scaling)
+            List of one-dimensional quadratures, where each element of the list is a tuple
+            containing quadrature points, weights, and scaling parameters
+        ind : list
+            Indices of internal coordinates corresponding to one-dimensional quadratures
+        ref : array (ncoords)
+            Reference (equilibrium) values of all internal coordinates
+        poten : function(*coords)
+            Potential energy, function of all internal coordinates `coords`
+        pthr : float
+            Threshold for neglecting points with potential larger than `thresh`
+        wthr : float
+            Threshold for neglecting points with total quadrature weight smaller than `wthr`
+    """
     if ind is not None:
-        assert (len(quads) == len(ind)), f"len(`quads`) != len(`ind`): {len(quads)} != {len(coord_ind)}"
+        assert (len(quads) == len(ind)), f"size of `ind` = {len(ind)} is not equal to size of `quad` = {len(quad)}"
     else:
         ind = [i for i in range(len(quads))]
     if ref is not None:
-        assert (all(i <= len(ref) for i in ind)), f"some of `ind` > len(`ref`): {(i for i in ind)} > {len(ref)}"
+        assert (all(i <= len(ref)-1 for i in ind)), f"some of coordinate indices in `ind` = {ind} exceed size of `ref` = {len(ref)}"
         ncoords = len(ref)
     else:
         ncoords = len(ind)
@@ -120,7 +136,6 @@ def product_grid(*quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
     points = (quads[i][0] if i in ind else [ref[i]] for i in range(ncoords))
     weights = (quads[i][1] for i in range(len(quads)))
     points = np.array(np.meshgrid(*points)).T.reshape(-1, ncoords)
-    # weights = np.prod(np.array(np.meshgrid(*weights)).T.reshape(-1, len(quads)), axis=1)
     weights = np.array(np.meshgrid(*weights)).T.reshape(-1, len(quads))
 
     # remove points with large potential
