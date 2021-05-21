@@ -286,12 +286,10 @@ class LabTensor(CarTens):
                 # compute <j2,k2|K-tensor|j1,k1>
                 if _use_pywigxjpf:
                     threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os], dtype=np.float64)
-                    print("use pywig...")
                 else:
                     nos = len(self.os)
                     threeJ = py3nj.wigner3j([j1*2]*nos, [o*2 for (o,s) in self.os], [j2*2]*nos,
                                             [k1*2]*nos, [s*2 for (o,s) in self.os], [-k2*2]*nos)
-                    print("use py3nj")
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
