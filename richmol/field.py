@@ -852,7 +852,6 @@ class CarTens():
 
         # propagate
         fac = -1j * 2 * np.pi * 1e2 * const.c * dt # (cm)
-        self.mul(fac)
         m, tol = 12, 1e-15
         res = expv_lanczos(v, m, fac, lambda v : cartensvec(v), tol=tol)
         #res = expv_arnoldi(v, m, fac, lambda v : cartensvec(v), tol=tol)
