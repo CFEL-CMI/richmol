@@ -6,6 +6,7 @@ import functools
 from scipy import constants
 config.update("jax_enable_x64", True)
 
+
 # converts G-matrix into units of cm^-1 providing masses in atomic units and distances in Angstrom
 G_to_invcm = constants.value('Planck constant') * constants.value('Avogadro constant') \
            * 1e+16 / (4.0 * np.pi**2 * constants.value('speed of light in vacuum')) * 1e5
@@ -49,25 +50,27 @@ def gmat(q):
 
 @jit
 def Gmat(q):
-    G = np.linalg.inv(gmat(q))
+    return np.linalg.inv(gmat(q)) * G_to_invcm
+
+
+@jit
+def dGmat(q):
+    G = Gmat(q)
     dg = np.array(jacfwd(gmat)(q))
-    dG = -np.dot(np.dot(dg, G), G.T)
-    return G * G_to_invcm, dG * G_to_invcm
+    return -np.dot(np.dot(dg, G), G.T)
 
 
 @jit
 def pseudo(q):
     def _det(q):
-        G, _ = Gmat(q)
-        return np.linalg.det(G)
+        return np.linalg.det(Gmat(q))
     def _ddet(q):
         return np.array(jacfwd(_det)(q))
     def _dddet(q):
         return np.array(jacfwd(_ddet)(q))
     nq = len(q)
-    g, dg = Gmat(q)
-    G = g[:nq, :nq]
-    dG = dg[:, :nq, :nq]
+    G = Gmat(q)[:nq, :nq]
+    dG = dGmat(q)[:, :nq, :nq]
     det = _det(q)
     det2 = det * det
     ddet = _ddet(q)

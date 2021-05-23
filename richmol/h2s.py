@@ -1,10 +1,9 @@
 import moljax
 import jax.numpy as jnp
 from potentials import h2s_tyuterev
-from quadratures import gausshermite, gausshermite1d
+from quadratures import herm1d, prodgrid
 import numpy as np
 import basis
-from linetimer import CodeTimer
 import sys
 
 
@@ -35,71 +34,80 @@ if __name__ == "__main__":
     moljax.init(mass, cartesian)
 
     # equilibrium (reference) values of internal coordinates
-    qref = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
+    ref = [1.3359007, 1.3359007, 92.265883/180.0*np.pi]
 
-    # points_, weights, scale = gausshermite(50, [1], qref, moljax.Gmat, h2s_tyuterev)
-    # points = np.array(np.broadcast_to(qref, (len(points_), len(qref))))
-    # points[:,1] = points_[:,0]
-    # poten = h2s_tyuterev(*points.T)
-    # gmat_ = [moljax.Gmat(list(q)) for q in points]
-    # gmat = np.array([g[0] for g in gmat_])
-    # dgmat = np.array([g[1] for g in gmat_])
-    # pseudo = [moljax.pseudo(list(q)) for q in points]
-    # nmax = 20
-    # psi, dpsi = basis.hermite(nmax, points[:,1], qref[1], scale[0])
-    # v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[1])
-    # u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[1])
-    # g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,1:2,1:2], weights, nmax=nmax, w=[1])
-    # o = basis.ovlp(psi, psi, weights, nmax=nmax, w=[1])
-    # print(np.max(np.abs(o-np.eye(nmax+1))))
+    ncoo = len(ref)
 
-    # h = v + 0.5*g + u
-    # e, _ = np.linalg.eigh(h.T)
-    # print(e[0])
-    # print(e-e[0])
-    # # # nprim = [20, 20, 20]
-    # # # with CodeTimer("primitive product basis"):
-    # # #     psi = [b[0] for b in bas]
-    # # #     dpsi = [b[1] for b in bas]
-    # sys.exit()
-    #=================================== full 3D ===================================
-    # grid points
-    with CodeTimer("quadrature"):
-        points, weights, scale = gausshermite(30, [0,1,2], qref, moljax.Gmat, h2s_tyuterev)
-        print("number of points:", len(points))
+    # 1D solutions for each internal coordinate
 
-    # potential on grid
-    with CodeTimer("potential"):
+    vec1D = []
+
+    for icoo in range(ncoo):
+
+        # 1D quadrature
+        quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) if i == icoo else
+                 herm1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(ncoo)]
+
+        points, weights, scale = prodgrid(quads, ind=[0, 1, 2], ref=ref, poten=h2s_tyuterev)
+        weights = weights[:, icoo]
+
+        # operators on quadrature grid
         poten = h2s_tyuterev(*points.T)
+        gmat = np.array([moljax.Gmat(list(q)) for q in points])
+        pseudo = [moljax.pseudo(list(q)) for q in points]
 
-    # G-matrix on grid
-    with CodeTimer("G-matrix"):
-        gmat_ = [moljax.Gmat(list(q)) for q in points]
-        gmat = np.array([g[0] for g in gmat_])
-        dgmat = np.array([g[1] for g in gmat_])
+        # primitive basis functions on quadrature grid
+        nmax = 30
+        psi, dpsi = basis.hermite(nmax, points[:, icoo], ref[icoo], scale[icoo])
 
-    # pseudo-potential on grid
-    with CodeTimer("potential"):
-        pseudo = np.array([moljax.pseudo(list(q)) for q in points])
+        # matrix elements of operators
+        v = basis.potme(psi, psi, poten, weights)
+        u = basis.potme(psi, psi, pseudo, weights)
+        g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:, icoo:icoo+1, icoo:icoo+1], weights)
 
-    # primitive 1D basis sets for each internal coordinate
-    nprim = [20, 20, 20]
-    with CodeTimer("primitive product basis"):
-        bas = [basis.hermite(nmax, q, a, b) for nmax, q, a, b in zip(nprim, points.T, qref, scale)]
-        psi = [b[0] for b in bas]
-        dpsi = [b[1] for b in bas]
+        # Hamiltonian eigenvalues and eigenvectors
+        h = v + 0.5*g + u
+        e, vec = np.linalg.eigh(h)
+        vec1D.append(vec.T)
+
+        print(f"\n1D solutions for coordinate {icoo}")
+        print("zero-energy:", e[0])
+        print(e-e[0])
+
+    # 3D solutions
+
+    # quadrature
+    quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(len(ref))]
+    points, weights, scale = prodgrid(quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev, wthr=1e-30)
+    weights = np.prod(weights[:,0:3], axis=1)
+    print(points.shape)
+
+    # operators on quadrature grid
+    poten = h2s_tyuterev(*points.T)
+    gmat = np.array([moljax.Gmat(list(q)) for q in points])
+    pseudo = [moljax.pseudo(list(q)) for q in points]
+
+    # basis set
+    nmax = 30
+    psi = []
+    dpsi = []
+    for icoord in [0,1,2]:
+        f, df = basis.hermite(nmax, points[:,icoord], ref[icoord], scale[icoord])
+        psi.append(np.dot(vec1D[icoord], f))
+        dpsi.append(np.dot(vec1D[icoord], df))
 
     nmax = 10
+    # matrix elements of operators
+    v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
+    print(v.shape)
+    u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
+    g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,0:3,0:3], weights, nmax=nmax, w=[2,2,1])
 
-    with CodeTimer("potential matrix elements"):
-        v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
-
-    with CodeTimer("pseudo-potential matrix elements"):
-        u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
-
-    with CodeTimer("kinetic matrix elements"):
-        g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,:3,:3], weights, nmax=nmax, w=[2,2,1])
-
+    # Hamiltonian eigenvalues and eigenvectors
     h = v + 0.5*g + u
-    e, _ = np.linalg.eigh(h)
+    e, vec = np.linalg.eigh(h)
+
+    print(f"\n3D solutions")
+    print("zero-energy:", e[0])
     print(e-e[0])
+

@@ -37,7 +37,7 @@ def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0
 
     # compute scaling parameter `scale` for each coordinate in `qind`
 
-    G, _ = gmat(qref)
+    G = gmat(qref)
 
     # 7-point finite-difference rule for 2-order derivative of potential
     h = fdn_step
@@ -63,24 +63,94 @@ def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0
     return points, weights, scaling
 
 
-def gausshermite1d(lev, qind, qref, gmat, poten, fdn_step=0.001):
+def herm1d(npt, ind, ref, gmat, poten, h=0.001):
+    """One-dimensional Gauss-Hermite quadrature, shifted and scaled
 
-    x, w = hermgauss(lev)
+    Args:
+        npt : int
+            Number of quadrature points
+        ind : int
+            Index of internal coordinate for quadrature
+        ref : array (ncoords)
+            Reference (equilibrium) values of all internal coordinates
+        gmat : function(coords)
+            Kinetic energy matrix, function of all internal coordinates `coords`
+        poten : function(*coords)
+            Potential energy, function of all internal coordinates `coords`
 
-    G, _ = gmat(qref)
+    Returns:
+        points : array(npt)
+            Quadrature points, points = x / scaling + ref[ind], where x are quadrature abscissas
+        weights : array(npt)
+            Quadrature weights
+        scaling : float
+            Quadrature scaling factor
+    """
+    x, weights = hermgauss(npt)
+
+    G = gmat(ref)
 
     # 7-point finite-difference rule for 2-order derivative of potential
-    h = fdn_step
-    fdn_h = np.array([3*h, 2*h, h, 0.0, -h, -2*h, -3*h], dtype=np.float64)
-    fdn_c = np.array([2.0, -27.0, 270.0, -490.0, 270.0, -27.0, 2.0], dtype=np.float64)
-    fdn_d = 180.0
+    fdn_step = np.array([3*h, 2*h, h, 0.0, -h, -2*h, -3*h], dtype=np.float64)
+    fdn_coef = np.array([2.0, -27.0, 270.0, -490.0, 270.0, -27.0, 2.0], dtype=np.float64)
+    fdn_denom = 180.0
 
     # compute scaling
-    q = np.array(np.broadcast_to(qref, (len(fdn_h), len(qref)))).T
-    q[qind, :] = [qref[qind] + h for h in fdn_h]
-    freq = np.dot(poten(*q), fdn_c) / (fdn_d * fdn_step**2)
-    scaling = np.sqrt(np.sqrt( 2.0 * np.abs(freq) / np.abs(G[qind, qind]) ))
+    coords = np.array(np.broadcast_to(ref, (len(fdn_step), len(ref)))).T
+    coords[ind, :] = [ref[ind] + step for step in fdn_step]
+    freq = np.dot(poten(*coords), fdn_coef) / (fdn_denom * h**2)
+    scaling = np.sqrt(np.sqrt( 2.0 * np.abs(freq) / np.abs(G[ind, ind]) ))
 
-    points = x / scaling + qref[qind]
-    points = np.array(np.broadcast_to(points, (1,len(points)))).T
-    return points, w, scaling
+    points = x / scaling + ref[ind]
+    return points, weights, scaling
+
+
+def prodgrid(quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
+    """Direct product grid
+
+    Args:
+        quads : list of tuples (points, weights, scaling)
+            List of one-dimensional quadratures, where each element of the list is a tuple
+            containing quadrature points, weights, and scaling parameters
+        ind : list
+            Indices of internal coordinates corresponding to one-dimensional quadratures
+        ref : array (ncoords)
+            Reference (equilibrium) values of all internal coordinates
+        poten : function(*coords)
+            Potential energy, function of all internal coordinates `coords`
+        pthr : float
+            Threshold for neglecting points with potential larger than `thresh`
+        wthr : float
+            Threshold for neglecting points with total quadrature weight smaller than `wthr`
+    """
+    if ind is not None:
+        assert (len(quads) == len(ind)), f"size of `ind` = {len(ind)} is not equal to size of `quad` = {len(quad)}"
+    else:
+        ind = [i for i in range(len(quads))]
+    if ref is not None:
+        assert (all(i <= len(ref)-1 for i in ind)), f"some of coordinate indices in `ind` = {ind} exceed size of `ref` = {len(ref)}"
+        ncoords = len(ref)
+    else:
+        ncoords = len(ind)
+
+    points = (quads[i][0] if i in ind else [ref[i]] for i in range(ncoords))
+    weights = (quads[i][1] for i in range(len(quads)))
+    points = np.array(np.meshgrid(*points)).T.reshape(-1, ncoords)
+    weights = np.array(np.meshgrid(*weights)).T.reshape(-1, len(quads))
+
+    # remove points with large potential
+    if pthr is not None:
+        pot = poten(*points.T)
+        pmin = np.min(pot)
+        ind = np.where(pot - pmin < pthr)
+        points = points[ind]
+        weights = weights[ind]
+
+    # remove points with small weight
+    if wthr is not None:
+        ind = np.where(np.prod(weights, axis=1) > wthr)
+        points = points[ind]
+        weights = weights[ind]
+
+    return points, weights, [quad[2] for quad in quads]
+

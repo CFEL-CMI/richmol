@@ -5,18 +5,7 @@ import functools
 import operator
 import itertools
 import math
-
-
-def ovlp(bra, ket, weights, nmax=None, w=None):
-    if isinstance(bra, (tuple, list)):
-        fbra = prod2(*bra, nmax=nmax, w=w)
-    else:
-        fbra = bra
-    if isinstance (ket, (tuple, list)):
-        fket = prod2(*ket, nmax=nmax, w=w)
-    else:
-        fket = ket
-    return np.einsum('kg,lg,g->kl', np.conj(fbra), fket, weights)
+import opt_einsum
 
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
@@ -29,13 +18,13 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
-    return np.einsum('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
+    return opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
 
 
 def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
     """Matrix elements of vibrational kinetic energy in product basis"""
-    # assert (gmat.shape[1] == gmat.shape[2]), f"bogus shape of G-matrix: {gmat.shape}, dimensions 2 and 3 must be equal"
-    # assert (gmat.shape[0] == len(weights)), f"dimension 0 of G-atrix = {gmat."
+
+    assert (gmat.shape[1] == gmat.shape[2]), f"bad shape of G-matrix: {gmat.shape}, dimensions 2 and 3 must be equal"
 
     nq = gmat.shape[1]
 
@@ -44,7 +33,7 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
     if isinstance(bra, (tuple, list)):
         assert (len(bra) == len(dbra)), f"length of `bra` (={len(bra)}) != length of `dbra` (={len(dbra)})"
         for i in range(nq):
-            bra_ = [elem for ielem,elem in enumerate(bra) if ielem != i] + [dbra[i]]
+            bra_ = [elem if ielem != i else dbra[i] for ielem,elem in enumerate(bra)]
             fbra.append(prod2(*bra_, nmax=nmax, w=w))
     else:
         assert (nq == 1), f"`gmat` dimensions 1 and 2 (={gmat.shape[1]}) != length of `bra` = {len(bra)}"
@@ -56,7 +45,7 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
     if isinstance(ket, (tuple, list)):
         assert (len(ket) == len(dket)), f"length of `ket` (={len(ket)}) != length of `dket` (={len(ket)})"
         for i in range(nq):
-            ket_ = [elem for ielem,elem in enumerate(ket) if ielem != i] + [dket[i]]
+            ket_ = [elem if ielem != i else dket[i] for ielem,elem in enumerate(ket)]
             fket.append(prod2(*ket_, nmax=nmax, w=w))
     else:
         assert (nq == 1), f"`gmat` dimensions 1 and 2 (={gmat.shape[1]}) != length of `ket` = {len(ket)}"
@@ -67,35 +56,52 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
 
     for i in range(gmat.shape[1]):
         for j in range(gmat.shape[2]):
-            me += np.einsum('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
+            me = me + opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
     return me
 
 
-def prod2(*funcs, nmax=None, w=None):
-    """Product basis set using einsum"""
-    npts = funcs[0].shape[1]
-    assert (all(f.shape[1] == npts for f in funcs)), f"input arrays in `funcs` have different second dimensions"
+def prod2(*fn, nmax=None, w=None):
+    """Product basis set using einsum
+
+    Args:
+        fn : list of arrays (no_funcs, no_points)
+            Primitive basis sets, each containing `no_funcs` functions on quadrature grid of `no_points`
+            points, note that all basis sets must be defined with respect to the same quadrature grid
+        nmax : int
+            Maximal value of quantum number in the product basis, defined as
+            nmax >= w[0] * n[0] + w[1] * n[1] + w[2] * n[2] ... , where n[0], n[1], n[2] ... are indices
+            of functions in each basis set, i.e., n[i] in range(fn[i].shape[0]), and w are weights
+        w : list
+            Weights for computing quantum number in the product basis
+
+    Returns:
+        psi : array (no_funcs, no_points)
+            Product basis, containing `no_funcs` product functions on quadrature grid of `no_points` points
+    """
+
+    npts = fn[0].shape[1]
+    assert (all(f.shape[1] == npts for f in fn)), f"input arrays in `*fn` have different second dimensions: {[f.shape for f in fn]}"
     if nmax is None:
-        nmax = max([f.shape[0] for f in funcs])
+        nmax = max([f.shape[0] for f in fn])
     if w is None:
-        w = [1 for i in range(len(funcs))]
+        w = [1 for i in range(len(fn))]
 
-    psi = funcs[0]
+    psi = fn[0]
 
-    n = np.einsum('i,j->ij', [i for i in range(len(funcs[0]))], np.ones(len(funcs[1])))
+    n = opt_einsum.contract('i,j->ij', [i for i in range(len(fn[0]))], np.ones(len(fn[1])))
     nsum = n * w[0]
 
-    for ifunc in range(1, len(funcs)):
-        psi = np.einsum('kg,lg->klg', psi, funcs[ifunc])
+    for ifn in range(1, len(fn)):
+        psi = opt_einsum.contract('kg,lg->klg', psi, fn[ifn])
 
-        n2 = np.einsum('i,j->ij', np.ones(len(psi)), [i for i in range(len(funcs[ifunc]))])
-        nsum = nsum + n2 * w[ifunc]
+        n2 = opt_einsum.contract('i,j->ij', np.ones(len(psi)), [i for i in range(len(fn[ifn]))])
+        nsum = nsum + n2 * w[ifn]
 
         ind = np.where(nsum <= nmax)
         psi = psi[ind]
 
-        if ifunc <= len(funcs)-2:
-            nsum = np.einsum('i,j->ij', nsum[ind], np.ones(funcs[ifunc+1].shape[0]))
+        if ifn <= len(fn)-2:
+            nsum = opt_einsum.contract('i,j->ij', nsum[ind], np.ones(fn[ifn+1].shape[0]))
     return psi
 
 
@@ -134,6 +140,8 @@ def hermite(nmax, r, r0, alpha):
 
 def legendre(nmax, r, a, b):
     """Normalized Legendre functions and derivatives
+
+    NOTE: NEED TO CHECK THE COORDINATE SCALING !!!!!
 
     f(r) = Ln(x) * (b-a)/2
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2

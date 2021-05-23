@@ -1,6 +1,5 @@
 import numpy as np
 import math
-from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
 from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix
 from richmol.field import CarTens
@@ -9,9 +8,19 @@ from richmol.rot.solution import hamiltonian
 from collections import defaultdict
 import inspect
 import os
+import py3nj
 
 
 _sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
+_use_pywigxjpf = False # use pywigxjpf module for computing Wigner symbols
+
+
+def config(use_pywigxjpf=False):
+    if use_pywigxjpf is True:
+        print("... use `pywigxjpf` module for computing Wigner symbols")
+        global _use_pywigxjpf, wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
+        from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
+        _use_pywigxjpf = True
 
 
 class LabTensor(CarTens):
@@ -264,8 +273,10 @@ class LabTensor(CarTens):
                 for cart in self.cart } for irrep in irreps }
 
         # some initializations in pywigxjpf module for computing 3j symbols
-        wig_table_init((jmax+dj_max)*2, 3)
-        wig_temp_init((jmax+dj_max)*2)
+
+        if _use_pywigxjpf:
+            wig_table_init((jmax+dj_max)*2, 3)
+            wig_temp_init((jmax+dj_max)*2)
 
         # compute K|psi>
         cart0 = self.cart[0]
@@ -273,7 +284,12 @@ class LabTensor(CarTens):
             for ind2,(j2,k2) in enumerate(prim_k):
                 fac = (-1)**abs(k2)
                 # compute <j2,k2|K-tensor|j1,k1>
-                threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os], dtype=np.float64)
+                if _use_pywigxjpf:
+                    threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os], dtype=np.float64)
+                else:
+                    nos = len(self.os)
+                    threeJ = py3nj.wigner3j([j1*2]*nos, [o*2 for (o,s) in self.os], [j2*2]*nos,
+                                            [k1*2]*nos, [s*2 for (o,s) in self.os], [-k2*2]*nos)
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
@@ -284,7 +300,12 @@ class LabTensor(CarTens):
             for ind2,(j2,m2) in enumerate(prim_m):
                 fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
                 # compute <j2,m2|M-tensor|j1,m1>
-                threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os], dtype=np.float64)
+                if _use_pywigxjpf:
+                    threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os], dtype=np.float64)
+                else:
+                    nos = len(self.os)
+                    threeJ = py3nj.wigner3j([j1*2]*nos, [o*2 for (o,s) in self.os], [j2*2]*nos,
+                                            [m1*2]*nos, [s*2 for (o,s) in self.os], [-m2*2]*nos)
                 for irrep in irreps:
                     ind = os_ind[irrep]
                     me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
@@ -292,8 +313,9 @@ class LabTensor(CarTens):
                         res[irrep][cart].m.table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
 
         # free memory in pywigxjpf module
-        wig_temp_free()
-        wig_table_free()
+        if _use_pywigxjpf:
+            wig_temp_free()
+            wig_table_free()
 
         return res
 
