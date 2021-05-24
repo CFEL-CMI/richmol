@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.sparse
 from scipy.sparse import kron, csr_matrix
-from scipy.sparse.linalg import expm
 import scipy.constants as const
 import itertools
 from itertools import chain
@@ -14,7 +13,7 @@ import regex as re
 from collections import defaultdict
 from collections.abc import Mapping
 from richmol import json_ext as json
-from richmol.pyexpokit import zhexpv, expv_lanczos, expv_arnoldi, expv_taylor
+from richmol.pyexpokit import zhexpv, expv_lanczos
 import os
 from numba import njit, prange, complex128
 import cupy as cp
@@ -854,14 +853,9 @@ class CarTens():
         fac = -1j * 2 * np.pi * 1e2 * const.c * dt # (cm)
         m, tol = 12, 1e-15
         res = expv_lanczos(v, m, fac, lambda v : cartensvec(v), tol=tol)
-        #res = expv_arnoldi(v, m, fac, lambda v : cartensvec(v), tol=tol)
-        #res = expv_taylor(v, m, fac, lambda v : cartensvec(v), tol=tol)
         #mat = self.tomat(form='full')
-        #res = expm(mat).dot(v)
         #norm = scipy.sparse.linalg.onenormest(mat)
         #res = zhexpv(v, norm, m, fac, lambda v : cartensvec(v))
-        #res = zhexpv(v, norm, m, fac, lambda v : mat.dot(v))
-        #res = expv_lanczos(v, m, fac, lambda v : mat.dot(v), tol=tol)
 
         return array_to_vec(res)
 
