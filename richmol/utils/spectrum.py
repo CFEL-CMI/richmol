@@ -9,7 +9,7 @@ from richmol.field import CarTens
 import numpy as np
 import scipy as sp
 import scipy.constants as const
-import h5py, sys, time
+import h5py
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 
@@ -116,15 +116,6 @@ class field_free_spectrum():
         # set matelem filename
         self.matelem = matelem
 
-        # set molecular structure
-        assert ('_j' in filename or '_f' in filename), \
-            f"'structure' not found in 'filename' = '{filename}'" \
-                + f"(must contain '_j', '_f')"
-        if '_j' in filename:
-            self.structure = 'rovib'
-        else:
-            self.structure = 'hyfi'
-
         # set coupling moment type
         if 'type' in kwargs:
             assert (kwargs['type'] in ['elec', 'magn']), \
@@ -204,12 +195,35 @@ class field_free_spectrum():
             self.units = 'Debye'
 
         # construct output filename
-        self.out_f = '{}_{}_jmax{}.hdf5'.format(
-            self.structure, self.order, self.j_max
-        )
+        self.out_f = '{}_jmax{}.hdf5'.format(self.order, self.j_max)
+
+
+    def linestr(self, **kwargs):
+        """ Wrapper for computing assignments and linestrengths.
+
+            Kwargs:
+                thresh : float
+                    The linestrength threshold below which to neglect
+                    transitions. Set to 0 by default.
+        """
+
+        # set linestrength threshold
+        if 'thresh' in kwargs:
+            assert (type(kwargs['thresh']) in [int, float]), \
+                f"'thresh' has bad type: '{type(kwargs['thresh'])}'" \
+                   + f"(must be 'int', 'float')"
+            assert (kwargs['thresh'] >= 0), \
+                f"'thresh' has bad value: '{kwargs['thresh']}'" \
+                    + f"(must be >= '0')"
+            self.linestr_thresh = kwargs['thresh']
+        else:
+            self.linestr_thresh = 0.0
 
         # assignments
         self._assign()
+
+        # linestrengths
+        self._linestr()
 
 
     def _assign(self):
@@ -230,9 +244,6 @@ class field_free_spectrum():
         # input / output file
         f = h5py.File(self.out_f, 'w', driver='mpio', comm=MPI.COMM_WORLD)
 
-        # neglects all bra states
-        def filt_bra(**kwargs): return False
-
         # filters ket states w.r.t. J, M and energy
         def filt_ket(**kwargs):
             pass_J, pass_M, pass_enr = True, True, True
@@ -245,9 +256,7 @@ class field_free_spectrum():
             return pass_J and pass_M and pass_enr
 
         # datatype of assignment
-        assign_dtype = [
-            ('enr', 'f8'), ('sym', 'S2'), ('ns', 'f4'), ('assign', '<S50')
-        ]
+        assign_dtype = [('enr', 'f8'), ('sym', 'S2'), ('qstr', '<S50')]
 
         # assignments
         assigns, shapes = {}, {}
@@ -255,17 +264,19 @@ class field_free_spectrum():
         while j <= self.j_max:
 
             # field-free states
-            free_states = CarTens(self.filename, bra=filt_bra, ket=filt_ket)
+            free_states = CarTens(
+                self.filename, 
+                bra = lambda **kwargs : False, 
+                ket = filt_ket
+            )
 
             # assignment
             _, assign_ket = free_states.assign(form='full')
             assign = []
             for ind in range(len(assign_ket['J'])):
-                 k, enr = assign_ket['k'][ind]
-                 sym, ns = assign_ket['sym'][ind], 0.0
-                 if self.structure == 'hyfi':
-                     ns = float(k.split()[-1])
-                 assign.append((enr, sym, ns, k))
+                 qstr, enr = assign_ket['k'][ind]
+                 sym = assign_ket['sym'][ind]
+                 assign.append((enr, sym, qstr))
 
             assigns[j] = np.array(assign, dtype=assign_dtype)
             shapes[j] = assigns[j].shape
@@ -293,13 +304,13 @@ class field_free_spectrum():
         # print to console
         if rank == 0:
             print('\n  COMPUTED ASSIGNMENTS ...\n')
-            for attr in ['filename',  'structure', 'j_min', 'j_max', 'e_max']:
+            for attr in ['filename', 'j_min', 'j_max', 'e_max']:
                 print('      {} = {}'.format(attr, getattr(self, attr)))
 
         comm.Barrier()
 
 
-    def linestr(self, **kwargs):
+    def _linestr(self):
         """ Computes linestrengths of transitions from lower field-free states
               to higher field-free states.
 
@@ -309,24 +320,7 @@ class field_free_spectrum():
               of bra state), 'ket ind' (assignment index of ket state), 'freq'
               (frequency of transition), 'linestr' (linestrength of
               transition), 'intens' (absorption intensity of transition).
-
-            Kwargs:
-                thresh : float
-                    The linestrength threshold below which to neglect
-                    transitions. Set to 0 by default.
         """
-
-        # set linestrength threshold
-        if 'thresh' in kwargs:
-            assert (type(kwargs['thresh']) in [int, float]), \
-                f"'thresh' has bad type: '{type(kwargs['thresh'])}'" \
-                   + f"(must be 'int', 'float')"
-            assert (kwargs['thresh'] >= 0), \
-                f"'thresh' has bad value: '{kwargs['thresh']}'" \
-                    + f"(must be >= '0')"
-            self.linestr_thresh = thresh
-        else:
-            self.linestr_thresh = 0.0
 
         # initialize MPI variables
         comm = MPI.COMM_WORLD
@@ -338,7 +332,6 @@ class field_free_spectrum():
 
         # filters states w.r.t. J, M and energy
         def filt(j):
-
             def filter_(**kwargs):
                 pass_J, pass_enr = True, True
                 if 'J' in kwargs:
@@ -346,7 +339,6 @@ class field_free_spectrum():
                 if 'enr' in kwargs:
                     pass_enr = kwargs['enr'] <= self.e_max
                 return pass_J and pass_enr
-
             return filter_
 
         # datatype of spectrum
@@ -499,10 +491,10 @@ class field_free_spectrum():
                     The total internal partition sum.
 
             Kwargs:
-                tran_types: dict
-                    The types of transitions to filter out absorption
-                    intensities for. Set to {'all' : []} by default.
-                abs_intens_thresh : int, float
+                trans: list
+                    The absorption intensity filters to apply. Set to `all_ =
+                    lambda **kwargs : True` by default.
+                thresh : int, float
                     The absorption intensity threshold below which to neglect
                     transitions. Set to 0 by default.
         """
@@ -549,32 +541,12 @@ class field_free_spectrum():
         else:
             self.abs_intens_thresh = 0.0
 
-        # set transition types to filter out
-        if 'tran_types' in kwargs:
-            assert (type(kwargs['tran_types']) == dict), \
-                f"'tran_types' has bad type: '{type(kwargs['tran_types'])}'" \
-                    + f"(must be 'dict')"
-            for tran_type, info in kwargs['tran_types'].items():
-                assert (type(tran_type) == str), \
-                    f"'tran_type' has bda type: '{type(tran_type)}'" \
-                        + f"(must be 'str')"
-                if len(info) > 0:
-                    assert (info[0] in ['sym', 'ns']), \
-                        f"'info[0]' is unknown: '{info[0]}'" \
-                            + f"(must be 'sym', 'ns')"
-                    assert (type(info[1]) == list), \
-                        f"'info[1]' has bda type: '{type(info[1])}'" \
-                            + f"(must be 'list')"
-                    for info_tuple in info[1]:
-                        assert (type(info_tuple) == tuple), \
-                           f"'info_tuple' has bda type: '{type(info_tuple)}' \
-                                (must be 'tuple')"
-                        assert (len(info_tuple) == 2), \
-                           f"'info_tuple' has bad length: '{len(info_tuple)}'" \
-                                + f"(must be '2')"
-            self.tran_types = kwargs['tran_types']
+        # set transition filters
+        if 'filters' in kwargs:
+            self.filters = kwargs['filters']
         else:
-            self.tran_types = {'all' : []}
+            def all_(**kwargs): return True
+            self.filters = [all_]
 
         # absorption intensities
         self._abs_intens()
@@ -661,11 +633,11 @@ class field_free_spectrum():
         while ind < len(jj_list):
             j_bra, j_ket = [j for j in jj_list[ind][1: -1].split(', ')]
 
-            #linestrengths and assignments
+            # linestrengths and assignments
             spec = f['spec'][jj_list[ind]][:]
             assign_ket = f['assign'][j_ket][:]
 
-            # compute intensities and consider M-degeneracies
+            # absorption intensities
             spec['intens'] = abs_intens_func(
                 spec['linestr'],
                 assign_ket['enr'][spec['ket ind']],
@@ -688,7 +660,7 @@ class field_free_spectrum():
 
 
     def _filter(self):
-        """ Filters out intensities for given transition types.
+        """ Filters out absorption intensities.
 
             Results are saved into 'out_f'. Filtered intensities are saved as one
               contiguous structured array into the dataset 'raw' of the group
@@ -706,6 +678,9 @@ class field_free_spectrum():
 
         # input / output file
         f = h5py.File(self.out_f, 'a', driver='mpio', comm=MPI.COMM_WORLD)
+        for filt in self.filters:
+            if filt.__name__ in list(f.keys()):
+                del f[filt.__name__]
 
         # datatype of absorption intensities
         intens_dtype = [
@@ -718,12 +693,10 @@ class field_free_spectrum():
         ]
 
         # filter absorption intensities
-        filt_intens = {
-            tran_type : [] for tran_type in list(self.tran_types.keys())
-        }
+        filt_intens = {filt.__name__ : [] for filt in self.filters}
         sizes = {
-            tran_type : np.zeros(world_size, dtype='i4')
-                for tran_type in list(self.tran_types.keys())
+            filt.__name__ : np.zeros(world_size, dtype='i4')
+            for filt in self.filters
         }
         jj_list = list(f['spec'].keys())
         ind = rank
@@ -736,87 +709,39 @@ class field_free_spectrum():
             assign_ket = f['assign'][str(j_ket)][:]
 
             # threshold
-            spec = spec[
-                np.argwhere(spec['intens'] > self.abs_intens_thresh).flatten()
-            ]
+            if self.abs_intens_thresh > 0:
+                spec = spec[
+                    np.argwhere(
+                        spec['intens'] > self.abs_intens_thresh
+                    ).flatten()
+                ]
 
-            # filter out intensities for given transition types
-            filter_inds = {}
+            # spectrum indices to filter out
+            filt_inds = np.empty(
+                spec.size,
+                dtype = [(filt.__name__, '?') for filt in self.filters]
+            )
+            for ind_ in range(spec.size):
+                kwargs = {
+                    'sym' : ( assign_bra['sym'][spec['bra ind'][ind_]],
+                              assign_ket['sym'][spec['ket ind'][ind_]] ),
+                    'qstr' : ( assign_bra['qstr'][spec['bra ind'][ind_]],
+                               assign_ket['qstr'][spec['ket ind'][ind_]] )
+                }
+                for filt in self.filters:
+                    filt_inds[filt.__name__][ind_] = filt(**kwargs)
 
-            for tran_type in list(self.tran_types.keys()):
-
-                # apply no filter
-                if tran_type == 'all':
-                    filter_inds[tran_type] = np.arange(spec.size)
-
-                # apply filter
-                else:
-
-                    if self.tran_types[tran_type][0] == 'sym':
-
-                        # symmetries of bra / ket states
-                        sym_bra = assign_bra['sym'][spec['bra ind']]
-                        sym_ket = assign_ket['sym'][spec['ket ind']]
-
-                        # indices of transitions to filter out
-                        filter_inds_= []
-                        for sym_tuple in self.tran_types[tran_type][1]:
-                            filter_inds_.append(
-                                np.argwhere(
-                                    np.logical_or(
-                                        np.logical_and(
-                                            sym_ket == sym_tuple[0],
-                                            sym_bra == sym_tuple[1]
-                                        ),
-                                        np.logical_and(
-                                            sym_ket == sym_tuple[1],
-                                            sym_bra == sym_tuple[0]
-                                        )
-                                    )
-                                ).flatten()
-                            )
-
-                        filter_inds_ = np.concatenate(tuple(filter_inds_))
-                        filter_inds[tran_type] = filter_inds_
-
-                    else:
-
-                        # nuclear spins of bra / ket states
-                        ns_bra = assign_bra['ns'][spec['bra ind']]
-                        ns_ket = assign_ket['ns'][spec['ket ind'] ]
-
-                        # indices of transition to filter outs
-                        filter_inds_= []
-                        for ns_tuple in self.tran_types[tran_type][1]:
-                            filter_inds_.append(
-                                np.argwhere(
-                                    np.logical_or(
-                                        np.logical_and(
-                                            ns_ket== ns_tuple[0],
-                                            ns_bra == ns_tuple[1]
-                                        ),
-                                        np.logical_and(
-                                            ns_ket == ns_tuple[1],
-                                            ns_bra == ns_tuple[0]
-                                        )
-                                    )
-                                ).flatten()
-                            )
-
-                        filter_inds_ = np.concatenate(tuple(filter_inds_))
-                        filter_inds[tran_type] = filter_inds_
-
-            for tran_type in list(self.tran_types.keys()):
-                inds = filter_inds[tran_type]
-                filt_spec = spec[inds]
+            # apply filters
+            for filt in self.filters:
+                filt_spec = spec[filt_inds[filt.__name__]]
 
                 # filter out intensities with indices
-                filt_intens_ = np.empty(inds.shape, dtype=intens_dtype)
+                filt_intens_ = np.empty(filt_spec.shape, dtype=intens_dtype)
                 filt_intens_['J ket'] = np.ones(
-                    inds.shape, dtype='f4'
+                    filt_spec.shape, dtype='f4'
                 ) * float(j_ket)
                 filt_intens_['J bra'] = np.ones(
-                    inds.shape, dtype='f4'
+                    filt_spec.shape, dtype='f4'
                 ) * float(j_bra)
                 filt_intens_['ket ind'] = filt_spec['ket ind']
                 filt_intens_['bra ind'] = filt_spec['bra ind']
@@ -824,34 +749,34 @@ class field_free_spectrum():
                 filt_intens_['intens'] = filt_spec['intens']
 
                 # save filtered intensities into dictionary
-                filt_intens[tran_type].append(filt_intens_)
-                sizes[tran_type][rank] += inds.size
+                filt_intens[filt.__name__].append(filt_intens_)
+                sizes[filt.__name__][rank] += filt_inds[filt.__name__].size
 
             ind += world_size
 
-        for tran_type in list(filt_intens.keys()):
+        for filt in self.filters:
 
             # broadcast shapes...
             sizes_ = np.zeros(world_size, dtype='i4')
-            comm.Allreduce(sizes[tran_type], sizes_, MPI.SUM)
+            comm.Allreduce(sizes[filt.__name__], sizes_, MPI.SUM)
 
             # ...to collectively create datasets...
             f.create_dataset(
-                tran_type, (np.sum(sizes_), ), dtype=intens_dtype
+                filt.__name__, (np.sum(sizes_), ), dtype=intens_dtype
             )
 
             # ...and write into datasets in parallel
             if not sizes_[rank] == 0:
                 ind = np.sum(sizes_[: rank])
-                for intens in filt_intens[tran_type]:
-                    f[tran_type][ind: ind + intens.size] = intens
+                for intens in filt_intens[filt.__name__]:
+                    f[filt.__name__][ind: ind + intens.size] = intens
                     ind += intens.size
 
         f.close()
 
         if rank == 0:
             print('\n  FILTERED ABSORPTION INTENSITIES ...\n')
-            for attr in ['tran_types', 'abs_intens_thresh']:
+            for attr in ['filters', 'abs_intens_thresh']:
                 print('      {} = {}'.format(attr, getattr(self, attr)))
 
         comm.Barrier()
@@ -866,11 +791,11 @@ class field_free_spectrum():
         if MPI.COMM_WORLD.Get_rank() == 0:
 
             colors = ['b', 'r', 'g']
-            for ind, tran_type in enumerate(list(self.tran_types.keys())):
+            for ind, filt in enumerate(self.filters):
                 ind_ = ind % len(colors)
 
                 # frequencies and intensities
-                spec = f[tran_type][:]
+                spec = f[filt.__name__][:]
 
                 # plot intensities
                 plt.scatter(
@@ -878,7 +803,7 @@ class field_free_spectrum():
                     spec['intens'],
                     s = 1,
                     c = colors[ind_],
-                    label = '{} transitions'.format(tran_type)
+                    label = '{} transitions'.format(filt.__name__)
                 )
 
             # set plot parameters and save
@@ -896,7 +821,7 @@ class field_free_spectrum():
         # print to console
         if MPI.COMM_WORLD.Get_rank() == 0:
             print('\n  PLOTTED ABSORPTION INTENSITIES ...\n')
-            for attr in ['tran_types', 'abs_intens_thresh']:
+            for attr in ['filters', 'abs_intens_thresh']:
                 print('      {} = {}'.format(attr, getattr(self, attr)))
             print('')
 
@@ -957,19 +882,32 @@ if __name__ == "__main__":
     # INITIALIZATION
     filename = 'matelem/hyfor_energies_f0.0_f39.0.chk'
     matelem = 'matelem/matelem_MU_ns_f<f1>_f<f2>.rchm'
-    spec = field_free_spectrum(filename, matelem=matelem, j_max=39)
+    spec = field_free_spectrum(filename, matelem=matelem, j_max=2, e_max=15e3)
 
     # LINESTRENGTH
-    spec.linestr()
+    spec.linestr(thresh=0)
 
     # ABSORPTION INTENSITY
     temp, part_sum= 296.0, 174.5813
-    tran_types = { 'allowed'   : ['ns', [(0.0, 0.0), (1.0, 1.0)]],
-                   'forbidden' : ['ns', [(0.0, 1.0)]]              }
-    # alternatively transition types w.r.t. symmetry...
-    #   tran_types = { 'sym. cons.' : ['sym', [('B1', 'B1'), ('B2', 'B2')]],
-    #                  'sym. break' : ['sym', [('B1', 'B2')]]                }
-    spec.abs_intens(temp, part_sum, tran_types=tran_types, thresh=1e-36)
+    def allowed(**kwargs):
+        pass_ns = True
+        if 'qstr' in kwargs:
+            qstr_bra, qstr_ket = kwargs['qstr']
+            ns_bra = float(qstr_bra.split()[-1])
+            ns_ket = float(qstr_ket.split()[-1])
+            pass_ns = (ns_bra, ns_ket) in [(0.0, 0.0), (1.0, 1.0)]
+        return pass_ns
+    def forbidden(**kwargs):
+        pass_ns = True
+        if 'qstr' in kwargs:
+            qstr_bra, qstr_ket = kwargs['qstr']
+            ns_bra = float(qstr_bra.split()[-1])
+            ns_ket = float(qstr_ket.split()[-1])
+            pass_ns = (ns_bra, ns_ket) in [(0.0, 1.0), (1.0, 0.0)]
+        return pass_ns
+    spec.abs_intens(
+        temp, part_sum, filters=[allowed, forbidden] , thresh=1e-36
+    )
 
     # ASCII
     #spec.totxt(form='default')
