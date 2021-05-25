@@ -208,8 +208,7 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
             continue
 
         # symmetry-adapted basis sets
-        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=m_list),
-                            sym=mol.sym)
+        symbas = symmetrize(SymtopBasis(J, linear=mol.linear(), m_list=m_list), mol.sym, mol.linear())
 
         for sym, bas in symbas.items():
 
@@ -247,7 +246,7 @@ def hamiltonian(mol, bas, verbose=False):
         bas : SymtopBasis
             Rotational wave functions in symmetric-top basis.
     """
-    if hasattr(mol, 'B_exp') or mol.linear == True:
+    if hasattr(mol, 'B_exp') or mol.linear() == True:
         # linear molecule
         B = mol.B
         if verbose is True:

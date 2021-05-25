@@ -18,7 +18,7 @@ def group(sym, *args, **kwargs):
         raise TypeError(f"symmetry '{sym}' is not available") from None
 
 
-def symmetrize(arg, sym="D2", thresh=1e-12):
+def symmetrize(arg, sym, linear, thresh=1e-12):
     """Generates symmetry-adapted set of wave functions in symmetric-top basis
 
     Args:
@@ -26,6 +26,8 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
             Wave functions in symmetric-top basis.
         sym : SymtopSymmetry
             Symmetry group.
+        linear : bool
+            True is molecule is linear
         thresh : float
             Threshold for treating symmetrization and wave function superposition
             coefficients as zero.
@@ -63,7 +65,11 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
         # mapping between (J,k) quanta in arg.k.table and k=-J..J in symmetry.proj array
         ind_k = []
         ind_p = []
-        for ik,k in enumerate(range(-J,J+1)):
+        if linear:
+            krange = range(0,1)
+        else:
+            krange = range(-J,J+1)
+        for ik,k in enumerate(krange):
             try:
                 ind = prim.index((J,k))
                 ind_k.append(ik)
@@ -75,7 +81,8 @@ def symmetrize(arg, sym="D2", thresh=1e-12):
                         f"for symmetrization, for example, (J,k) = {(J,k)} is missing") from None
 
         for irrep,sym_lab in enumerate(symmetry.sym_lab):
-            pmat = np.dot(proj[irrep,:,ind_k], arg.k.table['c'][ind_p,:])
+            pmat = np.dot( np.take(proj[irrep,:,:], ind_k, axis=1), np.take(arg.k.table['c'], ind_p, axis=0) )
+            # pmat = np.dot(proj[irrep,:,ind_k], arg.k.table['c'][ind_p,:])
             res[sym_lab].k.table['c'][ind_p,:] = pmat[ind_k,:]
 
     # remove states with zero coefficients
