@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse
 from scipy.sparse import kron, csr_matrix
+import scipy.constants as const
 import itertools
 from itertools import chain
 import copy
@@ -12,6 +13,7 @@ import regex as re
 from collections import defaultdict
 from collections.abc import Mapping
 from richmol import json_ext as json
+from richmol.pyexpokit import zhexpv, expv_lanczos
 import os
 from numba import njit, prange, complex128
 import cupy as cp
@@ -417,7 +419,7 @@ class CarTens():
             for Jpair, mat_J in mat.items():
                 for sympair, mat_sym in mat_J.items():
                     if repres == 'dense':
-                        mat_sym = mat_sym.todense()
+                        mat_sym = mat_sym.toarray()
                     else:
                         mat_sym = getattr(scipy.sparse, repres)(mat_sym)
                     mat[Jpair][sympair] = mat_sym
@@ -520,7 +522,7 @@ class CarTens():
                 for J1 in self.Jlist1 for sym1 in self.symlist1[J1] ]
         )
         if repres == 'dense':
-            res = res.todense()
+            res = res.toarray()
         else:
             res = getattr(scipy.sparse, repres)(res)
         return res
@@ -546,7 +548,6 @@ class CarTens():
         except AttributeError:
             # input matrix is ndarray
             mat_ = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat, ind0, axis=0)[:-1]]
-
 
         Jsym1 = [(J, sym) for J in self.Jlist1 for sym in self.symlist1[J]]
         Jsym2 = [(J, sym) for J in self.Jlist2 for sym in self.symlist2[J]]
@@ -774,7 +775,7 @@ class CarTens():
 
         matvec = matvec_func()
 
-        nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
+        #nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
 
         vec2 = dict()
 
@@ -782,7 +783,8 @@ class CarTens():
 
             mfmat_J = self.mfmat[(J1, J2)]
             kmat_J = self.kmat[(J1, J2)]
-            vec2[J1] = dict()
+            if not J1 in list(vec2.keys()):
+                vec2[J1] = dict()
 
             for (sym1, sym2) in list(set(mfmat_J.keys()) & set(kmat_J.keys())):
 
@@ -806,9 +808,56 @@ class CarTens():
                 try:
                     vec2[J1][sym1] += sum(res)
                 except KeyError:
-                    vec2[J1] = {sym1 : sum(res)}
+                    vec2[J1][sym1] = sum(res)
 
         return vec2
+
+
+    def U(self, dt, vec=None, matvec_lib='scipy'):
+        """Time-propagation"""
+
+        # numpy array to CarTens vec
+        def array_to_vec(v_):
+            vec_, ind = dict(), 0
+            for J in self.Jlist2:
+                vec_[J] = dict()
+                for sym in self.symlist2[J]:
+                    vec_[J][sym] = v_[ind: ind + self.dim2[J][sym]]
+                    ind += self.dim2[J][sym]
+            return vec_
+
+        # CarTens vec to numpy array
+        def vec_to_array(vec_):
+            return np.concatenate(
+                tuple( [ vec_[J][sym] for J in self.Jlist2
+                         for sym in self.symlist2[J] ] )
+            )
+
+        # `CarTens.vec()` wrapper
+        def cartensvec(v_):
+            vec_ = self.vec(array_to_vec(v_), matvec_lib=matvec_lib)
+            return vec_to_array(vec_)
+
+        # initialize v
+        if vec is None:
+            v = np.zeros(
+                sum( [ dim2_J_sym for J, dim2_J in self.dim2.items()
+                       for sym, dim2_J_sym in dim2_J.items() ] ),
+                dtype=np.complex128
+            )
+            v[0] += 1
+        elif type(vec) is dict:
+            v = vec_to_array(vec)
+
+        # propagate
+        fac = -1j * 2 * np.pi * 1e2 * const.c * dt # (cm)
+        m, tol = 12, 1e-15
+        res = expv_lanczos(v, m, fac, lambda v : cartensvec(v), tol=tol)
+        #mat = self.tomat(form='full')
+        #norm = scipy.sparse.linalg.onenormest(mat)
+        #res = zhexpv(v, norm, m, fac, lambda v : cartensvec(v))
+
+        return array_to_vec(res)
 
 
     def __mul__(self, arg):
