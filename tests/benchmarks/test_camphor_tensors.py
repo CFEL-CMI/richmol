@@ -111,64 +111,51 @@ if __name__ == "__main__":
 
     maxdiff = {}
 
-    # convert field-free H to block-matrix representation;
+    # convert field-free H to full-matrix representation;
     #   do it for all Cartesian components
     mat = {
-        cart : states.tomat(form='block', cart=cart, repres='csr_matrix')
+        cart : states.tomat(form='full', cart=cart, repres='csr_matrix')
             for cart in states.cart
     }
     mat2 = {
-        cart : states2.tomat(form='block', cart=cart, repres='csr_matrix')
+        cart : states2.tomat(form='full', cart=cart, repres='csr_matrix')
             for cart in states2.cart
     }
 
     # compute relative max difference
     for cart in mat.keys():
-        maxdiff[cart] = 0
-        for (J1, J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
-                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
-                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
-                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
+        maxdiff[cart] = np.max(np.abs(mat[cart] - mat2[cart]))
 
-    # convert dipoles to block-matrix representation;
+
+    # convert dipoles to full-matrix representation;
     #   do it for all Cartesian components
     mat = {
-        cart : dip.tomat(form='block', cart=cart, repres='csr_matrix')
+        cart : dip.tomat(form='full', cart=cart, repres='csr_matrix')
             for cart in dip.cart
     }
     mat2 = {
-        cart : dip2.tomat(form='block', cart=cart, repres='csr_matrix')
+        cart : dip2.tomat(form='full', cart=cart, repres='csr_matrix')
             for cart in dip2.cart
     }
 
     # compute max difference
     for cart in mat.keys():
-        maxdiff[cart] = 0
-        for (J1, J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
-                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
-                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
-                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
+        maxdiff[cart] = np.max(np.abs(mat[cart] - mat2[cart]))
 
-    # convert polarizabilities to block-matrix representation;
+
+    # convert polarizabilities to full-matrix representation;
     #   do it for all Cartesian components
     mat = {
-        cart : pol.tomat(form='block', repres='csr_matrix', cart=cart)
+        cart : pol.tomat(form='full', repres='csr_matrix', cart=cart)
             for cart in pol.cart
     }
     mat2 = {
-        cart : pol2.tomat(form='block', repres='csr_matrix', cart=cart)
+        cart : pol2.tomat(form='full', repres='csr_matrix', cart=cart)
             for cart in pol2.cart
     }
 
     for cart in mat.keys():
-        maxdiff[cart] = 0
-        for (J1, J2) in mat[cart].keys():
-            for (sym1, sym2) in mat[cart][(J1, J2)].keys():
-                m1 = mat[cart][(J1, J2)][(sym1, sym2)]
-                m2 = mat2[cart][(J1, J2)][(sym1, sym2)]
-                maxdiff[cart] = max([maxdiff[cart], abs(m1 - m2).max()])
+        maxdiff[cart] = np.max(np.abs(mat[cart] - mat2[cart]))
 
     print("Print maximal matrix element differences")
     for key, val in maxdiff.items():
