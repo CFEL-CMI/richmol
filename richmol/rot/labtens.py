@@ -5,13 +5,16 @@ from scipy.sparse import csr_matrix
 from richmol.field import CarTens
 from richmol.rot.molecule import Molecule, mol_frames
 from richmol.rot.solution import hamiltonian
-from collections import defaultdict
+import collections
 import inspect
 import os
 import py3nj
+import quadpy
+import quaternionic
+import spherical
 
 
-_sym_tol = 1e-12 # max difference between off-diag elements of symmetric matrix
+_sym_tol = 1e-12 # max difference between off-diagonal elements of symmetric matrix
 _use_pywigxjpf = False # use pywigxjpf module for computing Wigner symbols
 
 
@@ -24,7 +27,7 @@ def config(use_pywigxjpf=False):
 
 
 class LabTensor(CarTens):
-    """Represents matrix elements of laboratory-frame Cartesian tensor operator
+    """Represents rotational matrix elements of laboratory-frame Cartesian tensor operator
 
     This is a subclass of :py:class:`richmol.field.CarTens` class.
 
@@ -39,10 +42,11 @@ class LabTensor(CarTens):
             Molecular parameters.
 
     Args:
-        arg : numpy.ndarray, list or tuple, or :py:class:`richmol.rot.Molecule`
-            Cartesian tensor in the molecular frame (if arg is ndarray, list or tuple).
-            If the argument is :py:class:`richmol.rot.Molecule` class, the resulting tensor
-            will represent the field-free Hamiltonian operator.
+        arg : numpy.ndarray, list or tuple, :py:class:`richmol.rot.Molecule`, or function
+            Depending on the type of argument, initializes lab-frame molecular tensor operator
+            (arg is ndarray, list, or tuple), field-free Hamiltonian operator
+            (arg is :py:class:`richmol.rot.Molecule`), or arbitrary function of spherical
+            coordinates (arg is function(theta, phi)).
         basis : :py:class:`richmol.rot.Solution`
             Rotational wave functions.
         thresh : float
@@ -79,6 +83,7 @@ class LabTensor(CarTens):
     def __init__(self, arg, basis, thresh=None, **kwargs):
 
         tens = None
+        func = None
 
         # if arg is Molecule
         if isinstance(arg, Molecule):
@@ -91,62 +96,18 @@ class LabTensor(CarTens):
             tens = np.array(arg)
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
+        # if arg is function of spherical coordinates
+        elif isinstance(arg, collections.Callable):
+            func = arg
         else:
             raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
 
         # initialize tensor attributes
 
         if tens is not None:
-
-            if not all(dim==3 for dim in tens.shape):
-                raise ValueError(f"input tensor has inappropriate shape: '{tens.shape}' != {[3]*tens.ndim}") from None
-            if np.any(np.isnan(tens)):
-                raise ValueError(f"some of elements of input tensor are NaN") from None
-
-            rank = tens.ndim
-            self.rank = rank
-            try:
-                self.Us = self.tmat_s[rank]
-                self.Ux = self.tmat_x[rank]
-                self.os = self.irrep_ind[rank]
-                self.cart = self.cart_ind[rank]
-            except KeyError:
-                raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
-
-            # permute axes, in accord with abc <-> xyz mapping, see molecule.Molecule.abc property,
-            # and how the quantization axes are chosen in solution.hamiltonian
-            rot_mat =  mol_frames.axes_perm(basis.abc)
-            sa = "abcdefgh"
-            si = "ijklmnop"
-            key = "".join(sa[i]+si[i]+"," for i in range(rank)) \
-                + "".join(si[i] for i in range(rank)) + "->" \
-                + "".join(sa[i] for i in range(rank))
-            mat = [rot_mat for i in range(rank)]
-            tens_rot = np.einsum(key, *mat, tens)
-
-            # save molecular-frame tensor in flatted form with the elements following the order in self.cart
-            self.tens_flat = np.zeros(len(self.cart), dtype=tens.dtype)
-            for ix,sx in enumerate(self.cart):
-                s = [ss for ss in sx]                  # e.g. split "xy" into ["x","y"]
-                ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
-                self.tens_flat[ix] = tens_rot.item(tuple(ind))
-
-            # special cases if tensor is symmetric and/or traceless
-            if self.rank==2:
-                symmetric = lambda tens, tol=_sym_tol: np.all(np.abs(tens-tens.T) < tol)
-                traceless = lambda tens, tol=_sym_tol: abs(np.sum(np.diag(tens))) < tol
-                if symmetric(tens)==True and traceless(tens)==True:
-                    # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
-                    # will be zero: (0,0), (1,-1), (1,0), and (1,1)
-                    self.Us = np.delete(self.Us, [0,1,2,3], 0)
-                    self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
-                    self.os = [(omega,sigma) for (omega,sigma) in self.os if omega==2]
-                elif symmetric(tens)==True and traceless(tens)==False:
-                    # for symmetric tensor the following rows in tmat_s and columns in tmat_x
-                    # will be zero: (1,-1), (1,0), and (1,1)
-                    self.Us = np.delete(self.Us, [1,2,3], 0)
-                    self.Ux = np.delete(self.Ux, [1,2,3], 1)
-                    self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
+            self.init_tens_from_rank(tens, basis.abc)
+        elif func is not None:
+            self.init_tens_from_func(func, **kwargs)
 
         # matrix elements
 
@@ -202,23 +163,128 @@ class LabTensor(CarTens):
         self.filter(**kwargs)
 
 
+    def init_tens_from_rank(self, tens, abc):
+        """Initializes components of the lab-frame tensor from the molecular-frame one
+        """
+        if not all(dim==3 for dim in tens.shape):
+            raise ValueError(f"input tensor has inappropriate shape: '{tens.shape}' != {[3]*tens.ndim}") from None
+        if np.any(np.isnan(tens)):
+            raise ValueError(f"some of elements of input tensor are NaN") from None
+
+        rank = tens.ndim
+        self.rank = rank
+        try:
+            self.Us = self.tmat_s[rank]
+            self.Ux = self.tmat_x[rank]
+            self.os = self.irrep_ind[rank]
+            self.cart = self.cart_ind[rank]
+        except KeyError:
+            raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
+
+        # permute axes, in accord with abc <-> xyz mapping, see molecule.Molecule.abc property,
+        # and how the quantization axes are chosen in solution.hamiltonian
+        rot_mat =  mol_frames.axes_perm(abc)
+        sa = "abcdefgh"
+        si = "ijklmnop"
+        key = "".join(sa[i]+si[i]+"," for i in range(rank)) \
+            + "".join(si[i] for i in range(rank)) + "->" \
+            + "".join(sa[i] for i in range(rank))
+        mat = [rot_mat for i in range(rank)]
+        tens_rot = np.einsum(key, *mat, tens)
+
+        # save molecular-frame tensor in flatted form with the elements following the order in self.cart
+        self.tens_flat = np.zeros(len(self.cart), dtype=tens.dtype)
+        for ix,sx in enumerate(self.cart):
+            s = [ss for ss in sx]                  # e.g. split "xy" into ["x","y"]
+            ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
+            self.tens_flat[ix] = tens_rot.item(tuple(ind))
+
+        # special cases if tensor is symmetric and/or traceless
+        if self.rank==2:
+            symmetric = lambda tens, tol=_sym_tol: np.all(np.abs(tens-tens.T) < tol)
+            traceless = lambda tens, tol=_sym_tol: abs(np.sum(np.diag(tens))) < tol
+            if symmetric(tens)==True and traceless(tens)==True:
+                # for symmetric and traceless tensor the following rows in tmat_s and columns in tmat_x
+                # will be zero: (0,0), (1,-1), (1,0), and (1,1)
+                self.Us = np.delete(self.Us, [0,1,2,3], 0)
+                self.Ux = np.delete(self.Ux, [0,1,2,3], 1)
+                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega==2]
+            elif symmetric(tens)==True and traceless(tens)==False:
+                # for symmetric tensor the following rows in tmat_s and columns in tmat_x
+                # will be zero: (1,-1), (1,0), and (1,1)
+                self.Us = np.delete(self.Us, [1,2,3], 0)
+                self.Ux = np.delete(self.Ux, [1,2,3], 1)
+                self.os = [(omega,sigma) for (omega,sigma) in self.os if omega in (0,2)]
+
+
+    def init_tens_from_func(self, func, wig_jmax=100, wig_deg=131, wig_thresh=1e-12, **kwargs):
+        """Initializes components of lab-frame tensor from arbitrary function `func`(theta, phi)
+        of theta and phi spherical angles
+
+        Expands function in terms of spherical-top functions |J,k=0,m> with J=0..`wig_jmax` and m=-J..J,
+        computes expansion coefficients <func|J,k=0,m> using Lebedev quadrature of degree `wig_deg`,
+        expansion coefficients smaller than `wig_thresh` are neglected
+        """
+        self.rank = 0
+        self.cart = ["0"]
+        self.tens_flat = np.array([1], dtype=np.float64)
+
+        # init Lebedev quadrature
+        quad_name = "lebedev_" + str(wig_deg).zfill(3)
+        try:
+            leb = quadpy.u3.schemes[quad_name]
+        except KeyError:
+            raise KeyError(f"quadrature '{quad_name}' not found, available schemes: " + \
+                f"{[key for key in quadpy.u3.schemes.keys() if key.startswith('lebedev')]}") from None
+        theta, phi = leb().theta_phi
+        weights = leb().weights
+
+        # compute function on quadrature grid, multiply by quadrature weights
+        f = func(theta, phi) * weights
+
+        # compute overlap integrals <func|J,k=0,m>
+        wigner = spherical.Wigner(wig_jmax)
+        R = quaternionic.array.from_spherical_coordinates(theta, phi)
+        ovlp = {J : np.zeros(2*J+1, dtype=np.complex128) for J in range(wig_jmax+1)}
+        for rr, ff in zip(R, f):
+            D = wigner.D(rr)
+            for J in range(wig_jmax+1):
+                ovlp[J] += np.array([np.conj(D[wigner.Dindex(J, m, 0)]) for m in range(-J, J+1)], dtype=np.complex128) * ff
+
+        for J in range(wig_jmax+1):
+            ovlp[J] = ovlp[J] * 2*np.pi * np.sqrt((2*J+1)/(8*np.pi**2))
+            if np.all(np.abs(ovlp[J] < wig_thresh)):
+                del ovlp[J]
+
+        # initialize tensor Cartesian-to-spherical transformation
+        self.os = [(o, s) for o in ovlp.keys() for s in range(-o, o)]
+        self.Ux = np.zeros((1, len(self.os)), dtype=np.complex128)
+        self.Us = np.zeros((len(self.os), 1), dtype=np.complex128)
+
+        ind_sigma = {(omega, sigma) : [s for s in range(-omega, omega+1)].index(sigma) for (omega, sigma) in self.os}
+        for i,(omega, sigma) in enumerate(self.os):
+            isigma = ind_sigma[(omega, sigma)]
+            self.Ux[0, i] = ovlp[omega][isigma]
+            if sigma == 0:
+                self.Us[i, 0] = 1.0
+
+
     def ham_proj(self, basis):
         """Computes action of field-free Hamiltonian operator onto a wave function
 
         Args:
-            basis : SymtopBasis or PsiTableMK
+            basis : :py:class:`richmol.rot.SymtopBasis` or :py:class:`richmol.rot.basis.PsiTableMK`
                 Wave functions in symmetric-top basis
     
         Returns:
             res : nested dict
-                Hamiltonian-projected wave functions as dictionary of SymtopBasis
-                objects, for single Cartesian and single irreducible component,
-                i.e., res['0'][0].
+                Hamiltonian-projected wave functions as dictionary of :py:class:`richmol.rot.SymtopBasis`
+                for single Cartesian and single irreducible component, i.e., res[0]['0']
         """
         H = hamiltonian(self.molecule, basis)
 
-        # since the Hamiltonian does not act on the m-part of the basis
-        # the arithmetic operations in H however de-normalize the m-matrix
+        # Hamiltonian does not act on the m-part of the basis, the arithmetic operations
+        # in H, however, de-normalize the m-matrix, so we reset it to the m-part of the basis
         H.m = basis.m
 
         irreps = set(omega for (omega,sigma) in self.os)
@@ -226,20 +292,27 @@ class LabTensor(CarTens):
         return res
 
 
-    def tens_proj(self, basis):
-        """Computes action of tensor operator onto a wave function
+    def tens_proj(self, basis, maxJ=None, minJ=0, thresh=1e-14):
+        """Computes action of tensor operator onto wave function
 
         Args:
-            basis : SymtopBasis or PsiTableMK
+            basis : :py:class:`richmol.rot.SymtopBasis` or :py:class:`richmol.rot.basis.PsiTableMK`
                 Wave functions in symmetric-top basis.
+            maxJ : int
+                Maximal value of J quantum number allowed in tensor-projected wave functions.
+                If set to None (default), all projections will be computed.
+            minJ : int
+                Minimal value of J quantum number allowed in tensor-projected wave functions.
+            thresh : float
+                Threshold for considering elements of :py:attr:`Ux` and :py:attr:`Us` tensor
+                transformation matrices as zero.
 
         Returns:
             res : nested dict
-                Tensor-projected wave functions as dictionary of SymtopBasis objects,
-                for different Cartesian and irreducible components of tensor,
-                i.e., res[cart][irep].
-                The K-subspace projections are independent of Cartesian component
-                cart and computed only for a single component cart=self.cart[0].
+                Tensor-projected wave functions as dictionary of :py:class:`richmol.rot.SymtopBasis`
+                objects, for different Cartesian and irreducible components of tensor, i.e., res[irrep][cart].
+                The K-subspace projections are independent of Cartesian component cart and computed
+                only for a single component cart=self.cart[0].
         """
         try:
             jm_table = basis.m.table
@@ -252,15 +325,22 @@ class LabTensor(CarTens):
 
         irreps = set(omega for (omega,sigma) in self.os)
         dj_max = max(irreps)    # selection rules |j1-j2|<=omega
-        os_ind = {omega : [ind for ind,(o,s) in enumerate(self.os) if o==omega] for omega in irreps}
+        sigma_ind = {omega : np.array([ind for ind,(o,s) in enumerate(self.os) if o==omega]) for omega in irreps}
+        sigma = {omega : np.array([s for (o,s) in self.os if o==omega]) for omega in irreps}
 
         # generate tables for tensor-projected set of basis functions
 
         jmin = min([min(j for (j,k) in jk_table['prim']), min(j for (j,m) in jm_table['prim'])])
         jmax = max([max(j for (j,k) in jk_table['prim']), max(j for (j,m) in jm_table['prim'])])
 
-        prim_k = [(int(J),int(k)) for J in range(max([0,jmin-dj_max]),jmax+1+dj_max) for k in range(-J,J+1)]
-        prim_m = [(int(J),int(m)) for J in range(max([0,jmin-dj_max]),jmax+1+dj_max) for m in range(-J,J+1)]
+        if maxJ is None:
+            # generate all J, m, and k quanta projected by tensor
+            prim_k = [(int(J),int(k)) for J in range(max([minJ, jmin-dj_max]), jmax+1+dj_max) for k in range(-J,J+1)]
+            prim_m = [(int(J),int(m)) for J in range(max([minJ, jmin-dj_max]), jmax+1+dj_max) for m in range(-J,J+1)]
+        else:
+            # restrict J quanta projected by tensor to range [minJ, maxJ]
+            prim_k = [(int(J),int(k)) for J in range(max([minJ, jmin-dj_max]), min([maxJ+1, jmax+1+dj_max])) for k in range(-J,J+1)]
+            prim_m = [(int(J),int(m)) for J in range(max([minJ, jmin-dj_max]), min([maxJ+1, jmax+1+dj_max])) for m in range(-J,J+1)]
 
         nstat_k = jk_table['c'].shape[1]
         nstat_m = jm_table['c'].shape[1]
@@ -273,42 +353,50 @@ class LabTensor(CarTens):
                 for cart in self.cart } for irrep in irreps }
 
         # some initializations in pywigxjpf module for computing 3j symbols
-
         if _use_pywigxjpf:
             wig_table_init((jmax+dj_max)*2, 3)
             wig_temp_init((jmax+dj_max)*2)
 
         # compute K|psi>
+
+        UsT = {irrep : np.dot(self.Us[sigma_ind[irrep], :], self.tens_flat) for irrep in irreps}
+        ind = {irrep : np.where(np.abs(UsT[irrep]) > thresh)[0] for irrep in irreps}
+        nos = {irrep : len(ind[irrep]) for irrep in irreps if len(ind[irrep]) > 0}
+        sig = {irrep : sigma[irrep][ind[irrep]] for irrep in nos.keys()}
+        UsT = {irrep : UsT[irrep][ind[irrep]] for irrep in nos.keys()}
+
         cart0 = self.cart[0]
         for ind1,(j1,k1) in enumerate(jk_table['prim']):
             for ind2,(j2,k2) in enumerate(prim_k):
-                fac = (-1)**abs(k2)
+
                 # compute <j2,k2|K-tensor|j1,k1>
-                if _use_pywigxjpf:
-                    threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, k1*2, s*2, -k2*2]) for (o,s) in self.os], dtype=np.float64)
-                else:
-                    nos = len(self.os)
-                    threeJ = py3nj.wigner3j([j1*2]*nos, [o*2 for (o,s) in self.os], [j2*2]*nos,
-                                            [k1*2]*nos, [s*2 for (o,s) in self.os], [-k2*2]*nos)
-                for irrep in irreps:
-                    ind = os_ind[irrep]
-                    me = np.dot(threeJ[ind], np.dot(self.Us[ind,:], self.tens_flat)) * fac
+                fac = (-1)**abs(k2)
+                for irrep, n in nos.items():
+                    if _use_pywigxjpf:
+                        threeJ = np.asarray([wig3jj([j1*2, irrep*2, j2*2, k1*2, s*2, -k2*2]) for s in sig[irrep]], dtype=np.float64)
+                    else:
+                        threeJ = py3nj.wigner3j([j1*2]*n, [irrep*2]*n, [j2*2]*n, [k1*2]*n, sig[irrep]*2, [-k2*2]*n)
+                    me = np.dot(threeJ, UsT[irrep]) * fac
                     res[irrep][cart0].k.table['c'][ind2,:] += me * jk_table['c'][ind1,:]
 
         # compute M|psi>
+
+        Ux = {irrep : self.Ux[:, sigma_ind[irrep]] for irrep in irreps}
+        ind = {irrep : list(set(i for i in np.where(np.abs(Ux[irrep]) > thresh)[1])) for irrep in irreps}
+        nos = {irrep : len(ind[irrep]) for irrep in irreps if len(ind[irrep]) > 0}
+        sig = {irrep : sigma[irrep][ind[irrep]] for irrep in nos.keys()}
+
         for ind1,(j1,m1) in enumerate(jm_table['prim']):
             for ind2,(j2,m2) in enumerate(prim_m):
-                fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
+
                 # compute <j2,m2|M-tensor|j1,m1>
-                if _use_pywigxjpf:
-                    threeJ = np.asarray([wig3jj([j1*2, o*2, j2*2, m1*2, s*2, -m2*2]) for (o,s) in self.os], dtype=np.float64)
-                else:
-                    nos = len(self.os)
-                    threeJ = py3nj.wigner3j([j1*2]*nos, [o*2 for (o,s) in self.os], [j2*2]*nos,
-                                            [m1*2]*nos, [s*2 for (o,s) in self.os], [-m2*2]*nos)
-                for irrep in irreps:
-                    ind = os_ind[irrep]
-                    me = np.dot(self.Ux[:,ind], threeJ[ind]) * fac
+                fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
+                for irrep, n in nos.items():
+                    if _use_pywigxjpf:
+                        threeJ = np.asarray([wig3jj([j1*2, irrep*2, j2*2, m1*2, s*2, -m2*2]) for s in sig[irrep]], dtype=np.float64)
+                    else:
+                        threeJ = py3nj.wigner3j([j1*2]*n, [irrep*2]*n, [j2*2]*n, [m1*2]*n, sig[irrep]*2, [-m2*2]*n)
+                    me = np.dot(np.take(Ux[irrep], ind[irrep], axis=1), threeJ) * fac
                     for icart,cart in enumerate(self.cart):
                         res[irrep][cart].m.table['c'][ind2,:] += me[icart] * jm_table['c'][ind1,:]
 
@@ -325,7 +413,7 @@ class LabTensor(CarTens):
 
         Args:
             basis : nested dict
-                Wave functions in symmetric-top basis (SymtopBasis class)
+                Wave functions in symmetric-top basis (:py:class:`richmol.rot.SymtopBasis class`)
                 for different values of J quantum number and different symmetries,
                 i.e., basis[J][sym] -> SymtopBasis.
             thresh : float
@@ -333,9 +421,9 @@ class LabTensor(CarTens):
 
         Returns:
             kmat : nested dict
-                See LabTensor.kmat
+                See :py:attr:`kmat`.
             mmat : nested dict
-                See LabTensor.mmat
+                See :py:attr:`mmat`.
         """
         # dimensions of M and K tensors
 
@@ -347,9 +435,13 @@ class LabTensor(CarTens):
         # selection rules |J-J'| <= omega
         dJ_max = max(set(omega for (omega,sigma) in self.os))
 
+        # max and min value of J spanned by basis
+        maxJ = max([J for J in basis.keys()])
+        minJ = min([J for J in basis.keys()])
+
         # compute matrix elements for different pairs of J quanta and different symmetries
 
-        mydict = lambda: defaultdict(mydict)
+        mydict = lambda: collections.defaultdict(mydict)
         mmat = mydict()
         kmat = mydict()
 
@@ -362,7 +454,7 @@ class LabTensor(CarTens):
                     proj = self.ham_proj(bas2)
                 except AttributeError:
                     # compute LabTensor|psi>
-                    proj = self.tens_proj(bas2)
+                    proj = self.tens_proj(bas2, maxJ=maxJ, minJ=minJ)
 
                 for J1, symbas1 in basis.items():
 
@@ -371,6 +463,7 @@ class LabTensor(CarTens):
 
                     for sym1, bas1 in symbas1.items():
 
+                        print(J1, sym1, J2, sym2)
                         for irrep, bas_irrep in proj.items():
                             for cart, bas_cart in bas_irrep.items():
 
