@@ -58,9 +58,14 @@ class field_free_spectrum():
                 The temperature. Set to 296.0 by default.
             part_sum : int, float
                 The total internal partition sum. Set to 1.0 by default.
-            tran_types: dict
-                The types of transitions to filter out absorption intensities
-                for. Set to {'all' : []} by default.
+            filters: list
+                User defined filtering functions for transitions. The folowing
+                keyword arguments are passed into the filter functions:
+                    sym : tuple
+                        Symmetries of bra and ket state.
+                    qstr : tuple
+                        Qstrs of bra and ket state.
+                Set to [def all_(**kwargs): return True]
             abs_intens_thresh : int, float
                 The absorption intensity threshold below which to neglect
                 transitions. Set to 0 by default.
@@ -491,9 +496,9 @@ class field_free_spectrum():
                     The total internal partition sum.
 
             Kwargs:
-                trans: list
-                    The absorption intensity filters to apply. Set to `all_ =
-                    lambda **kwargs : True` by default.
+                filters: list
+                    User defined filtering functions for transitions (see
+                    `filters` in kwargs of :py:class:`field_free_spectrum`).
                 thresh : int, float
                     The absorption intensity threshold below which to neglect
                     transitions. Set to 0 by default.
