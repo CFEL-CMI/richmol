@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import constants
 import functools
+from richmol.pyexpokit import expv_lanczos
+import time
 
 """
 # very rough idea
@@ -26,8 +28,8 @@ for t in tdse.times():
 
     H = mu + alpha
 
-    vec, t2 = tdse.update(vec, H+H0)
-    vec, t2 = tdse.update(vec, H, H0) # use split operator
+    vec, t2 = tdse.update(H+H0, vec=vec)
+    vec, t2 = tdse.update(H, H0=H0, vec=vec) # use split operator
 
     print(f"vec at time {t2} is: {vec}")
 """
@@ -46,15 +48,55 @@ def update_counter(func):
 class TDSE():
 
     @update_counter
-    def update(self, vec, H, H0=None):
+    def update(self, H, H0=None, vec=None, matvec_lib='scipy'):
         # this factor should make (dt/hbar * H) dimensionless
-        exp_fac = -1j * self.dt * self.time_units * constants.value("reduced Planck constant") * self.energy_units
-        #
-        # essentially move CarTens.U here
-        # for two options, split and full Hamiltonian
-        #
-        vec2 = vec
-        return vec
+        exp_fac = -1j * self.dt * self.time_units / constants.value("reduced Planck constant") * self.energy_units
+
+        # numpy array to CarTens compatible vec
+        def array_to_vec(array):
+            vec_, ind = dict(), 0
+            for J in H.Jlist2:
+                vec_[J] = dict()
+                for sym in H.symlist2[J]:
+                    vec_[J][sym] = array[ind: ind + H.dim2[J][sym]]
+                    ind += H.dim2[J][sym]
+            return vec_
+
+        # CarTens compatible vec to numpy array
+        def vec_to_array(vec_):
+            return np.concatenate(
+                tuple( [ vec_[J][sym] for J in H.Jlist2
+                         for sym in H.symlist2[J] ] )
+            )
+
+        # `CarTens.vec()` wrapper
+        def cartensvec(v):
+            vec_ = H.vec(array_to_vec(v), matvec_lib=matvec_lib)
+            return vec_to_array(vec_)
+
+        # initialize v (TODO: maybe put more thought into this)
+        if vec is None:
+            vec = np.zeros(
+                sum( [ dim2_J_sym for J, dim2_J in H.dim2.items()
+                       for sym, dim2_J_sym in dim2_J.items() ] ),
+                dtype=np.complex128
+            )
+            vec[0] += 1
+        elif type(vec) is dict:
+            vec = vec_to_array(vec)
+
+        # propagate
+        m, tol = 12, 1e-15
+        if not H0 is None:
+            if 'expfacH0' not in list(self.__dict__.keys()):
+                self.__dict__['expfacH0'] = np.exp(exp_fac / 2 * H0.tomat(form='full').diagonal()) # maybe this can be solved more elegantly ('H0' kwarg could directly ask for diagonal of full mat)
+            res = self.__dict__['expfacH0'] * vec
+            res = expv_lanczos(res, m, exp_fac, lambda v : cartensvec(v), tol=tol)
+            res = self.__dict__['expfacH0'] * res
+        else:
+            res = expv_lanczos(vec, m, exp_fac, lambda v : cartensvec(v), tol=tol)
+
+        return res
 
 
     def times(self, grid="equidistant", field=None):
@@ -79,7 +121,7 @@ class TDSE():
     @energy_units.setter
     def energy_units(self, units):
         if units.lower() in ("cm-1", "cm^-1", "1/cm", "invcm"):
-            self.enr_joule = (constants.value('Planck constant') / constants.value('speed of light in vacuum')) * 1e2
+            self.enr_joule = constants.value('Planck constant') * constants.value('speed of light in vacuum') * 1e2
         else:
             raise ValueError(f"unknown energy units: '{units}'") from None
 
@@ -145,6 +187,6 @@ class TDSE():
         self.tstep = val
 
 
-tdse = TDSE()
+
 
 
