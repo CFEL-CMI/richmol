@@ -551,6 +551,51 @@ class CarTens():
         return res
 
 
+    def map(self, tens, vbra=None, vket=None):
+        if not isinstance(arg, CarTens):
+            raise TypeError(f"bad argument type for 'tens': '{type(tens)}'") from None
+
+        def get_ind(Jlist, symlist, quanta_m1, quanta_k1, quanta_m1_, quanta_k1_):
+            mydict = lambda: defaultdict(mydict)
+            ind = mydict()
+            for J in tens.Jlist:
+                for sym in tens.symlist[J]:
+                    m = tens.quanta_m[J][sym]
+                    k = tens.quanta_k[J][sym]
+                    mk = [elem for elem in itertools.product(m, k)]
+                    if len(list(set(mk))) != len(mk):
+                        raise ValueError(f"found states with same assignment for J, sym = {J, sym} in " + \
+                            f"'{retrieve_name(tens)}', cannot resolve mapping") from None
+                    try:
+                        m_ = self.quanta_m_[J][sym]
+                        k_ = self.quanta_k_[J][sym]
+                        mk_ = [elem for elem in itertools.product(m_, k_)]
+                        if len(list(set(mk_))) != len(mk_):
+                            raise ValueError(f"found state with same assignment for J, sym = {J, sym} " + \
+                                f"in '{retrieve_name(self)}', cannot resolve mapping") from None
+                    except KeyError:
+                        raise KeyError(f"input tensor '{retrieve_name(tens)}' is not contained in '{retrieve_name(self)}'") from None
+                    # slow and simple search
+                    ind = []
+                    for elem in mk:
+                        try:
+                            ind.append(mk_.index(elem))
+                        except ValueError:
+                            raise ValueError(f"basis state J, sym, m, k = {J, sym, elem[0], elem[1]} of " + \
+                                f"tensor '{retrieve_name(tens)}' is not found in '{retrieve_name(self)}'") from None
+                    ind[J][sym] = ind
+            return ind
+
+        # convert vector to block form
+        # ...
+
+        if vbra is not None:
+            ind1 = get_ind(tens.Jlist1, tens.symlist1, tens.quanta_m1, tens.quanta_k1, self.quanta_m1, self.quanta_k1)
+            for J in vec.keys()
+                for sym in vec[J].keys()
+                    v[ind1[J][sym]] = vec[J][sym]
+            
+
     def mul(self, arg):
         """In-place multiplication of tensor with a scalar `arg`
         """
