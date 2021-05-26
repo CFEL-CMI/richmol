@@ -656,10 +656,6 @@ class PsiTableMK():
         res["k.table"] = self.k.table
         res["m.table"] = self.m.table
         try:
-            res["abc"] = self.abc
-        except AttributeError:
-            pass
-        try:
             res["sym"] = self.sym.tolist()
         except AttributeError:
             pass
@@ -689,10 +685,6 @@ class PsiTableMK():
 
         bas = PsiTableMK(PsiTableK, PsiTableM)
 
-        try:
-            bas.abc = dct["abc"]
-        except KeyError:
-            pass
         try:
             bas.sym = dct["sym"]
         except KeyError:
