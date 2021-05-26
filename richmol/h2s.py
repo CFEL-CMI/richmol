@@ -93,8 +93,8 @@ if __name__ == "__main__":
     dpsi = []
     for icoord in [0,1,2]:
         f, df = basis.hermite(nmax, points[:,icoord], ref[icoord], scale[icoord])
-        psi.append(np.dot(vec1D[icoord], f))
-        dpsi.append(np.dot(vec1D[icoord], df))
+        psi.append(torch.dot(vec1D[icoord], f))
+        dpsi.append(torch.dot(vec1D[icoord], df))
 
     nmax = 10
     # matrix elements of operators
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     # Hamiltonian eigenvalues and eigenvectors
     h = v + 0.5*g + u
-    e, vec = np.linalg.eigh(h)
+    e, vec = torch.linalg.eigh(h)
 
     print(f"\n3D solutions")
     print("zero-energy:", e[0])

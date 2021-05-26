@@ -6,7 +6,7 @@ import operator
 import itertools
 import math
 import opt_einsum
-
+import torch
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
     """Matrix elements of potential function in product basis"""
@@ -18,7 +18,7 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
-    return opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
+    return opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra), fket, poten, weights)
 
 
 def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
@@ -52,11 +52,11 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
         for i in range(nq):
             fket.append(dket)
 
-    me = np.zeros((fbra[0].shape[0], fket[0].shape[0]), dtype=np.float64)
+    me = torch.zeros((fbra[0].shape[0], fket[0].shape[0]), dtype=torch.float64)
 
     for i in range(gmat.shape[1]):
         for j in range(gmat.shape[2]):
-            me = me + opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
+            me = me + opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
     return me
 
 
@@ -82,26 +82,26 @@ def prod2(*fn, nmax=None, w=None):
     npts = fn[0].shape[1]
     assert (all(f.shape[1] == npts for f in fn)), f"input arrays in `*fn` have different second dimensions: {[f.shape for f in fn]}"
     if nmax is None:
-        nmax = max([f.shape[0] for f in fn])
+        nmax = torch.max([f.shape[0] for f in fn])
     if w is None:
         w = [1 for i in range(len(fn))]
 
     psi = fn[0]
 
-    n = opt_einsum.contract('i,j->ij', [i for i in range(len(fn[0]))], np.ones(len(fn[1])))
+    n = opt_einsum.contract('i,j->ij', [i for i in range(len(fn[0]))], torch.ones(len(fn[1])))
     nsum = n * w[0]
 
     for ifn in range(1, len(fn)):
         psi = opt_einsum.contract('kg,lg->klg', psi, fn[ifn])
 
-        n2 = opt_einsum.contract('i,j->ij', np.ones(len(psi)), [i for i in range(len(fn[ifn]))])
+        n2 = opt_einsum.contract('i,j->ij', torch.ones(len(psi)), [i for i in range(len(fn[ifn]))])
         nsum = nsum + n2 * w[ifn]
 
-        ind = np.where(nsum <= nmax)
+        ind = torch.where(nsum <= nmax)
         psi = psi[ind]
 
         if ifn <= len(fn)-2:
-            nsum = opt_einsum.contract('i,j->ij', nsum[ind], np.ones(fn[ifn+1].shape[0]))
+            nsum = opt_einsum.contract('i,j->ij', nsum[ind], torch.ones(fn[ifn+1].shape[0]))
     return psi
 
 
