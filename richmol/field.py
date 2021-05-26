@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.sparse
-from scipy.sparse import kron, csr_matrix
+from scipy.sparse import kron, csr_matrix, issparse
 import scipy.constants as const
 import itertools
 from itertools import chain
@@ -552,49 +552,134 @@ class CarTens():
 
 
     def map(self, tens, vbra=None, vket=None):
-        if not isinstance(arg, CarTens):
-            raise TypeError(f"bad argument type for 'tens': '{type(tens)}'") from None
+        """Maps elements of bra and ket vectors `vbra` and `vket`, defined with respect to bra and ket
+        basis sets of tensor operator `tens`, onto a larger basis set of `self` operator.
 
-        def get_ind(Jlist, symlist, quanta_m1, quanta_k1, quanta_m1_, quanta_k1_):
-            mydict = lambda: defaultdict(mydict)
-            ind = mydict()
-            for J in tens.Jlist:
-                for sym in tens.symlist[J]:
-                    m = tens.quanta_m[J][sym]
-                    k = tens.quanta_k[J][sym]
+        The bra and ket basis sets of `tens` operator must be fully contained in `self`.
+
+        Args:
+            tens : :py:class:`CarTens`
+                Tensor operator.
+            vbra : nested dict, numpy.ndarray, or scipy.sparse.spmatrix
+                Vector, defined with respect to the bra basis of `tens`, represented
+                by a numpy.ndarray or scipy.sparse.spmatrix array, or in block form
+                as dictionary for different J quanta and different symmetries.
+            vket : nested dict, numpy.ndarray, or scipy.sparse.spmatrix
+                Vector, defined with respect to the ket basis of `tens`.
+
+        Returns:
+            (vec1, vec2) : (type(vbra), type(vket)
+                Input vectors mapped onto bra and ket basis sets of `self`.
+        """
+        def vec_map(vec, quanta_m, quanta_k, quanta_m_, quanta_k_):
+            """Maps elements of vector `vec`, defined wrt to quanta `quanta_m` x `quanta_k`,
+            into a new vector wrt larger space of quanta `quanta_m_` x `quanta_k_`.
+            Input vector must be in block form.
+            """
+            vec_ = dict()
+            for J in vec.keys():
+                for sym in vec[J].keys():
+                    m = quanta_m[J][sym]
+                    k = quanta_k[J][sym]
                     mk = [elem for elem in itertools.product(m, k)]
                     if len(list(set(mk))) != len(mk):
-                        raise ValueError(f"found states with same assignment for J, sym = {J, sym} in " + \
-                            f"'{retrieve_name(tens)}', cannot resolve mapping") from None
+                        raise ValueError(f"found states with same assignment for J, sym = {J, sym} in 'tens'") from None
                     try:
-                        m_ = self.quanta_m_[J][sym]
-                        k_ = self.quanta_k_[J][sym]
+                        m_ = quanta_m_[J][sym]
+                        k_ = quanta_k_[J][sym]
                         mk_ = [elem for elem in itertools.product(m_, k_)]
                         if len(list(set(mk_))) != len(mk_):
-                            raise ValueError(f"found state with same assignment for J, sym = {J, sym} " + \
-                                f"in '{retrieve_name(self)}', cannot resolve mapping") from None
+                            raise ValueError(f"found states with same assignment for J, sym = {J, sym} in 'self'") from None
                     except KeyError:
-                        raise KeyError(f"input tensor '{retrieve_name(tens)}' is not contained in '{retrieve_name(self)}'") from None
+                        raise KeyError(f"'tens' is not fully contained in 'self'") from None
                     # slow and simple search
                     ind = []
                     for elem in mk:
                         try:
                             ind.append(mk_.index(elem))
                         except ValueError:
-                            raise ValueError(f"basis state J, sym, m, k = {J, sym, elem[0], elem[1]} of " + \
-                                f"tensor '{retrieve_name(tens)}' is not found in '{retrieve_name(self)}'") from None
-                    ind[J][sym] = ind
-            return ind
+                            raise ValueError(f"'tens' basis state J, sym, m, k = {J, sym, elem[0], elem[1]} " + \
+                                f"is not found in 'self'") from None
+                    # update vector
+                    try:
+                        vec_[J][sym] = np.zeros(len(mk_), dtype=np.float64)
+                    except KeyError:
+                        vec_[J] = {sym : np.zeros(len(mk_), dtype=np.float64)}
+                    vec_[J][sym][ind] = vec[J][sym]
 
-        # convert vector to block form
-        # ...
+
+        def vec_to_block(vec, vec_name, Jlist, symlist, dim):
+            """Converts vector into block form"""
+            if isinstance(vec, (list, tuple, np.ndarray, np.generic)) or issparse(vec):
+                # convert `vec` into block form
+                ind = np.cumsum([dim[J][sym] for J in Jlist for sym in symlist[J]])
+                try:
+                    # scipy sparse
+                    vec_ = [np.split(vec.toarray(), ind)[:-1]]
+                except AttributeError:
+                    # ndarray
+                    vec_ = [np.split(vec, ind)[:-1]]
+                Jsym = [(J, sym) for J in Jlist for sym in symlist[J]]
+                res = dict()
+                for i, (J, sym) in enumerate(Jsym):
+                    try:
+                        res[J][sym] = vec_[i]
+                    except KeyError:
+                        res[J] = {sym : vec_[i]}
+            elif isinstance(vec, Mapping):
+                # if already in block form, check if `vec` is fully contained in `tens`
+                if not all([J in Jlist for J in vec.keys()]):
+                    raise ValueError(f"some of J quanta in the input vector '{vec_name}' " + \
+                        f"are not contained in the input tensor 'tens'") from None
+                if not all([sym in symlist[J] for J in vec.keys() for sym in vec[J].keys]):
+                    raise ValueError(f"some of symmetries in the input vector '{vec_name}' " + \
+                        f"are not contained in the input tensor 'tens'") from None
+                res = vec
+            else:
+                raise ValueError(f"bad argument type for '{vec_name}': '{type(vec)}'") from None
+            return res
+
+
+        def vec_to_inpform(vec_inp, vec_name, vec_out, Jlist, symlist, dim):
+            """Converts output vector to the same form as input vector"""
+            if isinstance(vec_inp, (list, tuple, np.ndarray, np.generic)) or issparse(vec_inp):
+                res = scipy.sparse.bmat(
+                    [ vec_out[J][sym] if J in vec_out.keys() and sym in vec_out[J].keys()
+                        else csr_matrix(np.zeros(dim[J][sym]))
+                        for J in Jlist for sym in symlist[J] ]
+                )
+                try:
+                    # scipy sparse
+                    res = getattr(scipy.sparse, vec_inp.getformat()+"_matrix")(res)
+                except AttributeError:
+                    # ndarray
+                    res = res.toarray()
+            elif isinstance(vec_inp, Mapping):
+                res = vec_out
+            else:
+                raise ValueError(f"bad argument type for '{vec_name}': '{type(vec)}'") from None
+            return res
+
+
+        if not isinstance(arg, CarTens):
+            raise TypeError(f"bad argument type for 'tens': '{type(tens)}'") from None
+
+        res = []
 
         if vbra is not None:
-            ind1 = get_ind(tens.Jlist1, tens.symlist1, tens.quanta_m1, tens.quanta_k1, self.quanta_m1, self.quanta_k1)
-            for J in vec.keys()
-                for sym in vec[J].keys()
-                    v[ind1[J][sym]] = vec[J][sym]
-            
+            vec = vec_to_block(vbra, 'vbra', tens.Jlist1, tens.symlist1, tens.dim1)
+            vec = vec_map(vec, tens.quanta_m1, tens.quanta_k1, self.quanta_m1, self.quanta_k1)
+            vec = vec_to_inpform(vbra, 'vbra', vec, self.Jlist1, self.symlist1, self.dim1)
+            res.append(vec)
+
+        if vket is not None:
+            vec = vec_to_block(vket, 'vket', tens.Jlist2, tens.symlist2, tens.dim2)
+            vec = vec_map(vec, tens.quanta_m2, tens.quanta_k2, self.quanta_m2, self.quanta_k2)
+            vec = vec_to_inpform(vket, 'vket', vec, self.Jlist2, self.symlist2, self.dim2)
+            res.append(vec)
+
+        return tuple(res)
+
 
     def mul(self, arg):
         """In-place multiplication of tensor with a scalar `arg`
