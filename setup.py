@@ -4,22 +4,6 @@ from numpy.distutils.core import Extension
 from distutils.command.build import build
 import subprocess
 
-class Build(build):
-    def run(self):
-        build.run(self)
-        # compile symtoplib
-        #command = "cd richmol/symtoplib"
-        #command += " && make clean && make"
-        #print("\nBuild symtoplib:",command)
-        #process = subprocess.Popen(command, shell=True)
-        #process.wait()
-        # compile wigxjpf
-        command = "cd richmol/wigxjpf-1.5"
-        command += " && make clean && make shared"
-        print("\nBuild wigxjpf-1.5:",command)
-        process = subprocess.Popen(command, shell=True)
-        process.wait()
-
 # expokit set of Fortran functions for computing matrix exponential
 expokit = Extension(name = 'expokit',
                      sources = ['expokit/expokit.pyf',
@@ -66,8 +50,7 @@ if __name__ == "__main__":
                                "of internal (hyperfine) and external (laser) electromagnetic fields"),
         license             = "GPL",
         packages            = ["richmol"],
-        #cmdclass            = {'build': Build},
-        package_data        = {"richmol":["rot/*","symtoplib/symtoplib*","wigxjpf-1.5/lib/libwigxjpf_shared*"]},
+        package_data        = {"richmol":["rot/*"]},
         scripts             = [],
         ext_modules         = [expokit, wigner, potentials],
         long_description    = read("README.md"),
