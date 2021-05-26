@@ -41,13 +41,6 @@ class Solution(UserDict):
         val : dict
             Nested dictionary containing rotational wave functions :py:class:`richmol.rot.SymtopBasis`
             for different values of `J=Jmin..Jmax` and different symmetries
-
-    Attrs:
-        abc : str
-            Quantization axes used in solution, a string containing three molecular-frame Cartesian
-            axes in the order of `x`, `y`, and `z` quantization axes.
-            For example, abc="zxy" means that `x`, `y`, and `z` are aligned along the `b`, `c`, and
-            `a` axes, respectively. Applies only when the Hamiltonian is built from rotational constants.
     """
     def __init__(self, val=None):
         if val is None:
@@ -228,9 +221,6 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
             except KeyError:
                 sol[J] = {sym : bas}
 
-    # store quantization axes used for solution
-    sol.abc = mol.abc
-
     return sol
 
 
@@ -246,24 +236,26 @@ def hamiltonian(mol, bas, verbose=False):
         bas : SymtopBasis
             Rotational wave functions in symmetric-top basis.
     """
-    if hasattr(mol, 'B_exp') or mol.linear() == True:
+    if mol.linear() == True:
         # linear molecule
         B = mol.B
         if verbose is True:
-            print(f"build rigid-rotor Hamiltonian for linear molecule, B = {B} cm-1")
-        H = B * JJ(bas)
-    elif hasattr(mol, 'ABC_exp'):
+            print(f"build rigid-rotor Hamiltonian for linear molecule, Bx, By, Bz = {B[0], B[1], B[2]} cm-1")
+        H = None
+        for (i,j,k) in [(0,1,2), (0,2,1), (1,2,0)]:
+            if B[i]==B[j] and B[k]==0:
+                H = B[i] * JJ(bas)
+                break
+        if H is None:
+            raise ValueError(f"for linear molecule, two rotational constants must be equal to each other " + \
+                f"and one must be equal to zero, we have Bx, By, Bz = {B[0], B[1], B[2]}") from None
+    elif hasattr(mol, 'B_exp') and not mol.linear():
         # nonlinear molecule, build Hamiltonian from constants
-        A, B, C = mol.ABC
+        Bx, By, Bz = mol.B
         if verbose is True:
-            print(f"build rigid-rotor Hamiltonian from rotational constants, A, B, C = {A, B, C} cm-1")
-        try:
-            ind = [("x","y","z").index(s) for s in list(mol.abc.lower())]
-        except ValueError:
-            raise ValueError(f"illegal value for abc = '{abc}'") from None
+            print(f"build rigid-rotor Hamiltonian from rotational constants, Bx, By, Bz = {Bx, By, Bz} cm-1")
         # construct Hamiltonian
-        Jxyz = [Jxx(bas), Jyy(bas), Jzz(bas)]
-        H = A * Jxyz[ind[0]] + B * Jxyz[ind[1]] + C * Jxyz[ind[2]]
+        H = Bx * Jxx(bas) + By * Jyy(bas) + Bz * Jzz(bas)
     else:
         # nonlinear molecule, build Hamiltonian from kinetic energy matrix
         if verbose is True:

@@ -129,7 +129,7 @@ class LabTensor(CarTens):
         # initialize tensor
 
         if tens is not None:
-            self.init_tens_from_rank(tens, basis.abc, thresh=thresh)
+            self.init_tens_from_rank(tens, thresh=thresh)
         elif func is not None:
             self.init_tens_from_func(func, thresh=thresh, **kwargs)
 
@@ -190,7 +190,7 @@ class LabTensor(CarTens):
         self.filter(**kwargs)
 
 
-    def init_tens_from_rank(self, tens, abc, thresh=None):
+    def init_tens_from_rank(self, tens, thresh=None):
         """Initializes components of the lab-frame tensor from the molecular-frame one
         """
         if thresh is None:
@@ -213,23 +213,12 @@ class LabTensor(CarTens):
         except KeyError:
             raise NotImplementedError(f"tensor of rank = {rank} is not implemented") from None
 
-        # permute axes, in accord with abc <-> xyz mapping, see molecule.Molecule.abc property,
-        # and how the quantization axes are chosen in solution.hamiltonian
-        rot_mat =  mol_frames.axes_perm(abc)
-        sa = "abcdefgh"
-        si = "ijklmnop"
-        key = "".join(sa[i]+si[i]+"," for i in range(rank)) \
-            + "".join(si[i] for i in range(rank)) + "->" \
-            + "".join(sa[i] for i in range(rank))
-        mat = [rot_mat for i in range(rank)]
-        tens_rot = np.einsum(key, *mat, tens)
-
         # save molecular-frame tensor in flatted form with the elements following the order in self.cart
         self.tens_flat = np.zeros(len(self.cart), dtype=tens.dtype)
         for ix,sx in enumerate(self.cart):
             s = [ss for ss in sx]                  # e.g. split "xy" into ["x","y"]
             ind = ["xyz".index(ss) for ss in s]    # e.g. convert ["x","y"] into [0,1]
-            self.tens_flat[ix] = tens_rot.item(tuple(ind))
+            self.tens_flat[ix] = tens.item(tuple(ind))
 
         # special cases if tensor is symmetric and/or traceless
         if self.rank==2:

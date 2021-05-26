@@ -252,10 +252,12 @@ class Molecule:
         try:
             xyz = self.XYZ['xyz']
         except AttributeError:
-            if hasattr(self, 'B_exp') and not hasattr(self, 'ABC_exp'):
-                return True
-            elif hasattr(self, 'ABC_exp') and not hasattr(self, 'B_exp'):
-                return False
+            if hasattr(self, 'B'):
+                B = self.B
+                if any([B[i]==B[j] and B[k]==0 for (i,j,k) in [(0,1,2), (0,2,1), (1,2,0)]]):
+                    return True
+                else:
+                    return False
             else:
                 raise ValueError(f"cannot determine whether the molecule is linear " + \
                     f"on the basis of input molecular parameters") from None
@@ -274,7 +276,7 @@ class Molecule:
     @property
     def kappa(self):
         """Returns rotational asymmetry parameter kappa = (2*B-A-C)/(A-C)"""
-        A, B, C = self.ABC
+        A, B, C = [val for val in reversed(sorted(self.B))]
         return (2*B-A-C)/(A-C)
 
 
@@ -284,8 +286,8 @@ class Molecule:
 
 
     @property
-    def ABC_geom(self):
-        """Returns A, B, and C rotational constants (in units of :math:`cm^{-1}`),
+    def B_geom(self):
+        """Returns Bx, By, and Bz rotational constants (in units of :math:`cm^{-1}`),
         calculated from molecular geometry input
         """
         itens = self.inertia
@@ -294,53 +296,8 @@ class Molecule:
                 f"max offdiag = {np.max(np.abs(np.diag(np.diag(itens))-itens)).round(16)}") from None
         convert_to_cm = constants.value('Planck constant') * constants.value('Avogadro constant') \
                       * 1e+16 / (8.0 * np.pi**2 * constants.value('speed of light in vacuum')) * 1e5
-        abc = [convert_to_cm/val for val in np.diag(itens)]
+        abc = [convert_to_cm/val if abs(val) > _sing_tol else 0 for val in np.diag(itens)]
         return [val for val in abc]
-
-
-    @ABC_geom.setter
-    def ABC_geom(self, val):
-        raise AttributeError(f"setting calculated rotational constants is not permitted") from None
-
-
-    @property
-    def ABC(self):
-        """Molecular rotational constants
-
-        Args:
-            arg
-                Tuple with A, B, and C user-defined rotational constants (in :math:`cm^{-1}`).
-
-        Returns:
-            Tuple with A, B, and C user-defined rotational constants,
-            if they have been initialized, otherwise returns the constants computed
-            from the input molecular geometry.
-        """
-        try:
-            self.check_ABC()
-            return self.ABC_exp
-        except AttributeError:
-            return self.ABC_geom
-
-
-    @ABC.setter
-    def ABC(self, val):
-        try:
-            A, B, C = val
-        except TypeError:
-            raise TypeError(f"please specify rotational constants in a tuple (A, B, C)") from None
-        self.ABC_exp = [val for val in reversed(sorted([A, B, C]))]
-        self.check_ABC()
-
-
-    @property
-    def B_geom(self):
-        """Returns B rotational constant (in units of :math:`cm^{-1}`), calculated from molecular geometry input"""
-        if self.linear == False:
-            raise ValueError(f"molecule is not linear, use ABC to compute rotational constants")
-        with np.errstate(divide='ignore'): # ignore divide by zero warning
-            b = self.ABC_geom[1]
-        return b
 
 
     @B_geom.setter
@@ -350,15 +307,16 @@ class Molecule:
 
     @property
     def B(self):
-        """Molecular rotational constant B
+        """Molecular rotational constants
 
         Args:
             arg
-                User-defined rotational constant (in :math:`cm^{-1}`).
+                Tuple with Bx, By, and Bz user-defined rotational constants (in :math:`cm^{-1}`).
 
         Returns:
-            User-defined constant, if it has been initialized, otherwise returns
-            constant computed from the input molecular geometry.
+            Tuple with Bx, By, and Bz user-defined rotational constants,
+            if they have been initialized, otherwise returns the constants computed
+            from the input molecular geometry.
         """
         try:
             self.check_B()
@@ -369,25 +327,14 @@ class Molecule:
 
     @B.setter
     def B(self, val):
-        self.B_exp = val
+        try:
+            Bx, By, Bz = val
+        except TypeError:
+            Bx = val
+            By = val
+            Bz = 0
+        self.B_exp = [Bx, By, Bz]
         self.check_B()
-
-
-    def check_ABC(self):
-        try:
-            ABC_geom = self.ABC_geom
-        except AttributeError:
-            return
-        try:
-            ABC_exp = self.ABC_exp
-        except AttributeError:
-            return
-        if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(ABC_exp, ABC_geom)):
-            err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
-                             for abc,e,c in zip(("A","B","C"), ABC_exp, ABC_geom) )
-            raise ValueError(f"input rotational constants disagree much with geometry\n" + \
-                f"        exp          calc       exp-calc\n" + err) from None
-        return
 
 
     def check_B(self):
@@ -401,26 +348,10 @@ class Molecule:
             return
         if any(abs(e - c) > _abc_tol_perc/100.0*e for e,c in zip(B_exp, B_geom)):
             err = "\n".join( abc + " %12.6f"%e + " %12.6f"%c + " %12.6f"%(e-c) \
-                             for abc,e,c in zip(("B"), B_exp, B_geom) )
+                             for abc,e,c in zip(("Bx","By","Bz"), B_exp, B_geom) )
             raise ValueError(f"input rotational constants disagree much with geometry\n" + \
-                f"        exp          calc       exp-calc\n" + err) from None
+                f"        inp          calc       inp-calc\n" + err) from None
         return
-
-
-    @property
-    def abc(self):
-        try:
-            x = self.ABC_exp # works only if user-input (experimental) rotational constant were defined
-            if self.kappa > 0:
-                return 'xyz' # "IIIr representation for near oblate-top"
-            elif self.kappa <= 0:
-                return 'zyx' # "Ir representation for near prolate-top"
-        except AttributeError:
-            return 'xyz'
-
-    @abc.setter
-    def abc(self, val):
-        raise AttributeError(f"setting abc->xyz mapping is not permitted") from None
 
 
     @property
@@ -444,7 +375,7 @@ class Molecule:
     def sym(self, val="C1"):
         # automatic symmetry works only for inertia principal axes system
         try:
-            x = self.ABC
+            x = self.B
         except ValueError:
             print(f"warning: change molecular frame to inertia axes system to enable symmetry")
             val = "C1"
