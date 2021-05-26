@@ -11,6 +11,9 @@ from richmol.rot import solve, Solution, LabTensor, Molecule
 from richmol.field import CarTens
 from richmol.convert_units import MHz_to_invcm
 
+# from richmol.rot.labtens import config
+# config(use_pywigxjpf=True)
+
 
 
 

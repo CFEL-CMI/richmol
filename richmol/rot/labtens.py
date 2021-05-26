@@ -22,7 +22,7 @@ def config(use_pywigxjpf=False):
     if use_pywigxjpf is True:
         print("... use `pywigxjpf` module for computing Wigner symbols")
         global _use_pywigxjpf, wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
-        from richmol.pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
+        from pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
         _use_pywigxjpf = True
 
 
@@ -420,7 +420,7 @@ class LabTensor(CarTens):
                 fac = (-1)**abs(k2)
                 for irrep, n in nos.items():
                     if _use_pywigxjpf:
-                        threeJ = np.asarray([wig3jj([j1*2, irrep*2, j2*2, k1*2, s*2, -k2*2]) for s in sig[irrep]], dtype=np.float64)
+                        threeJ = np.asarray([wig3jj(j1*2, irrep*2, j2*2, k1*2, s*2, -k2*2) for s in sig[irrep]], dtype=np.float64)
                     else:
                         threeJ = py3nj.wigner3j([j1*2]*n, [irrep*2]*n, [j2*2]*n, [k1*2]*n, sig[irrep]*2, [-k2*2]*n)
                     me = np.dot(threeJ, UsT[irrep]) * fac
@@ -440,7 +440,7 @@ class LabTensor(CarTens):
                 fac = np.sqrt((2*j1+1)*(2*j2+1)) * (-1)**abs(m2)
                 for irrep, n in nos.items():
                     if _use_pywigxjpf:
-                        threeJ = np.asarray([wig3jj([j1*2, irrep*2, j2*2, m1*2, s*2, -m2*2]) for s in sig[irrep]], dtype=np.float64)
+                        threeJ = np.asarray([wig3jj(j1*2, irrep*2, j2*2, m1*2, s*2, -m2*2) for s in sig[irrep]], dtype=np.float64)
                     else:
                         threeJ = py3nj.wigner3j([j1*2]*n, [irrep*2]*n, [j2*2]*n, [m1*2]*n, sig[irrep]*2, [-m2*2]*n)
                     me = np.dot(np.take(Ux[irrep], ind[irrep], axis=1), threeJ) * fac
