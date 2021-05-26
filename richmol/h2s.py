@@ -5,7 +5,7 @@ from quadratures import herm1d, prodgrid
 import numpy as np
 import basis
 import sys
-
+import torch
 
 @moljax.com
 def cartesian(q):

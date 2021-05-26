@@ -121,7 +121,7 @@ def prod(*funcs, nmax=None, w=None):
     return res
 
 
-def hermite(nmax, r, r0, alpha):
+def hermite(nmax, r, r0, alpha): #rewrite in torch
     """Normalized Hermite functions and derivatives
 
     f(r) = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) Hn(x)
