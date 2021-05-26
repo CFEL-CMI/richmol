@@ -20,7 +20,7 @@ _use_pywigxjpf = False # use pywigxjpf module for computing Wigner symbols
 
 def config(use_pywigxjpf=False):
     if use_pywigxjpf is True:
-        print("... use `pywigxjpf` module for computing Wigner symbols")
+        print("... use `pywigxjpf` module for computing Wigner symbols in rot.labtens")
         global _use_pywigxjpf, wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
         from pywigxjpf import wig_table_init, wig_temp_init, wig3jj, wig_temp_free, wig_table_free
         _use_pywigxjpf = True

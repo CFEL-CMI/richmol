@@ -1,12 +1,14 @@
 import expokit
 import numpy as np
-import cupy as cp
-import cupyx
 import copy
 from scipy.sparse.linalg import expm
 from numba import njit, prange, cuda, int32, float64, complex128
 from numba import cuda, complex128
 
+import torch # temporary fix
+if torch.cuda.is_available():
+    import cupy as cp
+    import cupyx
 
 
 class ExpokitError(Exception):

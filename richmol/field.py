@@ -16,8 +16,11 @@ from richmol import json_ext as json
 from richmol.pyexpokit import zhexpv, expv_lanczos
 import os
 from numba import njit, prange, complex128
-import cupy as cp
-import cupyx
+
+import torch # temporary fix
+if torch.cuda.is_available():
+    import cupy as cp
+    import cupyx
 
 
 class CarTens():
