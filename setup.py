@@ -52,6 +52,6 @@ if __name__ == "__main__":
         packages            = ["richmol"],
         package_data        = {"richmol":["rot/*"]},
         scripts             = [],
-        ext_modules         = [expokit, wigner, potentials],
+        ext_modules         = [expokit, potentials],
         long_description    = read("README.md"),
 )

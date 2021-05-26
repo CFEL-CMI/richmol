@@ -11,9 +11,13 @@ from richmol.rot import solve, Solution, LabTensor, Molecule
 from richmol.field import CarTens
 from richmol.convert_units import MHz_to_invcm
 
-# from richmol.rot.labtens import config
-# config(use_pywigxjpf=True)
+# switch to pywigxjpf for computing 3j symbols
+# from richmol.rot.labtens import config as conf_lab
+# conf_lab(use_pywigxjpf=True)
 
+# switch to richmol_wigner for computing Wigner D-functions
+# from richmol.rot.symmetry import config as conf_sym
+# conf_sym(use_richmol_wigner=True)
 
 
 

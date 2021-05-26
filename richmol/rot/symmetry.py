@@ -1,6 +1,16 @@
 import numpy as np
-from richmol_wigner import symtop
 import copy
+import quaternionic
+import spherical
+
+_use_richmol_wigner = False # use richmol_wigner module for computing Wigner D-matrices
+
+def config(use_richmol_wigner=False):
+    if use_richmol_wigner is True:
+        print("... use `richmol_wigner` module for computing Wigner D-functions in rot.symmetry")
+        global _use_richmol_wigner, symtop
+        from richmol_wigner import symtop
+        _use_richmol_wigner = True
 
 
 _symmetries = dict()
@@ -115,10 +125,20 @@ class SymtopSymmetry():
         assert (self.J>=0), f"J = {J} < 0"
 
         # compute symmetrization coefficients for symmetric-top functions
-        jmin = J
-        jmax = J
-        npoints = self.noper
-        self.coefs = symtop.threed_grid(J, J, self.euler_rotation, int(True), npoints)
+        if _use_richmol_wigner:
+            jmin = J
+            jmax = J
+            npoints = self.noper
+            self.coefs = symtop.threed_grid(J, J, self.euler_rotation, int(True), npoints)
+        else:
+            self.coefs = np.zeros((self.noper, 2*J+1, 2*J+1, 1), dtype=np.complex128)
+            wigner = spherical.Wigner(J)
+            R = quaternionic.array.from_euler_angles(*self.euler_rotation)
+            for ioper, rr in enumerate(R):
+                D = wigner.D(rr)
+                for m in range(-J, J+1):
+                    for k in range(-J, J+1):
+                        self.coefs[ioper, m+J, k+J, 0] = D[wigner.Dindex(J, m, k)]
 
 
     def proj(self):
