@@ -148,20 +148,6 @@ class CarTens():
             M-tensor matrix elements contracted with field. Produced after multiplication
             of tensor with a vector of X, Y, and Z field values (see :py:func:`field`).
             has the same structure as :py:attr:`kmat`.
-
-    Methods:
-        __mul__(arg):
-            Multiplication with scalar, electric field, and vector
-        __add__(arg):
-            Sum with another tensor
-        store(filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False, thresh=None):
-            Stores tensor in HDF5 file
-        read(filename, name=None, thresh=None, **kwargs):
-            Reads tensor from HDF5 file
-        read_states(filename, **kwargs):
-            Reads old-format richmol states file
-        read_trans(filename, thresh=None, **kwargs):
-            Reads old_format richmol matrix elements files
     """
 
     def __init__(self, filename=None, matelem=None, name=None, **kwargs):
