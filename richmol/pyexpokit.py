@@ -113,7 +113,7 @@ def expv_arnoldi(vec, m, t, matvec, maxorder=1000, tol=0):
     return u_k
 
 
-def expv_lanczos(vec, m, t, matvec, maxorder=1000, tol=0):
+def expv_lanczos(vec, t, matvec, maxorder=1000, tol=0):
     """ Computes epx(t*a)*v using Lanczos with cupy mat-vec product """
 
     V, W = [], []
