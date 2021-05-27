@@ -48,7 +48,7 @@ def update_counter(func):
 class TDSE():
 
     @update_counter
-    def update(self, H, H0=None, vec=None, matvec_lib='scipy'):
+    def update(self, H, H0=None, vecs=None, matvec_lib='scipy'):
         # this factor should make (dt/hbar * H) dimensionless
         exp_fac = -1j * self.dt * self.time_units / constants.value("reduced Planck constant") * self.energy_units
 
@@ -75,28 +75,35 @@ class TDSE():
             return vec_to_array(vec_)
 
         # initialize v (TODO: maybe put more thought into this)
-        if vec is None:
-            vec = np.zeros(
+        if vecs is None:
+            vecs = np.zeros(
                 sum( [ dim2_J_sym for J, dim2_J in H.dim2.items()
                        for sym, dim2_J_sym in dim2_J.items() ] ),
                 dtype=np.complex128
             )
-            vec[0] += 1
-        elif type(vec) is dict:
-            vec = vec_to_array(vec)
+            vecs[0] += 1
+            vecs = [vecs]
+        elif type(vecs) is not list:
+            vecs = [vecs]
+
 
         # propagate
-        m, tol = 12, 1e-15
-        if not H0 is None:
-            if 'expfacH0' not in list(self.__dict__.keys()):
-                self.__dict__['expfacH0'] = np.exp(exp_fac / 2 * H0.tomat(form='full').diagonal()) # maybe this can be solved more elegantly ('H0' kwarg could directly ask for diagonal of full mat)
-            res = self.__dict__['expfacH0'] * vec
-            res = expv_lanczos(res, m, exp_fac, lambda v : cartensvec(v), tol=tol)
-            res = self.__dict__['expfacH0'] * res
+        vecs2 = []
+        tol = 1e-15
+        if H0 is not None:
+            for vec in vecs:
+                if 'expfacH0' not in list(self.__dict__.keys()):
+                    self.__dict__['expfacH0'] = np.exp(
+                        exp_fac / 2 * H0.tomat(form='full').diagonal()
+                    )
+                res = self.__dict__['expfacH0'] * vec
+                res = expv_lanczos(res, exp_fac, lambda v : cartensvec(v), tol=tol)
+                vecs2.append(self.__dict__['expfacH0'] * res)
         else:
-            res = expv_lanczos(vec, m, exp_fac, lambda v : cartensvec(v), tol=tol)
+            for vec in vecs:
+                vecs2.append(expv_lanczos(vec, exp_fac, lambda v : cartensvec(v), tol=tol))
 
-        return res
+        return vecs2
 
 
     def times(self, grid="equidistant", field=None):
