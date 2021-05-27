@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.polynomial.legendre import legval, legder
 from numpy.polynomial.hermite import hermval, hermder
+from orthnet import Legendre_Normalized
 import functools
 import operator
 import itertools
@@ -146,9 +147,21 @@ def legendre(nmax, r, a, b):
     f(r) = Ln(x) * (b-a)/2
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2
     """
-    x = 0.5 * (b - a) * r + 0.5 * (a + b)
+
+    x = 0.5 * (1/(b - a)) * r + 0.5 * (1/(a + b))
+    if len(x.shape) == 1:
+        x = x.reshape(-1,1)
     fac = 0.5 * (b - a)
-    c = np.diag([np.sqrt((2.0 * n + 1) * 0.5) * fac for v in range(nmax+1)])
-    f = legval(x, c)[:,:,0]
-    df = legval(x, legder(c, m=1))[:,:,0] * fac
+    #Andrey multiplies in the original code by fac, but I don't think
+    # this is correct so I won't for now
+    f = Legendre_Normalized(x, nmax).tensor
+    # compute derivative using finite differences
+    dh = 0.001
+    fdh = Legendre_Normalized(x, nmax).tensor
+    df = fac*(fdh-f)/dh
     return f, df
+
+if __name__  == "__main__":
+    f, df = legendre(10, torch.linspace(-1,1,100), 0,10)
+    print(f.shape)
+    print(df.shape)
