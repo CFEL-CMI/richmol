@@ -1,7 +1,8 @@
 import numpy as np
 #import Tasmanian
 from numpy.polynomial.hermite import hermgauss
-from numpy.polynomial.hermite import leggauss
+from numpy.polynomial.legendre import leggauss
+import sys
 
 def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0.001):
     """Sparse grid using Gauss-Hermite rules, as implemented in Tasmanian
