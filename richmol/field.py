@@ -521,7 +521,7 @@ class CarTens():
         """Converts 2D tensor matrix into a block form
 
         Args:
-            mat : array
+            mat : array (numpy.ndarray or scipy.sparse.spmatrix)
                 2D tensor matrix.
 
         Returns:
@@ -544,10 +544,19 @@ class CarTens():
         res = dict()
         for i,(J1,sym1) in enumerate(Jsym1):
             for j,(J2,sym2) in enumerate(Jsym2):
+                m = mat_[i][j]
+                if issparse(mat):
+                    m = getattr(scipy.sparse, mat.getformat()+"_matrix")(m)
+                    m.eliminate_zeros()
+                    nnz = m.nnz
+                else:
+                    nnz = sum(np.abs(m) > 0)
+                if nnz == 0:
+                    continue
                 try:
-                    res[(J1, J2)][(sym1, sym2)] = mat_[i][j]
+                    res[(J1, J2)][(sym1, sym2)] = m
                 except KeyError:
-                    res[(J1, J2)] = {(sym1, sym2) : mat_[i][j]}
+                    res[(J1, J2)] = {(sym1, sym2) : m}
         return res
 
 
