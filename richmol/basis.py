@@ -86,17 +86,17 @@ def prod2(*fn, nmax=None, w=None):
     if nmax is None:
         nmax = torch.max([f.shape[0] for f in fn])
     if w is None:
-        w = [1 for i in range(len(fn))]
+        w = torch.from_numpy(np.array([1 for i in range(len(fn))]))
 
     psi = fn[0]
 
-    n = opt_einsum.contract('i,j->ij', [i for i in range(len(fn[0]))], torch.ones(len(fn[1])))
+    n = opt_einsum.contract('i,j->ij', torch.from_numpy(np.array([i for i in range(len(fn[0]))])), torch.ones(len(fn[1])))
     nsum = n * w[0]
 
     for ifn in range(1, len(fn)):
         psi = opt_einsum.contract('kg,lg->klg', psi, fn[ifn])
 
-        n2 = opt_einsum.contract('i,j->ij', torch.ones(len(psi)), [i for i in range(len(fn[ifn]))])
+        n2 = opt_einsum.contract('i,j->ij', torch.ones(len(psi)), torch.from_numpy(np.array([i for i in range(len(fn[ifn]))])))
         nsum = nsum + n2 * w[ifn]
 
         ind = torch.where(nsum <= nmax)
