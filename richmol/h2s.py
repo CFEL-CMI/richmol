@@ -49,12 +49,13 @@ if __name__ == "__main__":
                  herm1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(ncoo)]
 
         points, weights, scale = prodgrid(quads, ind=[0, 1, 2], ref=ref, poten=h2s_tyuterev)
-        weights = weights[:, icoo]
+        weights = torch.from_numpy(weights[:, icoo])
+
 
         # operators on quadrature grid
-        poten = h2s_tyuterev(*points.T)
-        gmat = np.array([moljax.Gmat(list(q)) for q in points])
-        pseudo = [moljax.pseudo(list(q)) for q in points]
+        poten = torch.from_numpy(h2s_tyuterev(*points.T))
+        gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]))
+        pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]))
 
         # primitive basis functions on quadrature grid
         nmax = 30
@@ -67,7 +68,7 @@ if __name__ == "__main__":
 
         # Hamiltonian eigenvalues and eigenvectors
         h = v + 0.5*g + u
-        e, vec = np.linalg.eigh(h)
+        e, vec = torch.symeig(h, eigenvectors=True)
         vec1D.append(vec.T)
 
         print(f"\n1D solutions for coordinate {icoo}")
@@ -79,13 +80,14 @@ if __name__ == "__main__":
     # quadrature
     quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(len(ref))]
     points, weights, scale = prodgrid(quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev, wthr=1e-30)
-    weights = np.prod(weights[:,0:3], axis=1)
+    weights = torch.from_numpy(np.prod(weights[:,0:3], axis=1))
     print(points.shape)
 
     # operators on quadrature grid
-    poten = h2s_tyuterev(*points.T)
-    gmat = np.array([moljax.Gmat(list(q)) for q in points])
-    pseudo = [moljax.pseudo(list(q)) for q in points]
+    poten = torch.from_numpy(h2s_tyuterev(*points.T))
+    gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]))
+    pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]))
+    print("computed all operators on points")
 
     # basis set
     nmax = 30
@@ -93,19 +95,22 @@ if __name__ == "__main__":
     dpsi = []
     for icoord in [0,1,2]:
         f, df = basis.hermite(nmax, points[:,icoord], ref[icoord], scale[icoord])
-        psi.append(torch.dot(vec1D[icoord], f))
-        dpsi.append(torch.dot(vec1D[icoord], df))
+        psi.append(torch.matmul(vec1D[icoord], f))
+        dpsi.append(torch.matmul(vec1D[icoord], df))
 
     nmax = 10
     # matrix elements of operators
     v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
-    print(v.shape)
+    print("computed v")
     u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
+    print("computed u")
     g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,0:3,0:3], weights, nmax=nmax, w=[2,2,1])
+    print("computed g")
 
     # Hamiltonian eigenvalues and eigenvectors
     h = v + 0.5*g + u
-    e, vec = torch.linalg.eigh(h)
+    print(h.shape)
+    e, vec = torch.symeig(h, eigenvectors=True)
 
     print(f"\n3D solutions")
     print("zero-energy:", e[0])

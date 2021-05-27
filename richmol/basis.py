@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.polynomial.legendre import legval, legder
 from numpy.polynomial.hermite import hermval, hermder
-from orthnet import Legendre_Normalized
+from orthnet import Legendre_Normalized, Hermite2
 import functools
 import operator
 import itertools
@@ -123,7 +123,7 @@ def prod(*funcs, nmax=None, w=None):
     return res
 
 
-def hermite(nmax, r, r0, alpha): #rewrite in torch
+def hermite_numpy(nmax, r, r0, alpha): #deprecated, can be deleted, see hermite (in pytorch) below
     """Normalized Hermite functions and derivatives
 
     f(r) = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) Hn(x)
@@ -139,6 +139,29 @@ def hermite(nmax, r, r0, alpha): #rewrite in torch
     df = (hermval(x, hermder(c, m=1)) - f * x) * alpha
     return f, df
 
+def hermite(nmax, r, r0, alpha):
+    """Normalized Hermite functions and derivatives
+
+    f(r) = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) Hn(x)
+    df(r)/dr = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) (-Hn(x) x + dHn(x)/dx) * alpha
+    where x = (r - r0) alpha
+
+    NOTE: returns f(r) and df(r) without weight factor exp(-1/2 x^2)
+    """
+    x = torch.from_numpy((r - r0) * alpha)
+    if len(x.shape) == 1:
+        x = x.reshape(-1, 1)
+    sqsqpi = torch.sqrt(torch.sqrt(torch.tensor(np.pi)))
+    fac = torch.tensor([1.0 / np.sqrt(2.0**n * math.factorial(n)) / sqsqpi for n in range(nmax+1)])
+    f = Hermite2(x, nmax).tensor
+    f = f * fac[None, :]
+    # numerical derivative, maybe implement analytical derivative
+    dh = 0.001
+    fdh = Hermite2(x+dh, nmax).tensor
+    fdh = fdh * fac[None, :]
+    df = (fdh - f)/dh
+    df = (df - f * x) * alpha
+    return f.transpose(0, 1), df.transpose(0, 1)
 
 def legendre(nmax, r, a, b, r0):
     """Normalized Legendre functions and derivatives
