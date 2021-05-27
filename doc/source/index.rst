@@ -15,6 +15,7 @@ however the computationally critical parts are implemented with Fortran and C ro
 
    notebooks/rotations_quickstart.ipynb
    notebooks/hdf5_files.ipynb
+   tutorial_101.rst
 
 .. toctree::
    :maxdepth: 1
