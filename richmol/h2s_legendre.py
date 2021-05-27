@@ -73,7 +73,7 @@ if __name__ == "__main__":
         print(f"\n1D solutions for coordinate {icoo}")
         print("zero-energy:", e[0])
         print(e-e[0])
-        #sys.exit()
+        sys.exit()
 
     # 3D solutions
 

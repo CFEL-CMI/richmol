@@ -20,7 +20,6 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
-    
     return opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra), fket, poten, weights)
 
 
@@ -159,9 +158,9 @@ def legendre(nmax, r, a, b, r0):
     f = Legendre_Normalized(x, nmax).tensor
     # compute derivative using finite differences
     dh = 0.001
-    fdh = Legendre_Normalized(x, nmax).tensor
+    fdh = Legendre_Normalized(x+dh, nmax).tensor
     df = fac*(fdh-f)/dh
-    return f, df
+    return f.transpose(0,1), df.transpose(0,1)
 
 if __name__  == "__main__":
     f, df = legendre(10, torch.linspace(-1,1,100), 0,10)
