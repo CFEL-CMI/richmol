@@ -8,6 +8,7 @@ import itertools
 import math
 import opt_einsum
 import torch
+import sys
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
     """Matrix elements of potential function in product basis"""
@@ -19,6 +20,7 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
+    
     return opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra), fket, poten, weights)
 
 
@@ -147,8 +149,8 @@ def legendre(nmax, r, a, b, r0):
     f(r) = Ln(x) * (b-a)/2
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2
     """
-
-    x = 0.5 * (1/(b - a)) * r - r0
+    r = torch.from_numpy(r)
+    x = 0.5 * (b - a) * (r - r0)
     if len(x.shape) == 1:
         x = x.reshape(-1,1)
     fac = 0.5 * (b - a)
