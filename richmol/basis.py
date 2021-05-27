@@ -139,7 +139,7 @@ def hermite(nmax, r, r0, alpha): #rewrite in torch
     return f, df
 
 
-def legendre(nmax, r, a, b):
+def legendre(nmax, r, a, b, r0):
     """Normalized Legendre functions and derivatives
 
     NOTE: NEED TO CHECK THE COORDINATE SCALING !!!!!
@@ -148,7 +148,7 @@ def legendre(nmax, r, a, b):
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2
     """
 
-    x = 0.5 * (1/(b - a)) * r + 0.5 * (1/(a + b))
+    x = 0.5 * (1/(b - a)) * r - r0
     if len(x.shape) == 1:
         x = x.reshape(-1,1)
     fac = 0.5 * (b - a)
