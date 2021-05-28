@@ -1,7 +1,7 @@
 import moljax
 import jax.numpy as jnp
 from potentials import h2s_tyuterev
-from quadratures import herm1d, prodgrid
+from quadratures import herm1d, prodgrid, legendre1d
 import numpy as np
 import basis
 import sys
@@ -43,24 +43,22 @@ if __name__ == "__main__":
     vec1D = []
 
     for icoo in range(ncoo):
-
+        a = 0
+        b = 3
         # 1D quadrature
-        quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) if i == icoo else
-                 herm1d(1, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(ncoo)]
-
+        quads = [legendre1d(100, i, a, b, ref) if i == icoo else
+                 legendre1d(1, i, a, b, ref) for i in range(ncoo)]
         points, weights, scale = prodgrid(quads, ind=[0, 1, 2], ref=ref, poten=h2s_tyuterev)
         weights = torch.from_numpy(weights[:, icoo])
 
-
         # operators on quadrature grid
         poten = torch.from_numpy(h2s_tyuterev(*points.T))
-        gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]))
-        pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]))
+        gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]).copy())
+        pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]).copy())
 
         # primitive basis functions on quadrature grid
         nmax = 30
-        psi, dpsi = basis.hermite(nmax, points[:, icoo], ref[icoo], scale[icoo])
-
+        psi, dpsi = basis.legendre(nmax, points[:, icoo], a, b, ref[icoo])
         # matrix elements of operators
         v = basis.potme(psi, psi, poten, weights)
         u = basis.potme(psi, psi, pseudo, weights)
@@ -68,33 +66,33 @@ if __name__ == "__main__":
 
         # Hamiltonian eigenvalues and eigenvectors
         h = v + 0.5*g + u
+        #sys.exit()
         e, vec = torch.symeig(h, eigenvectors=True)
         vec1D.append(vec.T)
-
         print(f"\n1D solutions for coordinate {icoo}")
         print("zero-energy:", e[0])
         print(e-e[0])
 
+
     # 3D solutions
 
     # quadrature
-    quads = [herm1d(100, i, ref, moljax.Gmat, h2s_tyuterev) for i in range(len(ref))]
+    quads = [legendre1d(100, i, a, b, ref) for i in range(len(ref))]
     points, weights, scale = prodgrid(quads, ind=[0,1,2], ref=ref, poten=h2s_tyuterev, wthr=1e-30)
-    weights = torch.from_numpy(np.prod(weights[:,0:3], axis=1))
-    print(points.shape)
-
+    weights = np.prod(weights[:,0:3], axis=1)
+    weights = torch.from_numpy(weights)
     # operators on quadrature grid
     poten = torch.from_numpy(h2s_tyuterev(*points.T))
-    gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]))
-    pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]))
+    gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points]).copy())
+    pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points]).copy())
     print("computed all operators on points")
-
     # basis set
     nmax = 30
     psi = []
     dpsi = []
     for icoord in [0,1,2]:
-        f, df = basis.hermite(nmax, points[:,icoord], ref[icoord], scale[icoord])
+
+        f, df = basis.legendre(nmax, points[:, icoord], a, b, ref[icoord])
         psi.append(torch.matmul(vec1D[icoord], f))
         dpsi.append(torch.matmul(vec1D[icoord], df))
 
@@ -115,4 +113,3 @@ if __name__ == "__main__":
     print(f"\n3D solutions")
     print("zero-energy:", e[0])
     print(e-e[0])
-
