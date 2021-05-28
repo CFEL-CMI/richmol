@@ -1,7 +1,8 @@
 import numpy as np
-import Tasmanian
+#import Tasmanian
 from numpy.polynomial.hermite import hermgauss
-
+from numpy.polynomial.legendre import leggauss
+import sys
 
 def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0.001):
     """Sparse grid using Gauss-Hermite rules, as implemented in Tasmanian
@@ -104,6 +105,35 @@ def herm1d(npt, ind, ref, gmat, poten, h=0.001):
     points = x / scaling + ref[ind]
     return points, weights, scaling
 
+def legendre1d(npt, ind, a, b, ref):
+    """One-dimensional Gauss-Hermite quadrature, shifted and scaled according to:
+    r = 2/(b-a)*x + (b+a)/2
+
+    Args:
+        npt : int
+            Number of quadrature points
+        ind : int
+            Index of internal coordinate for quadrature
+        ref : array (ncoords)
+            Reference (equilibrium) values of all internal coordinates
+        gmat : function(coords)
+            Kinetic energy matrix, function of all internal coordinates `coords`
+        poten : function(*coords)
+            Potential energy, function of all internal coordinates `coords`
+
+    Returns:
+        points : array(npt)
+            Quadrature points, points = x / scaling + ref[ind], where x are quadrature abscissas
+        weights : array(npt)
+            Quadrature weights
+        scaling : float
+            Quadrature scaling factor
+    """
+    x, weights = leggauss(npt)
+    scaling = (b-a)/2
+    points = x / scaling + ref[ind]
+
+    return points, weights, scaling
 
 def prodgrid(quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
     """Direct product grid
@@ -153,4 +183,3 @@ def prodgrid(quads, ind=None, ref=None, poten=None, pthr=None, wthr=None):
         weights = weights[ind]
 
     return points, weights, [quad[2] for quad in quads]
-

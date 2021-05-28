@@ -139,3 +139,6 @@ dmypy.json
 
 #VS code
 .vscode
+
+#Pycharm
+.idea

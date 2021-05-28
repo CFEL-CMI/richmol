@@ -1,12 +1,14 @@
 import numpy as np
 from numpy.polynomial.legendre import legval, legder
 from numpy.polynomial.hermite import hermval, hermder
+from orthnet import Legendre_Normalized, Hermite2
 import functools
 import operator
 import itertools
 import math
 import opt_einsum
-
+import torch
+import sys
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
     """Matrix elements of potential function in product basis"""
@@ -18,7 +20,7 @@ def potme(bra, ket, poten, weights, nmax=None, w=None):
         fket = prod2(*ket, nmax=nmax, w=w)
     else:
         fket = ket
-    return opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra), fket, poten, weights)
+    return opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra), fket, poten, weights)
 
 
 def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
@@ -52,11 +54,11 @@ def vibme(bra, ket, dbra, dket, gmat, weights, nmax=None, w=None):
         for i in range(nq):
             fket.append(dket)
 
-    me = np.zeros((fbra[0].shape[0], fket[0].shape[0]), dtype=np.float64)
+    me = torch.zeros((fbra[0].shape[0], fket[0].shape[0]), dtype=torch.float64)
 
     for i in range(gmat.shape[1]):
         for j in range(gmat.shape[2]):
-            me = me + opt_einsum.contract('kg,lg,g,g->kl', np.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
+            me = me + opt_einsum.contract('kg,lg,g,g->kl', torch.conj(fbra[i]), fket[j], gmat[:,i,j], weights)
     return me
 
 
@@ -82,26 +84,26 @@ def prod2(*fn, nmax=None, w=None):
     npts = fn[0].shape[1]
     assert (all(f.shape[1] == npts for f in fn)), f"input arrays in `*fn` have different second dimensions: {[f.shape for f in fn]}"
     if nmax is None:
-        nmax = max([f.shape[0] for f in fn])
+        nmax = torch.max([f.shape[0] for f in fn])
     if w is None:
-        w = [1 for i in range(len(fn))]
+        w = torch.from_numpy(np.array([1 for i in range(len(fn))]))
 
     psi = fn[0]
 
-    n = opt_einsum.contract('i,j->ij', [i for i in range(len(fn[0]))], np.ones(len(fn[1])))
+    n = opt_einsum.contract('i,j->ij', torch.from_numpy(np.array([i for i in range(len(fn[0]))])), torch.ones(len(fn[1])))
     nsum = n * w[0]
 
     for ifn in range(1, len(fn)):
         psi = opt_einsum.contract('kg,lg->klg', psi, fn[ifn])
 
-        n2 = opt_einsum.contract('i,j->ij', np.ones(len(psi)), [i for i in range(len(fn[ifn]))])
+        n2 = opt_einsum.contract('i,j->ij', torch.ones(len(psi)), torch.from_numpy(np.array([i for i in range(len(fn[ifn]))])))
         nsum = nsum + n2 * w[ifn]
 
-        ind = np.where(nsum <= nmax)
+        ind = torch.where(nsum <= nmax)
         psi = psi[ind]
 
         if ifn <= len(fn)-2:
-            nsum = opt_einsum.contract('i,j->ij', nsum[ind], np.ones(fn[ifn+1].shape[0]))
+            nsum = opt_einsum.contract('i,j->ij', nsum[ind], torch.ones(fn[ifn+1].shape[0]))
     return psi
 
 
@@ -121,7 +123,7 @@ def prod(*funcs, nmax=None, w=None):
     return res
 
 
-def hermite(nmax, r, r0, alpha):
+def hermite_numpy(nmax, r, r0, alpha): #deprecated, can be deleted, see hermite (in pytorch) below
     """Normalized Hermite functions and derivatives
 
     f(r) = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) Hn(x)
@@ -137,8 +139,31 @@ def hermite(nmax, r, r0, alpha):
     df = (hermval(x, hermder(c, m=1)) - f * x) * alpha
     return f, df
 
+def hermite(nmax, r, r0, alpha):
+    """Normalized Hermite functions and derivatives
 
-def legendre(nmax, r, a, b):
+    f(r) = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) Hn(x)
+    df(r)/dr = 1/(pi^(1/4) 2^(n/2) sqrt(n!)) exp(-1/2 x^2) (-Hn(x) x + dHn(x)/dx) * alpha
+    where x = (r - r0) alpha
+
+    NOTE: returns f(r) and df(r) without weight factor exp(-1/2 x^2)
+    """
+    x = torch.from_numpy((r - r0) * alpha)
+    if len(x.shape) == 1:
+        x = x.reshape(-1, 1)
+    sqsqpi = torch.sqrt(torch.sqrt(torch.tensor(np.pi)))
+    fac = torch.tensor([1.0 / np.sqrt(2.0**n * math.factorial(n)) / sqsqpi for n in range(nmax+1)])
+    f = Hermite2(x, nmax).tensor
+    f = f * fac[None, :]
+    # numerical derivative, maybe implement analytical derivative
+    dh = 0.001
+    fdh = Hermite2(x+dh, nmax).tensor
+    fdh = fdh * fac[None, :]
+    df = (fdh - f)/dh
+    df = (df - f * x) * alpha
+    return f.transpose(0, 1), df.transpose(0, 1)
+
+def legendre(nmax, r, a, b, r0):
     """Normalized Legendre functions and derivatives
 
     NOTE: NEED TO CHECK THE COORDINATE SCALING !!!!!
@@ -146,9 +171,21 @@ def legendre(nmax, r, a, b):
     f(r) = Ln(x) * (b-a)/2
     df(r)/dr = dLn(x)/dx * ((b-a)/2)^2
     """
-    x = 0.5 * (b - a) * r + 0.5 * (a + b)
+    r = torch.from_numpy(r)
+    x = 0.5 * (b - a) * (r - r0)
+    if len(x.shape) == 1:
+        x = x.reshape(-1,1)
     fac = 0.5 * (b - a)
-    c = np.diag([np.sqrt((2.0 * n + 1) * 0.5) * fac for v in range(nmax+1)])
-    f = legval(x, c)[:,:,0]
-    df = legval(x, legder(c, m=1))[:,:,0] * fac
-    return f, df
+    #Andrey multiplies in the original code by fac, but I don't think
+    # this is correct so I won't for now
+    f = Legendre_Normalized(x, nmax).tensor
+    # compute derivative using finite differences
+    dh = 0.001
+    fdh = Legendre_Normalized(x+dh, nmax).tensor
+    df = fac*(fdh-f)/dh
+    return f.transpose(0,1), df.transpose(0,1)
+
+if __name__  == "__main__":
+    f, df = legendre(10, torch.linspace(-1,1,100), 0,10)
+    print(f.shape)
+    print(df.shape)
