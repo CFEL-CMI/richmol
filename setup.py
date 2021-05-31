@@ -50,7 +50,7 @@ if __name__ == "__main__":
                                "of internal (hyperfine) and external (laser) electromagnetic fields"),
         license             = "GPL",
         packages            = ["richmol"],
-        package_data        = {"richmol":["rot/*"]},
+        package_data        = {"richmol":["rot/*", "utils/*"]},
         scripts             = [],
         ext_modules         = [expokit, potentials],
         long_description    = read("README.md"),
