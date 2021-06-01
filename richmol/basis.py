@@ -8,6 +8,7 @@ import itertools
 import math
 import opt_einsum
 import torch
+from torch import nn
 import sys
 
 def potme(bra, ket, poten, weights, nmax=None, w=None):
@@ -185,7 +186,61 @@ def legendre(nmax, r, a, b, r0):
     df = fac*(fdh-f)/dh
     return f.transpose(0,1), df.transpose(0,1)
 
-if __name__  == "__main__":
-    f, df = legendre(10, torch.linspace(-1,1,100), 0,10)
-    print(f.shape)
-    print(df.shape)
+
+class InvResnet(nn.Module):
+    """an Invertible Resnet: current implementation is to be used to augment
+    Legendre 3D basis
+    """
+    def __init__(self, n_input=3, n_hidden_units=10):
+        """
+        Args:
+            n_input: number of inputs to the NN
+            n_hidden_units: number of hidden units in each layer
+        """
+        super().__init__()
+        self.n_input = n_input
+        self.n_hidden_units = n_hidden_units
+        self.InvBlock = nn.Sequential(nn.Linear(n_input, n_hidden_units), LipSwish(),
+                                      nn.Linear(n_hidden_units, n_hidden_units), LipSwish(),
+                                      nn.Linear(n_hidden_units, n_input), LipSwish(),
+                                      )
+    def forward(self, x):
+        y = InvTanh()(x)
+        y = y + self.InvBlock(y)
+        return nn.Tanh()(y)
+
+    def Inverse(self, y):
+        """Computes the inverse of the NN model
+        """
+        x1 = InvTanh()(y)
+        x2 = x1
+        for i in range(20):
+            x2 = x1 - self.InvBlock(x2)
+        return nn.Tanh()(x2)
+
+class InvTanh(nn.Module):
+    """Implements the inverse of Tanh(x)
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return 0.5*torch.log((1+x)/(1-x))
+
+class LipSwish(nn.Module):
+    """Implements Lipswish activation function: Lipswish(x) = (x/1.1) sigmoid(x)
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return (x/1.1)*nn.Sigmoid()(x)
+
+if __name__ == "__main__":
+    #Make sure Inverse is computed correctly
+    x = torch.Tensor([0.3,0.2,0.9])
+    print(x)
+    NF = InvResnet()
+    y = NF(x)
+    print(NF.Inverse(y))
