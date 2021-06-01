@@ -218,6 +218,16 @@ class InvResnet(nn.Module):
             x2 = x1 - self.InvBlock(x2)
         return nn.Tanh()(x2)
 
+    def Inv_Jacobian(self, y):
+        """computes the Jacobian of the inverse
+        """
+        detjac = torch.zeros((y.shape[0],)) # of shape (#nquadratures, n_input)
+        for i in range(y.shape[0]):
+            jac = torch.autograd.functional.jacobian(self.Inverse, y[i, :], create_graph=True)
+            detjac[i] = torch.det(jac)
+
+        return detjac
+
 class InvTanh(nn.Module):
     """Implements the inverse of Tanh(x)
     """
@@ -239,8 +249,12 @@ class LipSwish(nn.Module):
 
 if __name__ == "__main__":
     #Make sure Inverse is computed correctly
-    x = torch.Tensor([0.3,0.2,0.9])
-    print(x)
+    x = torch.Tensor([[0.3,0.2,0.9],[0.6,0.7,0.1]])
+    print(x.shape)
+
     NF = InvResnet()
     y = NF(x)
     print(NF.Inverse(y))
+
+    # test the Jacobian of the inverse
+    print(NF.Inv_Jacobian(y).shape)
