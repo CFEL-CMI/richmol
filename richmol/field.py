@@ -831,6 +831,7 @@ class CarTens():
             for (sym1, sym2), mmat_sym in mmat_J.items():
                 res = { irrep : sum([ field_prod[cart] * mmat[cart]
                                       for cart in list(set(mmat.keys()) & set(field_prod.keys()))
+                                      if not field_prod[cart] == 0
                                     ]) for irrep, mmat in mmat_sym.items() }
 
                 # neglect zero elements
