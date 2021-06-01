@@ -221,11 +221,20 @@ class InvResnet(nn.Module):
     def Inv_Jacobian(self, y):
         """computes the Jacobian of the inverse
         """
+        print("we are here")
         detjac = torch.zeros((y.shape[0],)) # of shape (#nquadratures, n_input)
+        # Autograd
+        
         for i in range(y.shape[0]):
-            jac = torch.autograd.functional.jacobian(self.Inverse, y[i, :], create_graph=True)
+            jac = torch.autograd.functional.jacobian(self.Inverse, y[i, :], create_graph=True, vectorize=True)
             detjac[i] = torch.det(jac)
-
+        """
+        # Numerically
+        dh = 0.0001
+        Jac = torch.zeros((y.shape[0], y.shape[1], y.shape[1]))
+        for i in range(y.shape[1]):
+            r_dh = y[:, i] + dh
+        """
         return detjac
 
 class InvTanh(nn.Module):
