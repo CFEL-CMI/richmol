@@ -3,6 +3,7 @@ import numpy as np
 from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
 import sys
+import torch
 
 def gausshermite(lev, qind, qref, gmat, poten, sparse_type="qptotal", fdn_step=0.001):
     """Sparse grid using Gauss-Hermite rules, as implemented in Tasmanian
@@ -105,7 +106,7 @@ def herm1d(npt, ind, ref, gmat, poten, h=0.001):
     points = x / scaling + ref[ind]
     return points, weights, scaling
 
-def legendre1d(npt, ind, a, b, ref):
+def legendre1d(npt, ind, a, b, ref, NF=None):
     """One-dimensional Gauss-Hermite quadrature, shifted and scaled according to:
     r = 2/(b-a)*x + (b+a)/2
 
@@ -118,8 +119,7 @@ def legendre1d(npt, ind, a, b, ref):
             Reference (equilibrium) values of all internal coordinates
         gmat : function(coords)
             Kinetic energy matrix, function of all internal coordinates `coords`
-        poten : function(*coords)
-            Potential energy, function of all internal coordinates `coords`
+        NF: Normalising flow, an invertible NN used to produce another grid of points
 
     Returns:
         points : array(npt)
@@ -129,9 +129,12 @@ def legendre1d(npt, ind, a, b, ref):
         scaling : float
             Quadrature scaling factor
     """
-    x, weights = leggauss(npt)
-    scaling = (b-a)/2
-    points = x / scaling + ref[ind]
+    points, weights = leggauss(npt)
+
+    scaling = 1
+    if a != None:
+        scaling = (b-a)/2
+        points = points / scaling + ref[ind]
 
     return points, weights, scaling
 
