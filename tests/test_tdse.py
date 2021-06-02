@@ -1,18 +1,9 @@
-""" Read time-evolution of state coefficients for OCS alignment, calculated
-      using older version of the program (cmirichmol), and compare them with
-      the results of the same calculation done in Richmol
-"""
-
-
-
-
 import unittest
 from richmol.field import CarTens
 from richmol.convert_units import AUpol_x_Vm_to_invcm
 from richmol.tdse import TDSE
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 
 
@@ -53,7 +44,8 @@ class testTDSE(unittest.TestCase):
         filename = path + 'matelem/ocs_energies_j0_j30.rchm'
         matelem = path + 'matelem/ocs_matelem_alpha_j<j1>_j<j2>.rchm'
         H0 = CarTens(filename, bra=filt, ket=filt) * [0, 0, 1]
-        alpha = CarTens(filename, matelem, bra=filt, ket=filt)
+        Hbar = CarTens(filename, matelem, bra=filt, ket=filt) \
+            * (-0.5) * AUpol_x_Vm_to_invcm()
 
         # field (V/m)
         fname_field = path + 'field.txt'
@@ -69,15 +61,15 @@ class testTDSE(unittest.TestCase):
         tdse.energy_units = 'invcm'
         occu_probs, vecs = [], None
         for ind, t in enumerate(tdse.times()):
-            H = -0.5 * AUpol_x_Vm_to_invcm() * alpha * field[ind]
-            vecs, _= tdse.update(H, H0=H0, vecs=vecs, matvec_lib='scipy')
+            Hbar.field(field[ind])
+            vecs, _= tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
             if ind % 10 == 0:
                 occu_probs.append(
                    [ round(t, 3), 
                      *[ round(abs(vecs[0][int(J / 2)])**2, 4)for J in J_list ] ]
                 )
-                print('    result: ', occu_probs[-1],
-                      '    reference: ', ref_occu_probs[int(t / 0.1)])
+                #print('    result: ', occu_probs[-1],
+                #      '    reference: ', ref_occu_probs[int(t / 0.1)])
         occu_probs = np.array(occu_probs)
 
         # write chronological sequence of occupation probabilities
