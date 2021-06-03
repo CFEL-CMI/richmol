@@ -3,15 +3,16 @@ from scipy import constants
 import functools
 from scipy.sparse.linalg import expm
 from richmol import convert_units
+from mpi4py import MPI
 
 
 def update_counter(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        vec = func(self, *args, **kwargs)
-        time = self._time_grid[wrapper.count]
+        vecs = func(self, *args, **kwargs)
+        time = self._time_grid[1][wrapper.count]
         wrapper.count += 1
-        return vec, time # returns time corresponding to updated vector
+        return vecs, time # time corresponding to updated vectors
     wrapper.count = 0
     return wrapper
 
@@ -83,12 +84,15 @@ class TDSE():
     def time_grid(self, grid='equidistant', field=None):
         if grid.lower() == 'equidistant':
             grid_size = int((self.tend - self.tstart) / self.dt)
-            self._time_grid = np.linspace(
+            t1 = np.linspace(
                 self.tstart, self.tend, num=grid_size, endpoint=False
-            ) + self.dt / 2
+            )
+            t2 = t1 + self.dt
+            tc = t1 + self.dt / 2
         else:
             raise ValueError(f"unknown time grid type: '{grid}'") from None
-        return self._time_grid
+        self._time_grid = (t1, t2, tc)
+        return self._time_grid[2] # times at which to evaluate Hamiltonian
 
 
     @property
