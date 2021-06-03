@@ -2,37 +2,7 @@ import numpy as np
 from scipy import constants
 import functools
 from richmol.pyexpokit import expv_lanczos
-import time
 
-"""
-# very rough idea
-
-from tdse import tdse
-
-tdse.tstart = 0
-tdse.tend = 100
-tdse.dt = 0.01
-tdse.time_units = "ps"
-tdse.energy_units = "1/cm"
-
-# external fields
-dc = lambda time: [0, 0, 1000 * time]
-ac = lambda time: [0, 0, 1e+12 * np.cos(10000 * time)]
-
-vec = ... # initial vector
-
-for t in tdse.times():
-
-    mu.fied(-dc(t))
-    alpha.field(-1/2 * ac(t))
-
-    H = mu + alpha
-
-    vec, t2 = tdse.update(H+H0, vec=vec)
-    vec, t2 = tdse.update(H, H0=H0, vec=vec) # use split operator
-
-    print(f"vec at time {t2} is: {vec}")
-"""
 
 def update_counter(func):
     @functools.wraps(func)
@@ -48,9 +18,10 @@ def update_counter(func):
 class TDSE():
 
     @update_counter
-    def update(self, H, H0=None, vecs=None, matvec_lib='scipy'):
+    def update(self, H, H0=None, vecs=None, matvec_lib='scipy', tol=1e-15):
         # this factor should make (dt/hbar * H) dimensionless
-        exp_fac = -1j * self.dt * self.time_units / constants.value("reduced Planck constant") * self.energy_units
+        exp_fac = -1j * self.dt * self.time_units * self.energy_units \
+            / constants.value("reduced Planck constant")
 
         # numpy array to CarTens compatible vec
         def array_to_vec(array):
@@ -86,10 +57,8 @@ class TDSE():
         elif type(vecs) is not list:
             vecs = [vecs]
 
-
         # propagate
         vecs2 = []
-        tol = 1e-15
         if H0 is not None:
             for vec in vecs:
                 if 'expfacH0' not in list(self.__dict__.keys()):
@@ -97,11 +66,15 @@ class TDSE():
                         exp_fac / 2 * H0.tomat(form='full').diagonal()
                     )
                 res = self.__dict__['expfacH0'] * vec
-                res = expv_lanczos(res, exp_fac, lambda v : cartensvec(v), tol=tol)
+                res = expv_lanczos(
+                    res, exp_fac, lambda v : cartensvec(v), tol=tol
+                )
                 vecs2.append(self.__dict__['expfacH0'] * res)
         else:
             for vec in vecs:
-                vecs2.append(expv_lanczos(vec, exp_fac, lambda v : cartensvec(v), tol=tol))
+                vecs2.append(expv_lanczos(
+                    vec, exp_fac, lambda v : cartensvec(v), tol=tol)
+                )
 
         return vecs2
 
@@ -123,12 +96,16 @@ class TDSE():
         try:
             return self.enr_joule
         except AttributeError:
-            raise AttributeError(f"energy units were not set, use 'energy_units = <units>' with <units> one of ('cm-1')") from None
+            raise AttributeError(
+                f"energy units not set, use 'energy_units = <units>' " \
+                    + f"with <units> one of ('cm-1')"
+            ) from None
 
     @energy_units.setter
     def energy_units(self, units):
         if units.lower() in ("cm-1", "cm^-1", "1/cm", "invcm"):
-            self.enr_joule = constants.value('Planck constant') * constants.value('speed of light in vacuum') * 1e2
+            self.enr_joule = constants.value('Planck constant') \
+                * 1e2 * constants.value('speed of light in vacuum')
         else:
             raise ValueError(f"unknown energy units: '{units}'") from None
 
@@ -137,7 +114,10 @@ class TDSE():
         try:
             return self.time_sec
         except AttributeError:
-            raise AttributeError(f"time units were not set, use 'time_units = <units>' with <units> one of ('ps', 'fs', ns', 'aut')") from None
+            raise AttributeError(
+                f"time units not set, use 'time_units = <units>' "
+                    + f"with <units> one of ('ps', 'fs', ns', 'aut')"
+            ) from None
 
     @time_units.setter
     def time_units(self, units):
@@ -157,12 +137,15 @@ class TDSE():
         try:
             return self.t1
         except AttributeError:
-            raise AttributeError(f"initial time was not set, use 'tstart = value' to set it") from None
+            raise AttributeError(
+                f"initial time not set, use 'tstart = value'"
+            ) from None
 
     @tstart.setter
     def tstart(self, val):
         try:
-            assert (val < self.t2), f"initial time '{val}' is greater than terminal time '{self.t2}'"
+            assert (val < self.t2), \
+                f"initial time '{val}' greater than terminal time '{self.t2}'"
         except AttributeError:
             pass
         self.t1 = val
@@ -172,12 +155,15 @@ class TDSE():
         try:
             return self.t2
         except AttributeError:
-            raise AttributeError(f"terminal time was not set, use 'tend = value' to set it") from None
+            raise AttributeError(
+                f"terminal time not set, use 'tend = value'"
+            ) from None
 
     @tend.setter
     def tend(self, val):
         try:
-            assert (val > self.t1), f"terminal time '{val}' is smaller than initial time '{self.t1}'"
+            assert (val > self.t1), \
+                f"terminal time '{val}' smaller than initial time '{self.t1}'"
         except AttributeError:
             pass
         self.t2 = val
@@ -187,13 +173,17 @@ class TDSE():
         try:
             return self.tstep
         except AttributeError:
-            raise AttributeError(f"time step was not set, use 'dt = value' to set it") from None
+            raise AttributeError(
+                f"time step not set, use 'dt = value'"
+            ) from None
 
     @dt.setter
     def dt(self, val):
+        try:
+            assert (int((self.t2 - self.t1) / val) > 0), \
+                f"time step '{val}' greater than time interval width " \
+                    + f"'{self.t2 - self.t1}'"
+        except AttributeError:
+            pass
         self.tstep = val
-
-
-
-
 
