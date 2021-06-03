@@ -60,7 +60,7 @@ class testTDSE(unittest.TestCase):
         tdse.time_units = 'ps'
         tdse.energy_units = 'invcm'
         occu_probs, vecs = [], None
-        for ind, t in enumerate(tdse.times()):
+        for ind, t in enumerate(tdse.time_grid()):
             Hbar.field(field[ind])
             vecs, _= tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
             if ind % 10 == 0:
