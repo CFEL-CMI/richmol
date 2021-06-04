@@ -84,24 +84,6 @@ if __name__ == "__main__":
     print(points.shape)
     weights = np.prod(weights[:,0:3], axis=1)
     weights = torch.from_numpy(weights)
-    # Apply transformation on the points
-    y = NF(torch.from_numpy(points).float())
-    scale = (b-a)/2
-    points_t = y/scale + torch.Tensor(ref) # points transformed
-    # operators on quadrature grid
-    poten = torch.from_numpy(h2s_tyuterev(*(points_t.detach().numpy()).T))
-    gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points_t.detach().numpy()]).copy())
-    pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points_t.detach().numpy()]).copy())
-    print("computed all operators on points")
-    # Compute the Jacobian of the Inverse
-    start = time.time()
-    Jac = NF.Inv_Jacobian(points_t)
-    end = time.time()
-    print(Jac)
-    print(Jac.shape)
-    print(f"time needed to compute the Jacobian: {end-start}")
-    sys.exit()
-    # basis set
     nmax = 30
     psi = []
     dpsi = []
@@ -111,20 +93,43 @@ if __name__ == "__main__":
         psi.append(torch.matmul(vec1D[icoord], f))
         dpsi.append(torch.matmul(vec1D[icoord], df))
 
-    nmax = 10
-    # matrix elements of operators
-    v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
-    print("computed v")
-    u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
-    print("computed u")
-    g = basis.vibme(psi, psi, dpsi, dpsi, gmat[:,0:3,0:3], weights, nmax=nmax, w=[2,2,1])
-    print("computed g")
+    # Apply transformation on the points
+
+    lr = 0.001
+    optim = torch.optim.Adam(NF.parameters(), lr=lr)
+    epochs = 1000
+    for i in range(epochs):
+        optim.zero_grad()
+        y = NF(torch.from_numpy(points).float())
+        scale = (b-a)/2
+        points_t = y/scale + torch.Tensor(ref) # points transformed
+    # operators on quadrature grid
+        poten = torch.from_numpy(h2s_tyuterev(*(points_t.detach().numpy()).T))
+        gmat = torch.from_numpy(np.array([moljax.Gmat(list(q)) for q in points_t.detach().numpy()]).copy())
+        pseudo = torch.from_numpy(np.array([moljax.pseudo(list(q)) for q in points_t.detach().numpy()]).copy())
+        print("computed all operators on points")
+    # Compute the Jacobian of the Inverse
+        Jac = NF.Inv_Jacobian(torch.from_numpy(points).float())
+        print("computed Jac")
+
+        # basis set
+        dpsi_c = [i*Jac for i in dpsi]
+        #   matrix elements of operators
+        v = basis.potme(psi, psi, poten, weights, nmax=nmax, w=[2,2,1])
+        print("computed v")
+        u = basis.potme(psi, psi, pseudo, weights, nmax=nmax, w=[2,2,1])
+        print("computed u")
+        g = basis.vibme(psi, psi, dpsi_c, dpsi_c, gmat[:,0:3,0:3], weights, nmax=nmax, w=[2,2,1])
+        print("computed g")
 
     # Hamiltonian eigenvalues and eigenvectors
-    h = v + 0.5*g + u
-    print(h.shape)
-    e, vec = torch.symeig(h, eigenvectors=True)
-
+        h = v + 0.5*g + u
+        print(h.shape)
+        e, vec = torch.symeig(h, eigenvectors=True)
+        loss = e.sum()
+        loss.backward()
+        optim.step()
+        print(f"epoch: {i}, loss function:{loss.detach().numpy()}")
     print(f"\n3D solutions")
     print("zero-energy:", e[0])
     print(e-e[0])

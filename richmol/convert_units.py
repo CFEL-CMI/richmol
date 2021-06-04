@@ -8,6 +8,13 @@ def MHz_to_invcm(*args):
     return convert(fac, *args)
 
 
+def J_to_invcm(*args):
+    """Converts `J` to :math:`cm^{-1}`"""
+    fac = 1 / (constants.value('Planck constant') \
+        * 1e2 * constants.value('speed of light in vacuum'))
+    return convert(fac, *args)
+
+
 def Debye_to_si(*args):
     """Converts dipole moment form `Debye` to international system of units"""
     fac = 1e-21 / constants.value('speed of light in vacuum')
