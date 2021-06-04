@@ -822,30 +822,37 @@ class CarTens():
         if thresh is not None:
             field_prod = {key : val for key, val in field_prod.items() if abs(val) >= thresh}
 
-        # contract M-tensor with field
-
+        # compute MF-tensor
         mydict = lambda: defaultdict(mydict)
         self.mfmat = mydict()
-
         for (J1, J2), mmat_J in self.mmat.items():
             for (sym1, sym2), mmat_sym in mmat_J.items():
-                res = { irrep : sum([ field_prod[cart] * mmat[cart]
-                                      for cart in list(set(mmat.keys()) & set(field_prod.keys()))
-                                      if not field_prod[cart] == 0
-                                    ]) for irrep, mmat in mmat_sym.items() }
 
-                # neglect zero elements
-                res_ = dict()
-                for irrep, mat in res.items():
-                    if thresh is not None:
+                res = dict()
+                for irrep, mmat in mmat_sym.items():
+
+                    # contract M-tensor with field
+                    mat = []
+                    for cart in list(set(mmat.keys()) & set(field_prod.keys())):
+                        if not field_prod[cart] == 0:
+                            mat.append(
+                                field_prod[cart] * mmat[cart].toarray()
+                            )
+                    if len(mat) == 1:
+                        mat = csr_matrix(mat[0])
+                    else:
+                        mat = csr_matrix(sum(mat))
+
+                    # threshold
+                    if thresh is not None and thresh > 0:
                         mask = abs(mat.data) < thresh
                         mat.data[mask] = 0
                         mat.eliminate_zeros()
                     if mat.nnz > 0:
-                        res_[irrep] = mat
+                        res[irrep] = mat
 
-                if len(res_) > 0:
-                    self.mfmat[(J1, J2)][(sym1, sym2)] = res_
+                if len(res) > 0:
+                    self.mfmat[(J1, J2)][(sym1, sym2)] = res
 
 
     def vec(self, vec, matvec_lib='scipy'):
