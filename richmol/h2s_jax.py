@@ -11,7 +11,12 @@ from jax import jacfwd, jacrev, random, grad
 from jax.config import config
 import math
 import sys
+import flax
+from flax import linen as nn
+from flax import optim
+from typing import Sequence
 config.update("jax_enable_x64", True)
+import scipy
 
 
 ############################ KEO and potential ############################ 
@@ -115,7 +120,7 @@ batch_pseudo = jax.jit(jax.vmap(pseudo, in_axes=0))
 
 
 def quad_her1d(npt, ind, ref, h=0.001):
-    """One-dimensional Gauss-Hermite quadrature"""
+    """1D Gauss-Hermite quadrature"""
     x, weights = hermgauss(npt)
 
     G = Gmat(ref)
@@ -136,7 +141,7 @@ def quad_her1d(npt, ind, ref, h=0.001):
 
 
 def quad_prod(quads, pthr=None, wthr=None):
-    """Direct product of quadratures"""
+    """Direct product of 1D quadratures"""
     points = (elem[0] for elem in quads)
     weights = (elem[1] for elem in quads)
     scaling = [elem[2] for elem in quads]
@@ -213,70 +218,202 @@ def sol1d(icoo, npt, quad, vmax, bas, ref):
     print("zero-energy:", e[0])
     print(e-e[0])
 
-    psi = np.dot(vec.T, psi) * np.sqrt(weights)
-    dpsi = np.dot(vec.T, dpsi) * np.sqrt(weights)
+    psi *= np.sqrt(weights)
+    dpsi *= np.sqrt(weights)
+    psi = np.dot(psi.T, vec)
+    dpsi = np.dot(dpsi.T, vec)
 
-    return psi.T, dpsi.T, points
+    return e, psi, dpsi, points, weights, scale[icoo]
 
 
 ############################ NN shit ############################ 
 
 
-def init_params(layer_sizes):
-    no_layers = len(layer_sizes)
-    rand_keys = random.split(random.PRNGKey(0), no_layers)
-    params = []
-    for nin, nout, key in zip(layer_sizes[:-1], layer_sizes[1:], rand_keys):
-        weight_key, bias_key = random.split(key)
-        weights = random.normal(weight_key, (nout, nin))
-        biases = random.normal(bias_key, (nout,))
-        params.append([weights, biases])
-    return params
+def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
+
+    # Obtain reference solutions
+
+    # 1d quadrature
+    n = [npt if i == icoo else 1 for i in range(len(ref))]
+    quads = [quad(n[i], i, ref) for i in range(len(ref))]
+    points, weights, scale = quad_prod(quads)
+    weights = weights[:, icoo]
+
+    # operators on quadrature grid
+    v_grid = poten(points)
+    g_grid = jnp.array([Gmat(p) for p in points])
+    u_grid = jnp.array([pseudo(p) for p in points])
+
+    # primitive basis functions
+    psi, dpsi = bas(vmax, points[:, icoo], np.array(ref[icoo]), scale[icoo])
+
+    # matrix elements of operators
+    # v = opt_einsum.contract("kg,lg,g,g->kl", np.conj(psi), psi, v_grid, weights)
+    # u = opt_einsum.contract("kg,lg,g,g->kl", np.conj(psi), psi, u_grid, weights)
+    # g = opt_einsum.contract("kg,lg,g,g->kl", np.conj(dpsi), dpsi, g_grid[:, icoo, icoo], weights)
+
+    # # Hamiltonian eigenvalues and eigenvectors
+    # h = v + 0.5*g + u
+    # e, vec = np.linalg.eigh(h)
+
+    # print(f"\n1D solutions for coordinate {icoo}")
+    # print("zero-energy:", e[0])
+    # print(e-e[0])
+
+    # psi = np.dot(vec.T, psi) * np.sqrt(weights)
+    # dpsi = np.dot(vec.T, dpsi) * np.sqrt(weights)
+
+    psi *= np.sqrt(weights)
+    dpsi *= np.sqrt(weights)
+    psi = psi.T
+    dpsi = dpsi.T
+
+    peaks = []
+    for i in range(vmax):
+        peaks_, _ = scipy.signal.find_peaks(abs(psi[:,i]))
+        peaks += [p for p in peaks_]
+        # plt.plot(points[:,icoo], psi[:,i])
+        for peak in peaks:
+            x0 = points[peak,icoo]
+            amp = psi[peak,i]
+            plt.plot(points[:,icoo], [amp*np.exp(-(r-x0)**2*scale[icoo]**2) for r in points[:,icoo]])
+    plt.show()
+    # sys.exit()
+    print(points[peaks,icoo])
+    # print(psi[peaks, i])
+    # sys.exit()
+
+    # Train NN
+
+    class ManzhosSingleLayer(nn.Module):
+        nhid: int
+        nout : int
+        @nn.compact
+        def __call__(self, inp):
+            x = inp
+            w = self.param("w", lambda key, shape: jnp.array([points[peaks, icoo]]), (x.shape[-1], self.nhid))
+            b = self.param("b", lambda key, shape: jnp.array([scale[icoo] for i in range(self.nhid)]), (self.nhid,))
+            y = jnp.exp(-b**2 * (x - w)**2)
+            y = nn.Dense(self.nout, name="c", use_bias=False)(y)
+            if inp.ndim == 1:
+                return y[0, :]
+            else:
+                return y
+
+    vmax_train = vmax
+    model = ManzhosSingleLayer(nhid=len(peaks), nout=vmax_train)
+    x = points[:, icoo : icoo + 1]# - ref[icoo]
+    y = psi[:, :vmax_train]
+    params = model.init(jax.random.PRNGKey(0), x)
+
+    def batch_loss(params, x_batch, y_batch):
+        def mean(params):
+            def sqerr(x, y):
+                pred = model.apply(params, x)
+                return jnp.inner(y - pred, y - pred) / 2.0
+            return jnp.mean(jax.vmap(sqerr, in_axes=(0, 0))(x_batch, y_batch), axis=0)
+        return jax.jit(mean)
+
+    loss = batch_loss(params, x, y)
+
+    optimizer_def = optim.Adam(learning_rate=0.01)
+    optimizer = optimizer_def.create(params)
+    loss_grad_fn = jax.value_and_grad(loss)
+    for i in range(0):
+        loss_val, grad = loss_grad_fn(optimizer.target)
+        optimizer = optimizer.apply_gradient(grad)
+        print('Loss step {}: '.format(i), loss_val)
+
+    params = optimizer.target
+    model_psi = model.apply(params, x)
+
+    # # plotting
+    # for i in range(vmax_train):
+    #     plt.scatter(x, y[:,i])
+    #     plt.plot(x, model_psi[:,i])
+    # plt.show()
+
+    def jac_model(params, x_batch):
+        def jac_(params):
+            def jac(x):
+                return jax.jacrev(model.apply, 1)(params, x)
+            return jax.vmap(jac, in_axes=0)(x_batch)
+        return jax.jit(jac_)(params)
+
+    def vme(params, x):
+        res = model.apply(params, x)
+        return opt_einsum.contract("gk,gl,g->kl", jnp.conj(res), res, v_grid)
+
+    def ume(params, x):
+        res = model.apply(params, x)
+        return opt_einsum.contract("gk,gl,g->kl", jnp.conj(res), res, u_grid)
+
+    def gme(params, x):
+        res = jac_model(params, x)
+        return opt_einsum.contract("gki,gli,g->kl", jnp.conj(res), res, g_grid[:, icoo, icoo])
+
+    def sme(params, x):
+        res = model.apply(params, x)
+        return opt_einsum.contract("gk,gl->kl", jnp.conj(res), res)
+
+    def hme(params, x):
+        return vme(params, x) + 0.5*gme(params, x) + ume(params, x)
 
 
-def model(params, inp, activfunc = lambda x: jax.nn.sigmoid(x)):
-    weights, _ = params[0]
-    assert (len(inp) == weights.shape[1]), f"number of input activations '{len(inp)}' " + \
-        f"is not equal to the number of input layers '{weights.shape[1]}'"
-    activations = inp
-    for (weights, biases) in params[:-1]:
-        out = jnp.dot(weights, activations) + biases
-        activations = activfunc(out)
-    weights, biases = params[-1]
-    out = jnp.dot(weights, activations) + biases
-    return out
-
-batch_model = jax.vmap(model, in_axes=(None, 0))
+    def enr(params, x):
+        def enr_(params):
+            h = hme(params, x)
+            s = sme(params, x)
+            return jnp.sum(jnp.diag(jnp.dot(np.conj(v.T), jnp.dot(sinv, jnp.dot((h - jnp.dot(s, jnp.diag(e))), v)))))
+        return jax.jit(enr_)(params)
 
 
-def loss(params, x, y):
-    out = batch_model(params, x)
-    ndata = out.shape[0]
-    return jnp.sum( jnp.sqrt(jnp.sum((y - out)**2, axis=0)) / ndata )
+    def enr2(params, x):
+        def enr_(params):
+            s = sme(params, x)
 
-mom_vec = None
+            d, v = jnp.linalg.eigh(s)
+            d = jnp.diag(1.0 / jnp.sqrt(d))
+            sqrt_inv = jnp.dot(v, jnp.dot(d, v.T))
 
-@jax.jit
-def update(par, x, y, eta=0.01, gamma=0.0):
-    grads = grad(loss)(par, x, y)
-    # mom_vec = [(gamma * vw + eta * dw, gamma * vb + eta * db) for (vw, vb), (dw, db) in zip(mom_vec, grads)]
-    return [(w - eta * dw, b - eta * db)
-          for (w, b), (dw, db) in zip(par, grads)]
-    # return [(w - vw, b - vb) for (w, b), (vw, vb) in zip(par, mom_vec)], mom_vec
+            h = hme(params, x)
+            h = jnp.dot(sqrt_inv, jnp.dot(h, sqrt_inv.T))
+            e, v = jnp.linalg.eigh(h)
+            return jnp.sum(e)
+        return jax.jit(enr_)
 
-@jax.jit
-def update_adam(par, x, y, mt, vt, nit, beta1=0.9, beta2=0.999, epsilon=1e-8, eta=0.001):
-    grads = grad(loss)(par, x, y)
-    mt = [(beta1*w + (1-beta1)*dw, beta1*b + (1-beta1)*db) for (w, b), (dw, db) in zip(mt, grads)]
-    vt = [(beta2*w + (1-beta2)*dw**2, beta2*b + (1-beta2)*db**2) for (w, b), (dw, db) in zip(vt, grads)]
-    m = [(w/(1-beta1**nit), b/(1-beta1**nit)) for (w, b) in mt]
-    v = [(w/(1-beta2**nit), b/(1-beta2**nit)) for (w, b) in vt]
-    return [(w - eta*mw/(jnp.sqrt(vw)+epsilon), b - eta*mb/(jnp.sqrt(vb)+epsilon)) for (w, b), (mw, mb), (vw, vb) in zip(par, m, v)], mt, vt, nit+1
+    conv = []
 
+    optimizer_def = optim.Adam(learning_rate=0.1)
+    optimizer = optimizer_def.create(params)
+    loss = enr2(params, x)
+    loss_grad_fn = jax.value_and_grad(loss)
+    for i in range(1000):
+        h = hme(params, x)
+        s = sme(params, x)
+        e, v = scipy.linalg.eigh(h, s)
+        # sinv = np.linalg.inv(s)
+
+        loss_val, grad = loss_grad_fn(optimizer.target)
+        optimizer = optimizer.apply_gradient(grad)
+        print(e[0], e-eref[:vmax_train], np.sum(e))
+        params = optimizer.target
+        conv.append(e-eref[:vmax_train])
+
+    conv = np.array(conv)
+    plt.yscale("log")
+    plt.grid(axis='x', color='0.95')
+    plt.grid(axis='y', color='0.95')
+    for i in range(conv.shape[1]):
+        plt.plot(np.arange(conv.shape[0]), np.abs(conv[:,i]), label=f"{round(eref[i],2)}")
+    plt.legend(loc="upper right")
+    plt.show()
 
 if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
+    from scipy import interpolate
+    import scipy
 
     global masses
     masses = np.array([31.97207070, 1.00782505, 1.00782505]) # atomic masses of S and H
@@ -284,39 +421,14 @@ if __name__ == "__main__":
     # equilibrium (reference) values of internal coordinates
     ref = jnp.array([1.3359007, 1.3359007, 92.265883/180.0*jnp.pi])
 
-    # Pretrain on 1D solutions
+    icoo = 0
+    npt = 200
+    quad = quad_her1d
+    bas = her1d
 
-    for icoo in range(3):
+    vmax = 60
+    e, psi, dpsi, points, weights, scale = sol1d(icoo, npt, quad, vmax, bas, ref)
 
-        npt = 200
-        quad = quad_her1d
-        vmax = 30
-        bas = her1d
-        psi, dpsi, points = sol1d(icoo, npt, quad, vmax, bas, ref)
+    vmax = 10
+    manzhos1d(icoo, npt, quad, vmax, bas, ref, e)
 
-        vmax = 5
-        par = init_params([1,30,30,30,vmax])
-        data = jnp.hstack((psi[:,:vmax], points[:,icoo:icoo+1]-ref[icoo]))
-
-        mt = [(0*w, 0*b) for (w, b) in par]
-        vt = [(0*w, 0*b) for (w, b) in par]
-        nit = 1
-
-        for i in range(500):
-            dat = random.shuffle(random.PRNGKey(0), data, axis=0)
-            for batch in jnp.split(dat, 1, axis=0):
-                y = batch[:,:vmax]
-                x = batch[:,vmax:vmax+1]
-                par, mt, vt, _ = update_adam(par, x, y, mt, vt, nit)
-            l = loss(par, data[:,vmax:vmax+1], data[:,:vmax])
-            nit +=1
-            print(i, l)
-
-        # plot functions
-        res = batch_model(par, data[:,vmax:vmax+1])
-        for i in range(vmax):
-            plt.scatter(data[:,vmax+1], data[:,i])
-            plt.plot(data[:,vmax+1], res[:,i])
-        plt.show()
-
-        sys.exit()
