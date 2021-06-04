@@ -1,5 +1,6 @@
 from richmol.convert_units import (
-    Debye_to_au, Debye_to_si,
+    Debye_to_au,
+    Debye_to_si,
     Debye_to_sqrt_erg_x_sqrt_cm3,
     Buckingham_to_au,
     Buckingham_to_si,
@@ -140,13 +141,22 @@ class field_free_spectrum():
             else:
                 self.order = 'quad'
         else:
-            assert ('order' in kwargs), \
-                f"'order' not found in keyword arguments" \
-                    + f"(set to 'dip', 'quad')"
-            assert (kwargs['order'] in ['dip', 'quad']), \
-                f"'order' unknown" \
-                    + f"(set to 'dip', 'quad')"
-            self.order = kwargs['order']
+            try:
+                assert ('_MU' in filename or '_QUAD' in filename), \
+                    f"'order' not found in 'filename' = '{filename}'" \
+                        + f"(must contain '_MU', '_QUAD')"
+                if '_MU' in filename:
+                    self.order = 'dip'
+                else:
+                    self.order = 'quad'
+            except:
+                assert ('order' in kwargs), \
+                    f"'order' not found in keyword arguments" \
+                        + f"(set to 'dip', 'quad')"
+                assert (kwargs['order'] in ['dip', 'quad']), \
+                    f"'order' unknown" \
+                        + f"(set to 'dip', 'quad')"
+                self.order = kwargs['order']
 
         # set minimum and maximum J
         if 'j_max' in kwargs:
@@ -781,8 +791,13 @@ class field_free_spectrum():
 
         if rank == 0:
             print('\n  FILTERED ABSORPTION INTENSITIES ...\n')
-            for attr in ['filters', 'abs_intens_thresh']:
+            for attr in ['abs_intens_thresh']:
                 print('      {} = {}'.format(attr, getattr(self, attr)))
+            print(
+                '      {} = {}'.format(
+                    'filters', [filt.__name__ for filt in self.filters]
+                )
+            )
 
         comm.Barrier()
 
@@ -826,8 +841,13 @@ class field_free_spectrum():
         # print to console
         if MPI.COMM_WORLD.Get_rank() == 0:
             print('\n  PLOTTED ABSORPTION INTENSITIES ...\n')
-            for attr in ['filters', 'abs_intens_thresh']:
+            for attr in ['abs_intens_thresh']:
                 print('      {} = {}'.format(attr, getattr(self, attr)))
+            print(
+                '      {} = {}'.format(
+                    'filters', [filt.__name__ for filt in self.filters]
+                )
+            )
             print('')
 
         f.close()

@@ -1,46 +1,18 @@
 import numpy as np
 from scipy import constants
 import functools
-from richmol.pyexpokit import expv_lanczos
-import time
+from scipy.sparse.linalg import expm
+from richmol import convert_units
+from mpi4py import MPI
 
-"""
-# very rough idea
-
-from tdse import tdse
-
-tdse.tstart = 0
-tdse.tend = 100
-tdse.dt = 0.01
-tdse.time_units = "ps"
-tdse.energy_units = "1/cm"
-
-# external fields
-dc = lambda time: [0, 0, 1000 * time]
-ac = lambda time: [0, 0, 1e+12 * np.cos(10000 * time)]
-
-vec = ... # initial vector
-
-for t in tdse.times():
-
-    mu.fied(-dc(t))
-    alpha.field(-1/2 * ac(t))
-
-    H = mu + alpha
-
-    vec, t2 = tdse.update(H+H0, vec=vec)
-    vec, t2 = tdse.update(H, H0=H0, vec=vec) # use split operator
-
-    print(f"vec at time {t2} is: {vec}")
-"""
 
 def update_counter(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        vec = func(self, *args, **kwargs)
-        time = self.time_grid[1][wrapper.count]
+        vecs = func(self, *args, **kwargs)
+        time = self._time_grid[1][wrapper.count]
         wrapper.count += 1
-        return vec, time # returns time corresponding to updated vector
+        return vecs, time # time corresponding to updated vectors
     wrapper.count = 0
     return wrapper
 
@@ -48,9 +20,10 @@ def update_counter(func):
 class TDSE():
 
     @update_counter
-    def update(self, H, H0=None, vecs=None, matvec_lib='scipy'):
+    def update(self, H, H0=None, vecs=None, matvec_lib='scipy', tol=1e-15):
         # this factor should make (dt/hbar * H) dimensionless
-        exp_fac = -1j * self.dt * self.time_units / constants.value("reduced Planck constant") * self.energy_units
+        exp_fac = -1j * self.dt * self.time_to_sec * self.enr_to_J \
+            / constants.value("reduced Planck constant")
 
         # numpy array to CarTens compatible vec
         def array_to_vec(array):
@@ -86,10 +59,8 @@ class TDSE():
         elif type(vecs) is not list:
             vecs = [vecs]
 
-
         # propagate
         vecs2 = []
-        tol = 1e-15
         if H0 is not None:
             for vec in vecs:
                 if 'expfacH0' not in list(self.__dict__.keys()):
@@ -97,103 +68,179 @@ class TDSE():
                         exp_fac / 2 * H0.tomat(form='full').diagonal()
                     )
                 res = self.__dict__['expfacH0'] * vec
-                res = expv_lanczos(res, exp_fac, lambda v : cartensvec(v), tol=tol)
+                res = expv_lanczos(
+                    res, exp_fac, lambda v : cartensvec(v), tol=tol
+                )
                 vecs2.append(self.__dict__['expfacH0'] * res)
         else:
             for vec in vecs:
-                vecs2.append(expv_lanczos(vec, exp_fac, lambda v : cartensvec(v), tol=tol))
+                vecs2.append(expv_lanczos(
+                    vec, exp_fac, lambda v : cartensvec(v), tol=tol)
+                )
 
         return vecs2
 
 
-    def times(self, grid="equidistant", field=None):
-        if grid.lower() == "equidistant":
-            npt = int((self.tend - self.tstart) / self.dt)
-            t1 = np.array([self.tstart + self.dt * (i) for i in range(npt+1)])
-            t2 = np.array([self.tstart + self.dt * (i+1) for i in range(npt+1)])
-            tc = 0.5*(t1 + t2)
+    def time_grid(self, grid='equidistant', field=None):
+        if grid.lower() == 'equidistant':
+            grid_size = int((self.tend - self.tstart) / self.dt)
+            t1 = np.linspace(
+                self.tstart, self.tend, num=grid_size, endpoint=False
+            )
+            t2 = t1 + self.dt
+            tc = t1 + self.dt / 2
         else:
-            raise ValueError(f"unknown grid type: '{grid}'") from None
-        self.time_grid = (t1, t2, tc)
-        return tc # returns time at which Hamiltonian need to be computed
+            raise ValueError(f"unknown time grid type: '{grid}'") from None
+        self._time_grid = (t1, t2, tc)
+        return self._time_grid[2] # times at which to evaluate Hamiltonian
 
 
     @property
     def energy_units(self):
         try:
-            return self.enr_joule
+            return self.enr_to_J
         except AttributeError:
-            raise AttributeError(f"energy units were not set, use 'energy_units = <units>' with <units> one of ('cm-1')") from None
+            raise AttributeError(
+                f"energy units not set, use 'energy_units = <units>' " \
+                    + f"with <units> one of ('cm-1')"
+            ) from None
 
     @energy_units.setter
     def energy_units(self, units):
         if units.lower() in ("cm-1", "cm^-1", "1/cm", "invcm"):
-            self.enr_joule = constants.value('Planck constant') * constants.value('speed of light in vacuum') * 1e2
+            self.enr_to_J = 1 / convert_units.J_to_invcm()
         else:
             raise ValueError(f"unknown energy units: '{units}'") from None
+
 
     @property
     def time_units(self):
         try:
-            return self.time_sec
+            return self.time_to_sec
         except AttributeError:
-            raise AttributeError(f"time units were not set, use 'time_units = <units>' with <units> one of ('ps', 'fs', ns', 'aut')") from None
+            raise AttributeError(
+                f"time units not set, use 'time_units = <units>' "
+                    + f"with <units> one of ('ps', 'fs', ns', 'aut')"
+            ) from None
 
     @time_units.setter
     def time_units(self, units):
         if units.lower() in ("ps", "picoseconds", "pico"):
-            self.time_sec = 1e-12
+            self.time_to_sec = 1e-12
         elif units.lower() in ("fs", "femtoseconds", "femto"):
-            self.time_sec = 1e-15
+            self.time_to_sec = 1e-15
         elif units.lower() in ("ns", "nanoseconds", "nano"):
-            self.time_sec = 1e-9
+            self.time_to_sec = 1e-9
         elif units.lower() in ("au", "aut"):
-            self.time_sec = constants.value("atomic unit of time")
+            self.time_to_sec = constants.value("atomic unit of time")
         else:
             raise ValueError(f"unknown time units: '{units}'") from None
+
 
     @property
     def tstart(self):
         try:
-            return self.t1
+            return self._tstart
         except AttributeError:
-            raise AttributeError(f"initial time was not set, use 'tstart = value' to set it") from None
+            raise AttributeError(
+                f"initial time not set, use 'tstart = <value>'"
+            ) from None
 
     @tstart.setter
     def tstart(self, val):
         try:
-            assert (val < self.t2), f"initial time '{val}' is greater than terminal time '{self.t2}'"
+            assert (val < self.tend), \
+                f"initial time '{val}' greater than terminal time '{self.t2}'"
         except AttributeError:
             pass
-        self.t1 = val
+        self._tstart = val
+
 
     @property
     def tend(self):
         try:
-            return self.t2
+            return self._tend
         except AttributeError:
-            raise AttributeError(f"terminal time was not set, use 'tend = value' to set it") from None
+            raise AttributeError(
+                f"terminal time not set, use 'tend = <value>'"
+            ) from None
 
     @tend.setter
     def tend(self, val):
         try:
-            assert (val > self.t1), f"terminal time '{val}' is smaller than initial time '{self.t1}'"
+            assert (val > self.tstart), \
+                f"terminal time '{val}' smaller than initial time '{self.t1}'"
         except AttributeError:
             pass
-        self.t2 = val
+        self._tend = val
+
 
     @property
     def dt(self):
         try:
-            return self.tstep
+            return self._dt
         except AttributeError:
-            raise AttributeError(f"time step was not set, use 'dt = value' to set it") from None
+            raise AttributeError(
+                f"time step not set, use 'dt = <value>'"
+            ) from None
 
     @dt.setter
     def dt(self, val):
-        self.tstep = val
+        try:
+            assert (int((self.tend - self.tstart) / val) > 0), \
+                f"time step '{val}' greater than time interval width " \
+                    + f"'{self.tend - self.tstart}'"
+        except AttributeError:
+            pass
+        self._dt = val
 
 
+def expv_lanczos(vec, t, matvec, maxorder=100, tol=0):
+    """ Computes epx(t*a)*v using Lanczos algorithm """
 
+    V, W = [], []
+    T = np.zeros((maxorder, maxorder), dtype=vec.dtype)
 
+    # first Krylov basis vector
+    V.append(vec)
+    w = matvec(V[0])
+    T[0, 0] = np.vdot(w, V[0])
+    W.append(w - T[0, 0] * V[0])
+
+    # higher orders
+    u_kminus1, u_k, conv_k, k = {}, V[0], 1, 1
+    while k < maxorder and conv_k > tol:
+
+        # extend ONB of Krylov subspace by another vector
+        T[k - 1, k] = np.sqrt(np.sum(np.abs(W[k - 1])**2))
+        T[k, k - 1] = T[k - 1, k]
+        if not T[k - 1, k] == 0:
+            V.append(W[k - 1] / T[k - 1, k])
+
+        # reorthonormalize ONB of Krylov subspace, if neccesary
+        else:
+            v = np.ones(V[k - 1].shape, dtype=np.complex128)
+            for j in range(k):
+                proj_j = np.vdot(V[j], v)
+                v = v - proj_j * V[j]
+            norm_v = np.sqrt(np.sum(np.abs(v)**2))
+            V.append(v / norm_v)
+
+        w = matvec(V[k])
+        T[k, k] = np.vdot(w, V[k])
+        w = w - T[k, k] * V[k] - T[k - 1, k] * V[k - 1]
+        W.append(w)
+
+        # calculate current approximation and convergence
+        u_kminus1 = u_k
+        expT_k = expm(t * T[: k + 1, : k + 1])
+        u_k = sum([expT_k[i, 0] * v_i for i,v_i in enumerate(V)])
+        conv_k = np.sum(np.abs(u_k - u_kminus1)**2)
+
+        k += 1
+
+    if k == maxorder:
+        print("lanczos reached maximum order of {}".format(maxorder))
+
+    return u_k
 
