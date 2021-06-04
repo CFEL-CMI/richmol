@@ -10,13 +10,12 @@ from jax import numpy as jnp
 from jax import jacfwd, jacrev, random, grad
 from jax.config import config
 import math
-import sys
 import flax
 from flax import linen as nn
 from flax import optim
-from typing import Sequence
 config.update("jax_enable_x64", True)
 import scipy
+import random as py_random
 
 
 ############################ KEO and potential ############################ 
@@ -231,8 +230,6 @@ def sol1d(icoo, npt, quad, vmax, bas, ref):
 
 def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
 
-    # Obtain reference solutions
-
     # 1d quadrature
     n = [npt if i == icoo else 1 for i in range(len(ref))]
     quads = [quad(n[i], i, ref) for i in range(len(ref))]
@@ -244,47 +241,19 @@ def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
     g_grid = jnp.array([Gmat(p) for p in points])
     u_grid = jnp.array([pseudo(p) for p in points])
 
-    # primitive basis functions
+    # primitive basis functions (without weights!)
     psi, dpsi = bas(vmax, points[:, icoo], np.array(ref[icoo]), scale[icoo])
 
-    # matrix elements of operators
-    # v = opt_einsum.contract("kg,lg,g,g->kl", np.conj(psi), psi, v_grid, weights)
-    # u = opt_einsum.contract("kg,lg,g,g->kl", np.conj(psi), psi, u_grid, weights)
-    # g = opt_einsum.contract("kg,lg,g,g->kl", np.conj(dpsi), dpsi, g_grid[:, icoo, icoo], weights)
-
-    # # Hamiltonian eigenvalues and eigenvectors
-    # h = v + 0.5*g + u
-    # e, vec = np.linalg.eigh(h)
-
-    # print(f"\n1D solutions for coordinate {icoo}")
-    # print("zero-energy:", e[0])
-    # print(e-e[0])
-
-    # psi = np.dot(vec.T, psi) * np.sqrt(weights)
-    # dpsi = np.dot(vec.T, dpsi) * np.sqrt(weights)
-
+    # multiply functions by weights
     psi *= np.sqrt(weights)
     dpsi *= np.sqrt(weights)
     psi = psi.T
     dpsi = dpsi.T
 
-    peaks = []
-    for i in range(vmax):
-        peaks_, _ = scipy.signal.find_peaks(abs(psi[:,i]))
-        peaks += [p for p in peaks_]
-        # plt.plot(points[:,icoo], psi[:,i])
-        for peak in peaks:
-            x0 = points[peak,icoo]
-            amp = psi[peak,i]
-            plt.plot(points[:,icoo], [amp*np.exp(-(r-x0)**2*scale[icoo]**2) for r in points[:,icoo]])
-    plt.show()
-    # sys.exit()
-    print(points[peaks,icoo])
-    # print(psi[peaks, i])
-    # sys.exit()
+    # initial params for NN: Gaussian centers
+    peaks = [p for i in range(vmax) for p in scipy.signal.find_peaks(abs(psi[:,i]))[0]]
 
-    # Train NN
-
+    # Manzhos NN
     class ManzhosSingleLayer(nn.Module):
         nhid: int
         nout : int
@@ -300,39 +269,7 @@ def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
             else:
                 return y
 
-    vmax_train = vmax
-    model = ManzhosSingleLayer(nhid=len(peaks), nout=vmax_train)
-    x = points[:, icoo : icoo + 1]# - ref[icoo]
-    y = psi[:, :vmax_train]
-    params = model.init(jax.random.PRNGKey(0), x)
-
-    def batch_loss(params, x_batch, y_batch):
-        def mean(params):
-            def sqerr(x, y):
-                pred = model.apply(params, x)
-                return jnp.inner(y - pred, y - pred) / 2.0
-            return jnp.mean(jax.vmap(sqerr, in_axes=(0, 0))(x_batch, y_batch), axis=0)
-        return jax.jit(mean)
-
-    loss = batch_loss(params, x, y)
-
-    optimizer_def = optim.Adam(learning_rate=0.01)
-    optimizer = optimizer_def.create(params)
-    loss_grad_fn = jax.value_and_grad(loss)
-    for i in range(0):
-        loss_val, grad = loss_grad_fn(optimizer.target)
-        optimizer = optimizer.apply_gradient(grad)
-        print('Loss step {}: '.format(i), loss_val)
-
-    params = optimizer.target
-    model_psi = model.apply(params, x)
-
-    # # plotting
-    # for i in range(vmax_train):
-    #     plt.scatter(x, y[:,i])
-    #     plt.plot(x, model_psi[:,i])
-    # plt.show()
-
+    # Jacobian of NN wrt x
     def jac_model(params, x_batch):
         def jac_(params):
             def jac(x):
@@ -359,19 +296,9 @@ def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
     def hme(params, x):
         return vme(params, x) + 0.5*gme(params, x) + ume(params, x)
 
-
-    def enr(params, x):
-        def enr_(params):
-            h = hme(params, x)
-            s = sme(params, x)
-            return jnp.sum(jnp.diag(jnp.dot(np.conj(v.T), jnp.dot(sinv, jnp.dot((h - jnp.dot(s, jnp.diag(e))), v)))))
-        return jax.jit(enr_)(params)
-
-
-    def enr2(params, x):
+    def sum_of_enr(params, x):
         def enr_(params):
             s = sme(params, x)
-
             d, v = jnp.linalg.eigh(s)
             d = jnp.diag(1.0 / jnp.sqrt(d))
             sqrt_inv = jnp.dot(v, jnp.dot(d, v.T))
@@ -382,32 +309,61 @@ def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
             return jnp.sum(e)
         return jax.jit(enr_)
 
-    conv = []
+    def trace_of_exp(params, x, temp):
+        def trace(params):
+            s = sme(params, x)
+            d, v = jnp.linalg.eigh(s)
+            d = jnp.diag(1.0 / jnp.sqrt(d))
+            sqrt_inv = jnp.dot(v, jnp.dot(d, v.T))
 
-    optimizer_def = optim.Adam(learning_rate=0.1)
+            h = hme(params, x)
+            h = jnp.dot(sqrt_inv, jnp.dot(h, sqrt_inv.T))
+            e, v = jnp.linalg.eigh(h)
+            return -jnp.sum(jnp.exp(-e/temp))
+        return jax.jit(trace)
+
+    # training
+
+    vmax_train = vmax
+    model = ManzhosSingleLayer(nhid=len(peaks), nout=vmax_train)
+    x = points[:, icoo : icoo + 1]
+    params = model.init(jax.random.PRNGKey(0), x)
+
+    optimizer_def = optim.Adam(learning_rate=0.01)
     optimizer = optimizer_def.create(params)
-    loss = enr2(params, x)
+
+    loss = sum_of_enr(params, x)
+    # temp = 10000
+    # loss = trace_of_exp(params, x, temp)
     loss_grad_fn = jax.value_and_grad(loss)
-    for i in range(1000):
-        h = hme(params, x)
-        s = sme(params, x)
-        e, v = scipy.linalg.eigh(h, s)
-        # sinv = np.linalg.inv(s)
+
+    no_epochs = 1000
+    err = np.zeros((no_epochs,  vmax_train), dtype=np.float64)
+    for i in range(no_epochs):
 
         loss_val, grad = loss_grad_fn(optimizer.target)
         optimizer = optimizer.apply_gradient(grad)
-        print(e[0], e-eref[:vmax_train], np.sum(e))
-        params = optimizer.target
-        conv.append(e-eref[:vmax_train])
 
-    conv = np.array(conv)
+        print(loss_val, loss_val - sum(eref[:vmax_train])) # for sum_of_enr loss function
+        # print(loss_val, loss_val - -sum(jnp.exp(-eref[:vmax_train]/temp))) # for trace_of_exp loss function
+
+        # this is just to plot energies later
+        params = optimizer.target
+        s = np.array(sme(params, x))
+        h = np.array(hme(params, x))
+        e, _ = scipy.linalg.eigh(h, s)
+        # print(e, e-eref[:vmax_train])
+        err[i, :] = e - eref[:vmax_train]
+
     plt.yscale("log")
     plt.grid(axis='x', color='0.95')
     plt.grid(axis='y', color='0.95')
-    for i in range(conv.shape[1]):
-        plt.plot(np.arange(conv.shape[0]), np.abs(conv[:,i]), label=f"{round(eref[i],2)}")
+    for i in range(err.shape[1]):
+        plt.plot(np.arange(err.shape[0]), np.abs(err[:,i]), label=f"{round(eref[i],2)}")
+        # plt.plot(np.arange(err.shape[0]), err[:,i], label=f"{round(eref[i],2)}")
     plt.legend(loc="upper right")
     plt.show()
+
 
 if __name__ == "__main__":
 
@@ -422,13 +378,15 @@ if __name__ == "__main__":
     ref = jnp.array([1.3359007, 1.3359007, 92.265883/180.0*jnp.pi])
 
     icoo = 0
-    npt = 200
+    npt = 100
     quad = quad_her1d
     bas = her1d
 
-    vmax = 60
+    # reference energy values
+    vmax = 30
     e, psi, dpsi, points, weights, scale = sol1d(icoo, npt, quad, vmax, bas, ref)
 
-    vmax = 10
-    manzhos1d(icoo, npt, quad, vmax, bas, ref, e)
+    # variational NN
+    vmax = 5
+    manzhos1d(icoo, npt, quad, vmax, bas, ref, e[:vmax])
 
