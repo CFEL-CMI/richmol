@@ -257,7 +257,8 @@ class CarTens():
         }
 
         # remove empty elements form dictionaries
-        attrs = ("ind_k1", "ind_k2", "ind_m1", "ind_m2", "quanta_k1", "quanta_k2", "quanta_m1", "quanta_m2")
+        attrs = ( "ind_k1", "ind_k2", "ind_m1", "ind_m2", "quanta_k1",
+                  "quanta_k2", "quanta_m1", "quanta_m2" )
         for attr in attrs:
             val = getattr(self, attr)
             val2 = {
@@ -290,7 +291,7 @@ class CarTens():
             for J in self.Jlist2
         }
 
-        # update the state indices and assignments to all contain only selected J quanta and symmetries
+        # update state inds and assignments with selected J quanta and syms
         for attr in attrs:
             ind = int(attr[-1])
             val = getattr(self, attr)
@@ -558,7 +559,8 @@ class CarTens():
                 rows and columns in a matrix returned by
                 :py:func:`CarTens.tomat` function.
         """
-        assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
+        assert (form in ('block', 'full')), \
+            f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
 
         m1 = {
             J : {sym : self.quanta_m1[J][sym] for sym in self.symlist1[J]}
@@ -643,8 +645,11 @@ class CarTens():
         """
         res = scipy.sparse.bmat(
             [ [ mat[(J1, J2)][(sym1, sym2)]
-                if (J1, J2) in mat.keys() and (sym1, sym2) in mat[(J1, J2)].keys()
-                else csr_matrix(np.zeros((self.dim1[J1][sym1], self.dim2[J2][sym2])))
+                if (J1, J2) in mat.keys() \
+                    and (sym1, sym2) in mat[(J1, J2)].keys()
+                else csr_matrix(
+                    np.zeros((self.dim1[J1][sym1], self.dim2[J2][sym2]))
+                )
                 for J2 in self.Jlist2 for sym2 in self.symlist2[J2] ]
                 for J1 in self.Jlist1 for sym1 in self.symlist1[J1] ]
         )
@@ -1870,10 +1875,13 @@ class CarTens():
         mydict = lambda: defaultdict(mydict)
 
         # tensor irreducible representation indices irreps[(ncart, nirrep)]
-        irreps = {(3,1) : [(1,-1), (1,0), (1,1)],                                               # rank-1 tensor
-                  (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                                # traceless and symmetric rank-2 tensor
-                  (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],                         # symmetric rank-2 tensor
-                  (9,3) : [(0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2)]}   # non-symmetric rank-2 tensor
+        irreps = {
+            (3,1) : [(1,-1), (1,0), (1,1)],                               # rank-1 tensor
+            (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                # traceless and symmetric rank-2 tensor
+            (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],         # symmetric rank-2 tensor
+            (9,3) : [ (0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0),
+                      (2,1), (2,2) ]                                      # non-symmetric rank-2 tensor
+        }
 
         # tensor ranks ranks[ncart]
         ranks = {3 : 1, 9 : 2}
