@@ -175,7 +175,10 @@ class CarTens():
             if h5py.is_hdf5(filename):
                 # read tensor from HDF5 file
                 if name is None:
-                    raise ValueError(f"please specify the name of the data group in HDF5 file '{filename}'") from None
+                    raise ValueError(
+                        f"please specify the name of the data group in HDF5 " \
+                            + f"file '{filename}'"
+                    ) from None
                 self.read(filename, name=name, **kwargs)
             else:
                 # read old-format richmol files
@@ -199,73 +202,144 @@ class CarTens():
         """
         # truncate quantum numbers
 
-        self.ind_k1 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k1[J][sym]) if bra(J=J, sym=sym, k=q, enr=e)]
-                       for sym in self.symlist1[J]}
-                       for J in self.Jlist1}
+        self.ind_k1 = {
+            J : { sym : [ i for i,(q,e) in enumerate(self.quanta_k1[J][sym])
+                          if bra(J=J, sym=sym, k=q, enr=e) ]
+                  for sym in self.symlist1[J] }
+            for J in self.Jlist1
+        }
 
-        self.ind_k2 = {J : {sym : [i for i,(q,e) in enumerate(self.quanta_k2[J][sym]) if ket(J=J, sym=sym, k=q, enr=e)]
-                       for sym in self.symlist2[J]}
-                       for J in self.Jlist2}
+        self.ind_k2 = {
+            J : { sym : [ i for i,(q,e) in enumerate(self.quanta_k2[J][sym])
+                          if ket(J=J, sym=sym, k=q, enr=e) ]
+                  for sym in self.symlist2[J] }
+            for J in self.Jlist2
+        }
 
-        self.ind_m1 = {J : {sym : [i for i,q in enumerate(self.quanta_m1[J][sym]) if bra(J=J, sym=sym, m=q)]
-                       for sym in self.symlist1[J]}
-                       for J in self.Jlist1}
-        self.ind_m2 = {J : {sym : [i for i,q in enumerate(self.quanta_m2[J][sym]) if ket(J=J, sym=sym, m=q)]
-                       for sym in self.symlist2[J]}
-                       for J in self.Jlist2}
+        self.ind_m1 = {
+            J : { sym : [ i for i,q in enumerate(self.quanta_m1[J][sym])
+                          if bra(J=J, sym=sym, m=q) ]
+                  for sym in self.symlist1[J] }
+            for J in self.Jlist1
+        }
+        self.ind_m2 = {
+            J : { sym : [ i for i,q in enumerate(self.quanta_m2[J][sym])
+                          if ket(J=J, sym=sym, m=q) ]
+                  for sym in self.symlist2[J] }
+            for J in self.Jlist2
+        }
 
-        self.quanta_k1 = {J : {sym : [(q,e) for (q,e) in self.quanta_k1[J][sym] if bra(J=J, sym=sym, k=q, enr=e)]
-                          for sym in self.symlist1[J]}
-                          for J in self.Jlist1}
-        self.quanta_k2 = {J : {sym : [(q,e) for (q,e) in self.quanta_k2[J][sym] if ket(J=J, sym=sym, k=q, enr=e)]
-                          for sym in self.symlist2[J]}
-                          for J in self.Jlist2}
+        self.quanta_k1 = {
+            J : { sym : [ (q, e) for (q, e) in self.quanta_k1[J][sym]
+                          if bra(J=J, sym=sym, k=q, enr=e) ]
+                  for sym in self.symlist1[J] }
+            for J in self.Jlist1
+        }
+        self.quanta_k2 = {
+            J : { sym : [ (q, e) for (q, e) in self.quanta_k2[J][sym]
+                          if ket(J=J, sym=sym, k=q, enr=e) ]
+                  for sym in self.symlist2[J] }
+            for J in self.Jlist2
+        }
 
-        self.quanta_m1 = {J : {sym : [q for q in self.quanta_m1[J][sym] if bra(J=J, sym=sym, m=q)]
-                          for sym in self.symlist1[J]}
-                          for J in self.Jlist1}
-        self.quanta_m2 = {J : {sym : [q for q in self.quanta_m2[J][sym] if ket(J=J, sym=sym, m=q)]
-                          for sym in self.symlist2[J]}
-                          for J in self.Jlist2}
+        self.quanta_m1 = {
+            J : { sym : [ q for q in self.quanta_m1[J][sym]
+                          if bra(J=J, sym=sym, m=q) ]
+                  for sym in self.symlist1[J] }
+            for J in self.Jlist1
+        }
+
+        self.quanta_m2 = {
+            J : { sym : [ q for q in self.quanta_m2[J][sym]
+                          if ket(J=J, sym=sym, m=q) ]
+                  for sym in self.symlist2[J] }
+            for J in self.Jlist2
+        }
 
         # remove empty elements form dictionaries
         attrs = ("ind_k1", "ind_k2", "ind_m1", "ind_m2", "quanta_k1", "quanta_k2", "quanta_m1", "quanta_m2")
         for attr in attrs:
             val = getattr(self, attr)
-            val2 = {key : {key2 : val2 for key2, val2 in val.items() if len(val2) > 0} for key, val in val.items()}
-            val3 = {key : val for key, val in val2.items() if len(val)>0}
+            val2 = {
+                key : { key2 : val2 for key2, val2 in val.items()
+                        if len(val2) > 0 }
+                for key, val in val.items()
+            }
+            val3 = {key : val for key, val in val2.items() if len(val) > 0}
             setattr(self, attr, val3)
 
         # update lists of J quanta
-        self.Jlist1 = sorted(list(set(self.ind_k1.keys()) & set(self.ind_m1.keys())))
-        self.Jlist2 = sorted(list(set(self.ind_k2.keys()) & set(self.ind_m2.keys())))
+        self.Jlist1 = sorted(
+            list(set(self.ind_k1.keys()) & set(self.ind_m1.keys()))
+        )
+        self.Jlist2 = sorted(
+            list(set(self.ind_k2.keys()) & set(self.ind_m2.keys()))
+        )
 
         # update lists of symmetries
-        self.symlist1 = {J : sorted(list(set(self.ind_k1[J].keys()) & set(self.ind_m1[J].keys()))) for J in self.Jlist1}
-        self.symlist2 = {J : sorted(list(set(self.ind_k2[J].keys()) & set(self.ind_m2[J].keys()))) for J in self.Jlist2}
+        self.symlist1 = {
+            J : sorted(list(
+                    set(self.ind_k1[J].keys()) & set(self.ind_m1[J].keys())
+                ))
+            for J in self.Jlist1
+        }
+        self.symlist2 = {
+            J : sorted(list(
+                    set(self.ind_k2[J].keys()) & set(self.ind_m2[J].keys())
+                ))
+            for J in self.Jlist2
+        }
 
         # update the state indices and assignments to all contain only selected J quanta and symmetries
         for attr in attrs:
             ind = int(attr[-1])
             val = getattr(self, attr)
             if ind==1:
-                setattr(self, attr, {J : {sym : val[J][sym] for sym in self.symlist1[J]} for J in self.Jlist1})
+                setattr(
+                    self,
+                    attr,
+                    { J : {sym : val[J][sym] for sym in self.symlist1[J]}
+                      for J in self.Jlist1 }
+                )
             elif ind==2:
-                setattr(self, attr, {J : {sym : val[J][sym] for sym in self.symlist2[J]} for J in self.Jlist2})
+                setattr(
+                    self,
+                    attr,
+                    { J : {sym : val[J][sym] for sym in self.symlist2[J]}
+                      for J in self.Jlist2 }
+                )
             else:
-                raise ValueError(f"bad value for index = {ind}") from None
+                raise ValueError(f"bad value for `ind` = {ind}") from None
 
         # dimensions
 
-        self.dim_k1 = {J : {sym : len(self.ind_k1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
-        self.dim_k2 = {J : {sym : len(self.ind_k2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
-        self.dim_m1 = {J : {sym : len(self.ind_m1[J][sym]) for sym in self.symlist1[J]} for J in self.Jlist1}
-        self.dim_m2 = {J : {sym : len(self.ind_m2[J][sym]) for sym in self.symlist2[J]} for J in self.Jlist2}
+        self.dim_k1 = {
+            J : {sym : len(self.ind_k1[J][sym]) for sym in self.symlist1[J]}
+            for J in self.Jlist1
+        }
+        self.dim_k2 = {
+            J : {sym : len(self.ind_k2[J][sym]) for sym in self.symlist2[J]}
+            for J in self.Jlist2
+        }
+        self.dim_m1 = {
+            J : {sym : len(self.ind_m1[J][sym]) for sym in self.symlist1[J]}
+            for J in self.Jlist1
+        }
+        self.dim_m2 = {
+            J : {sym : len(self.ind_m2[J][sym]) for sym in self.symlist2[J]}
+            for J in self.Jlist2
+        }
 
-        self.dim1 = {J : {sym : self.dim_k1[J][sym] * self.dim_m1[J][sym]
-                     for sym in self.symlist1[J]} for J in self.Jlist1}
-        self.dim2 = {J : {sym : self.dim_k2[J][sym] * self.dim_m2[J][sym]
-                     for sym in self.symlist2[J]} for J in self.Jlist2}
+        self.dim1 = {
+            J : { sym : self.dim_k1[J][sym] * self.dim_m1[J][sym]
+                  for sym in self.symlist1[J] }
+            for J in self.Jlist1
+        }
+        self.dim2 = {
+            J : { sym : self.dim_k2[J][sym] * self.dim_m2[J][sym]
+                  for sym in self.symlist2[J] }
+            for J in self.Jlist2
+        }
 
         # truncate M and K tensors
 
@@ -283,7 +357,8 @@ class CarTens():
             sympairs = list(set(mmat_J.keys()) & set(kmat_J.keys()))
             for (sym1, sym2) in sympairs:
 
-                if sym1 not in self.symlist1[J1] or sym2 not in self.symlist2[J2]:
+                if sym1 not in self.symlist1[J1] \
+                    or sym2 not in self.symlist2[J2]:
                     del self.mmat[(J1, J2)][(sym1, sym2)]
                     del self.kmat[(J1, J2)][(sym1, sym2)]
                     continue
@@ -296,12 +371,16 @@ class CarTens():
                 ik1 = self.ind_k1[J1][sym1]
                 ik2 = self.ind_k2[J2][sym2]
 
-                mmat = {irrep : {cart : mat[im1, :].tocsc()[:, im2].tocsr()
-                        for cart, mat in mmat_irrep.items()}
-                        for irrep, mmat_irrep in mmat_sym.items()}
+                mmat = {
+                    irrep : { cart : mat[im1, :].tocsc()[:, im2].tocsr()
+                              for cart, mat in mmat_irrep.items() }
+                    for irrep, mmat_irrep in mmat_sym.items()
+                }
 
-                kmat = {irrep : mat[ik1, :].tocsc()[:, ik2].tocsr()
-                        for irrep, mat in kmat_sym.items()}
+                kmat = {
+                    irrep : mat[ik1, :].tocsc()[:, ik2].tocsr()
+                    for irrep, mat in kmat_sym.items()
+                }
 
                 irreps = list(set(kmat.keys()) & set(mmat.keys()))
                 for irrep in irreps:
@@ -363,18 +442,24 @@ class CarTens():
                 blocks for different pairs of J and symmetries. For `form` =
                 'full', returns 2D matrix.
         """
-        assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
+        assert (form in ('block', 'full')), \
+            f"`form` unknown: '{form}' (use 'block', 'full')"
 
         if cart is None:
             try:
                 x = self.mfmat
             except AttributeError:
-                raise AttributeError(f"you need to specify Cartesian component of tensor " + \
-                    f"or multiply tensor with field before computing its matrix representation") from None
+                raise AttributeError(
+                    f"specify Cartesian component `cart` of tensor or " \
+                        + f"multiply tensor with field before computing its " \
+                        + f"its matrix representation"
+                ) from None
         else:
             if cart not in self.cart:
-                raise ValueError(f"input Cartesian component '{cart}' is not contained in tensor " + \
-                    f"components {self.cart}") from None
+                raise ValueError(
+                    f"specified Cartesian component '{cart}' is not " \
+                        + f"contained in tensor components '{self.cart}'"
+                ) from None
 
         mydict = lambda: defaultdict(mydict)
         mat = mydict()
@@ -392,8 +477,10 @@ class CarTens():
                     kmat = kmat_J[sympair]
 
                     # do M \otimes K
-                    me = np.sum( kron(mmat[irrep], kmat[irrep])
-                                 for irrep in list(set(mmat.keys()) & set(kmat.keys())) )
+                    me = np.sum(
+                        kron(mmat[irrep], kmat[irrep])
+                        for irrep in list(set(mmat.keys()) & set(kmat.keys()))
+                    )
 
                     if not np.isscalar(me):
                         mat[Jpair][sympair] = me
@@ -407,12 +494,17 @@ class CarTens():
 
                 for sympair in list(set(mmat_J.keys()) & set(kmat_J.keys())):
 
-                    mmat = {irrep : val[cart] for irrep,val in mmat_J[sympair].items() if cart in val}
+                    mmat = {
+                        irrep : val[cart]
+                        for irrep,val in mmat_J[sympair].items() if cart in val
+                    }
                     kmat = kmat_J[sympair]
 
                     # do M \otimes K
-                    me = sum( kron(mmat[irrep], kmat[irrep])
-                                 for irrep in list(set(mmat.keys()) & set(kmat.keys())) )
+                    me = sum(
+                        kron(mmat[irrep], kmat[irrep])
+                        for irrep in list(set(mmat.keys()) & set(kmat.keys()))
+                    )
 
                     if not np.isscalar(me):
                         mat[Jpair][sympair] = me
@@ -423,7 +515,8 @@ class CarTens():
                     mat_sym = mat_sym.tocoo()
                     mask = np.argwhere(abs(mat_sym.data) > thresh).flatten()
                     mat_sym = csr_matrix(
-                        (mat_sym.data[mask], (mat_sym.row[mask], mat_sym.col[mask])),
+                        ( mat_sym.data[mask],
+                            (mat_sym.row[mask], mat_sym.col[mask])),
                         shape = mat_sym.shape
                     )
                     mat[Jpair][sympair] = mat_sym
@@ -467,10 +560,22 @@ class CarTens():
         """
         assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
 
-        m1 = { J : { sym : self.quanta_m1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
-        m2 = { J : { sym : self.quanta_m2[J][sym] for sym in self.symlist2[J] } for J in self.Jlist2 }
-        k1 = { J : { sym : self.quanta_k1[J][sym] for sym in self.symlist1[J] } for J in self.Jlist1 }
-        k2 = { J : { sym : self.quanta_k2[J][sym] for sym in self.symlist2[J] } for J in self.Jlist2 }
+        m1 = {
+            J : {sym : self.quanta_m1[J][sym] for sym in self.symlist1[J]}
+            for J in self.Jlist1
+        }
+        m2 = {
+            J : {sym : self.quanta_m2[J][sym] for sym in self.symlist2[J]}
+            for J in self.Jlist2
+        }
+        k1 = {
+            J : {sym : self.quanta_k1[J][sym] for sym in self.symlist1[J]}
+            for J in self.Jlist1
+        }
+        k2 = {
+            J : {sym : self.quanta_k2[J][sym] for sym in self.symlist2[J]}
+            for J in self.Jlist2
+        }
 
         mydict = lambda: defaultdict(mydict)
 
@@ -479,14 +584,16 @@ class CarTens():
             assign1 = mydict()
             for J in self.Jlist1:
                 for sym in self.symlist1[J]:
-                    mk = [elem for elem in itertools.product(m1[J][sym], k1[J][sym])]
+                    mk = [ elem for elem \
+                           in itertools.product(m1[J][sym], k1[J][sym]) ]
                     assign1[J][sym]['m'] = [elem[0] for elem in mk]
                     assign1[J][sym]['k'] = [elem[1] for elem in mk]
 
             assign2 = mydict()
             for J in self.Jlist2:
                 for sym in self.symlist2[J]:
-                    mk = [elem for elem in itertools.product(m2[J][sym], k2[J][sym])]
+                    mk = [ elem for elem \
+                           in itertools.product(m2[J][sym], k2[J][sym]) ]
                     assign2[J][sym]['m'] = [elem[0] for elem in mk]
                     assign2[J][sym]['k'] = [elem[1] for elem in mk]
 
@@ -495,7 +602,8 @@ class CarTens():
             assign1 = {'m':[], 'k':[], 'sym':[], 'J':[]}
             for J in self.Jlist1:
                 for sym in self.symlist1[J]:
-                    mk = [elem for elem in itertools.product(m1[J][sym], k1[J][sym])]
+                    mk = [ elem for elem \
+                           in itertools.product(m1[J][sym], k1[J][sym]) ]
                     assign1['m'] += [elem[0] for elem in mk]
                     assign1['k'] += [elem[1] for elem in mk]
                     assign1['sym'] += [sym for elem in mk]
@@ -504,7 +612,8 @@ class CarTens():
             assign2 = {'m':[], 'k':[], 'sym':[], 'J':[]}
             for J in self.Jlist2:
                 for sym in self.symlist2[J]:
-                    mk = [elem for elem in itertools.product(m2[J][sym], k2[J][sym])]
+                    mk = [ elem for elem \
+                           in itertools.product(m2[J][sym], k2[J][sym]) ]
                     assign2['m'] += [elem[0] for elem in mk]
                     assign2['k'] += [elem[1] for elem in mk]
                     assign2['sym'] += [sym for elem in mk]
@@ -558,14 +667,22 @@ class CarTens():
                 Block form of tensor matrix, split for different values of bra
                 and ket J quanta and different symmetries.
         """
-        ind0 = np.cumsum([self.dim1[J][sym] for J in self.Jlist1 for sym in self.symlist1[J]])
-        ind1 = np.cumsum([self.dim2[J][sym] for J in self.Jlist2 for sym in self.symlist2[J]])
+        ind0 = np.cumsum(
+            [ self.dim1[J][sym] for J in self.Jlist1
+              for sym in self.symlist1[J] ]
+        )
+        ind1 = np.cumsum(
+            [ self.dim2[J][sym] for J in self.Jlist2
+              for sym in self.symlist2[J] ]
+        )
         try:
             # input matrix is scipy sparse matrix
-            mat_ = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat.toarray(), ind0, axis=0)[:-1]]
+            mat_ = [ np.split(mat2, ind1, axis=1)[:-1]
+                     for mat2 in np.split(mat.toarray(), ind0, axis=0)[:-1] ]
         except AttributeError:
             # input matrix is ndarray
-            mat_ = [np.split(mat2, ind1, axis=1)[:-1] for mat2 in np.split(mat, ind0, axis=0)[:-1]]
+            mat_ = [ np.split(mat2, ind1, axis=1)[:-1]
+                     for mat2 in np.split(mat, ind0, axis=0)[:-1] ]
 
         Jsym1 = [(J, sym) for J in self.Jlist1 for sym in self.symlist1[J]]
         Jsym2 = [(J, sym) for J in self.Jlist2 for sym in self.symlist2[J]]
@@ -625,23 +742,34 @@ class CarTens():
                     k = quanta_k[J][sym]
                     mk = [elem for elem in itertools.product(m, k)]
                     if len(list(set(mk))) != len(mk):
-                        raise ValueError(f"found states with same assignment for J, sym = {J, sym} in 'tens'") from None
+                        raise ValueError(
+                            f"found states with same assignment for J, sym " \
+                                + f" = {J, sym} in `tens`"
+                        ) from None
                     try:
                         m_ = quanta_m_[J][sym]
                         k_ = quanta_k_[J][sym]
                         mk_ = [elem for elem in itertools.product(m_, k_)]
                         if len(list(set(mk_))) != len(mk_):
-                            raise ValueError(f"found states with same assignment for J, sym = {J, sym} in 'self'") from None
+                            raise ValueError(
+                                f"found states with same assignment for J, " \
+                                    + f"sym = {J, sym} in `self`"
+                            ) from None
                     except KeyError:
-                        raise KeyError(f"'tens' is not fully contained in 'self'") from None
+                        raise KeyError(
+                            f"`tens` is not fully contained in `self`"
+                        ) from None
                     # slow and simple search
                     ind = []
                     for elem in mk:
                         try:
                             ind.append(mk_.index(elem))
                         except ValueError:
-                            raise ValueError(f"'tens' basis state J, sym, m, k = {J, sym, elem[0], elem[1]} " + \
-                                f"is not found in 'self'") from None
+                            raise ValueError(
+                                f"`tens` basis state J, sym, m, k = " \
+                                    + f"{J, sym, elem[0], elem[1]} is not " \
+                                    + f"found in 'self'"
+                            ) from None
                     # update vector
                     try:
                         vec_[J][sym] = np.zeros(len(mk_), dtype=np.float64)
@@ -652,9 +780,12 @@ class CarTens():
 
         def vec_to_block(vec, vec_name, Jlist, symlist, dim):
             """ Converts vector into block form """
-            if isinstance(vec, (list, tuple, np.ndarray, np.generic)) or issparse(vec):
+            if isinstance(vec, (list, tuple, np.ndarray, np.generic)) \
+                or issparse(vec):
                 # convert `vec` into block form
-                ind = np.cumsum([dim[J][sym] for J in Jlist for sym in symlist[J]])
+                ind = np.cumsum(
+                    [dim[J][sym] for J in Jlist for sym in symlist[J]]
+                )
                 try:
                     # scipy sparse
                     vec_ = [np.split(vec.toarray(), ind)[:-1]]
@@ -669,55 +800,93 @@ class CarTens():
                     except KeyError:
                         res[J] = {sym : vec_[i]}
             elif isinstance(vec, Mapping):
-                # if already in block form, check if `vec` is fully contained in `tens`
+                # check if `vec` is fully contained in `tens`
                 if not all([J in Jlist for J in vec.keys()]):
-                    raise ValueError(f"some of J quanta in the input vector '{vec_name}' " + \
-                        f"are not contained in the input tensor 'tens'") from None
-                if not all([sym in symlist[J] for J in vec.keys() for sym in vec[J].keys]):
-                    raise ValueError(f"some of symmetries in the input vector '{vec_name}' " + \
-                        f"are not contained in the input tensor 'tens'") from None
+                    raise ValueError(
+                        f"some of J quanta in the input vector '{vec_name}' " \
+                            + f"are not contained in the input tensor `tens`"
+                    ) from None
+                if not all(
+                    [ sym in symlist[J] for J in vec.keys() \
+                      for sym in vec[J].keys ]
+                ):
+                    raise ValueError(
+                        f"some of symmetries in the input vector " \
+                            + f"'{vec_name}' are not contained in the input " \
+                            + f"tensor `tens`"
+                    ) from None
                 res = vec
             else:
-                raise ValueError(f"bad argument type for '{vec_name}': '{type(vec)}'") from None
+                raise ValueError(
+                    f"bad argument type for '{vec_name}': '{type(vec)}'"
+                ) from None
             return res
 
 
         def vec_to_inpform(vec_inp, vec_name, vec_out, Jlist, symlist, dim):
             """ Converts output vector to the same form as input vector """
-            if isinstance(vec_inp, (list, tuple, np.ndarray, np.generic)) or issparse(vec_inp):
+            if isinstance(vec_inp, (list, tuple, np.ndarray, np.generic)) \
+                or issparse(vec_inp):
                 res = scipy.sparse.bmat(
-                    [ vec_out[J][sym] if J in vec_out.keys() and sym in vec_out[J].keys()
-                        else csr_matrix(np.zeros(dim[J][sym]))
-                        for J in Jlist for sym in symlist[J] ]
+                    [ vec_out[J][sym]
+                      if J in vec_out.keys() and sym in vec_out[J].keys()
+                      else csr_matrix(np.zeros(dim[J][sym]))
+                      for J in Jlist for sym in symlist[J] ]
                 )
                 try:
                     # scipy sparse
-                    res = getattr(scipy.sparse, vec_inp.getformat()+"_matrix")(res)
+                    res = getattr(
+                        scipy.sparse, vec_inp.getformat()+"_matrix"
+                    )(res)
                 except AttributeError:
                     # ndarray
                     res = res.toarray()
             elif isinstance(vec_inp, Mapping):
                 res = vec_out
             else:
-                raise ValueError(f"bad argument type for '{vec_name}': '{type(vec)}'") from None
+                raise ValueError(
+                    f"bad argument type for '{vec_name}': '{type(vec)}'"
+                ) from None
             return res
 
 
         if not isinstance(arg, CarTens):
-            raise TypeError(f"bad argument type for 'tens': '{type(tens)}'") from None
+            raise TypeError(
+                f"bad argument type for 'tens': '{type(tens)}'"
+            ) from None
 
         res = []
 
         if vbra is not None:
-            vec = vec_to_block(vbra, 'vbra', tens.Jlist1, tens.symlist1, tens.dim1)
-            vec = vec_map(vec, tens.quanta_m1, tens.quanta_k1, self.quanta_m1, self.quanta_k1)
-            vec = vec_to_inpform(vbra, 'vbra', vec, self.Jlist1, self.symlist1, self.dim1)
+            vec = vec_to_block(
+                vbra, 'vbra', tens.Jlist1, tens.symlist1, tens.dim1
+            )
+            vec = vec_map(
+                vec,
+                tens.quanta_m1,
+                tens.quanta_k1,
+                self.quanta_m1,
+                self.quanta_k1
+            )
+            vec = vec_to_inpform(
+                vbra, 'vbra', vec, self.Jlist1, self.symlist1, self.dim1
+            )
             res.append(vec)
 
         if vket is not None:
-            vec = vec_to_block(vket, 'vket', tens.Jlist2, tens.symlist2, tens.dim2)
-            vec = vec_map(vec, tens.quanta_m2, tens.quanta_k2, self.quanta_m2, self.quanta_k2)
-            vec = vec_to_inpform(vket, 'vket', vec, self.Jlist2, self.symlist2, self.dim2)
+            vec = vec_to_block(
+                vket, 'vket', tens.Jlist2, tens.symlist2, tens.dim2
+            )
+            vec = vec_map(
+                vec,
+                tens.quanta_m2,
+                tens.quanta_k2,
+                self.quanta_m2,
+                self.quanta_k2
+            )
+            vec = vec_to_inpform(
+                vket, 'vket', vec, self.Jlist2, self.symlist2, self.dim2
+            )
             res.append(vec)
 
         return tuple(res)
@@ -725,15 +894,21 @@ class CarTens():
 
     def mul(self, arg):
         """ In-place multiplication of tensor with a scalar `arg` """
-        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
-                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        scalar = ( int, float, complex, np.int, np.int8, np.int16, np.int32,
+                   np.int64, np.float, np.float16, np.float32, np.float64,
+                   np.complex64, np.complex128 )
         if isinstance(arg, scalar):
             # multiply K-tensor with a scalar
             for Jpair in self.kmat.keys():
                 for sympair in self.kmat[Jpair].keys():
-                    self.kmat[Jpair][sympair] = {key : val * arg for key, val in self.kmat[Jpair][sympair].items()}
+                    self.kmat[Jpair][sympair] = { 
+                        key : val * arg
+                        for key, val in self.kmat[Jpair][sympair].items()
+                    }
         else:
-            raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
+            raise TypeError(
+                f"bad argument type for `arg` : '{type(arg)}'"
+            ) from None
 
 
     def add_cartens(self, arg):
@@ -752,33 +927,42 @@ class CarTens():
                 such as, for example, `mmat`, `cart`, `os`, `rank`.
         """
         if not isinstance(arg, CarTens):
-            raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
+            raise TypeError(
+                f"bad argument type for `arg`: '{type(arg)}'"
+            ) from None
 
         # check  if two tensors are defined with respect to the same basis set
 
-        # check_dict = ("Jlist1", "Jlist2", "symlist1", "symlist2", "dim1", "dim2", "dim_k1", "dim_k2",
-        #               "dim_m1", "dim_m2", "quanta_k1", "quanta_k2", "quanta_m1", "quanta_m2")
-        check_dict = ("Jlist1", "Jlist2", "symlist1", "symlist2", "dim1", "dim2", "dim_k1", "dim_k2",
-                      "dim_m1", "dim_m2")
+        # check_dict = ( "Jlist1", "Jlist2", "symlist1", "symlist2", "dim1",
+        #                "dim2", "dim_k1", "dim_k2", "dim_m1", "dim_m2",
+        #                "quanta_k1", "quanta_k2", "quanta_m1", "quanta_m2" )
+        check_dict = ( "Jlist1", "Jlist2", "symlist1", "symlist2", "dim1",
+                       "dim2", "dim_k1", "dim_k2", "dim_m1", "dim_m2" )
         nelem = 0
         for elem in check_dict:
             attr1 = getattr(self, elem)
             attr2 = getattr(arg, elem)
             if attr1 != attr2:
-                print(f"\ncan't add two tensors: {retrieve_name(self)}.{elem} != {retrieve_name(arg)}.{elem}")
+                print(
+                    f"\ncan't add two tensors: {retrieve_name(self)}.{elem} " \
+                        + f"!= {retrieve_name(arg)}.{elem}"
+                )
                 nelem+=1
         if nelem>0:
-            raise ValueError(f"tensors {retrieve_name(self)} + {retrieve_name(arg)} defined with respect to different basis sets") from None
+            raise ValueError(
+                f"tensors `{retrieve_name(self)}` + `{retrieve_name(arg)}` " \
+                    + f"defined with respect to different basis sets"
+            ) from None
 
-        # this is to generate mfmat for tensors without Cartesian components, such as field-free H0
+        # generate mfmat for tensors without Cartesian components, e.g. H0
         try:
             if self.cart[0] == "0":
-                self.field([0,0,1])
+                self.field([0, 0, 1])
         except AttributeError:
             pass
         try:
             if arg.cart[0] == "0":
-                arg.field([0,0,1]) 
+                arg.field([0, 0, 1]) 
         except AttributeError:
             pass
 
@@ -787,7 +971,7 @@ class CarTens():
         res.__name__ = retrieve_name(self) + "+" + retrieve_name(arg)
         res.__dict__.update(self.__dict__)
 
-        # delete attributes that may lead to erroneous use/behaviour of the object
+        # delete attributes that may lead to erroneous use/behaviour
         del_attrs = ("os", "rank", "cart", "mmat")
         for attr in del_attrs:
             if hasattr(res, attr):
@@ -795,14 +979,22 @@ class CarTens():
 
         # sum M and K tensors
 
-        irreps1 = [list(self.kmat[J][sym].keys()) for J in self.kmat.keys() for sym in self.kmat[J].keys()] + \
-                  [list(self.mfmat[J][sym].keys()) for J in self.mfmat.keys() for sym in self.mfmat[J].keys()]
+        irreps1 = [ list(self.kmat[J][sym].keys()) for J in self.kmat.keys()
+                    for sym in self.kmat[J].keys()] + \
+                  [ list(self.mfmat[J][sym].keys()) for J in self.mfmat.keys()
+                    for sym in self.mfmat[J].keys() ]
 
-        irreps2 = [list(arg.kmat[J][sym].keys()) for J in arg.kmat.keys() for sym in arg.kmat[J].keys()] + \
-                  [list(arg.mfmat[J][sym].keys()) for J in arg.mfmat.keys() for sym in arg.mfmat[J].keys()]
+        irreps2 = [ list(arg.kmat[J][sym].keys()) for J in arg.kmat.keys()
+                    for sym in arg.kmat[J].keys() ] + \
+                  [ list(arg.mfmat[J][sym].keys()) for J in arg.mfmat.keys()
+                    for sym in arg.mfmat[J].keys() ]
 
-        irreps1 = {elem : str(elem)+"_1" for elem in set(itertools.chain(*irreps1))}
-        irreps2 = {elem : str(elem)+"_2" for elem in set(itertools.chain(*irreps2))}
+        irreps1 = {
+            elem : str(elem)+"_1" for elem in set(itertools.chain(*irreps1))
+        }
+        irreps2 = {
+            elem : str(elem)+"_2" for elem in set(itertools.chain(*irreps2))
+        }
 
         mydict = lambda: defaultdict(mydict)
         res.kmat = mydict()
@@ -810,20 +1002,32 @@ class CarTens():
 
         for Jpair in self.kmat.keys():
             for sympair in self.kmat[Jpair].keys():
-                res.kmat[Jpair][sympair] = {irreps1[irrep] : val for irrep, val in self.kmat[Jpair][sympair].items()}
+                res.kmat[Jpair][sympair] = {
+                    irreps1[irrep] : val
+                    for irrep, val in self.kmat[Jpair][sympair].items()
+                }
 
         for Jpair in self.mfmat.keys():
             for sympair in self.mfmat[Jpair].keys():
-                res.mfmat[Jpair][sympair] = {irreps1[irrep] : val for irrep, val in self.mfmat[Jpair][sympair].items()}
+                res.mfmat[Jpair][sympair] = {
+                    irreps1[irrep] : val
+                    for irrep, val in self.mfmat[Jpair][sympair].items()
+                }
 
         for Jpair in arg.kmat.keys():
             for sympair in arg.kmat[Jpair].keys():
-                dct = {irreps2[irrep] : val for irrep, val in arg.kmat[Jpair][sympair].items()}
+                dct = {
+                    irreps2[irrep] : val
+                    for irrep, val in arg.kmat[Jpair][sympair].items()
+                }
                 res.kmat[Jpair][sympair].update(dct)
 
         for Jpair in arg.mfmat.keys():
             for sympair in arg.mfmat[Jpair].keys():
-                dct = {irreps2[irrep] : val for irrep, val in arg.mfmat[Jpair][sympair].items()}
+                dct = {
+                    irreps2[irrep] : val
+                    for irrep, val in arg.mfmat[Jpair][sympair].items()
+                }
                 res.mfmat[Jpair][sympair].update(dct)
 
         return res
@@ -845,16 +1049,23 @@ class CarTens():
             fx, fy, fz = field[:3]
             fxyz = np.array([fx, fy, fz])
         except (TypeError, IndexError):
-            raise IndexError(f"field variable must be an iterable with three items, " + \
-                f"which represent field's X, Y, and Z components") from None
+            raise IndexError(
+                f"field variable must be an iterable with three items " \
+                    + f"which represent field's X, Y, and Z components"
+            ) from None
 
-        field_prod = {"".join("xyz"[c] for c in comb) : np.prod(fxyz[list(comb)]) \
-                      for comb in itertools.product((0,1,2), repeat=self.rank)}
+        field_prod = {
+            "".join("xyz"[c] for c in comb) : np.prod(fxyz[list(comb)])
+            for comb in itertools.product((0,1,2), repeat=self.rank)
+        }
 
-        field_prod["0"] = 1 # this is to compute mfmat for product of field with field-free part (H0)
+        field_prod["0"] = 1 # mfmat for product of field with H0
 
         if thresh is not None:
-            field_prod = {key : val for key, val in field_prod.items() if abs(val) >= thresh}
+            field_prod = {
+                key : val
+                for key, val in field_prod.items() if abs(val) >= thresh
+            }
 
         # compute MF-tensor
         mydict = lambda: defaultdict(mydict)
@@ -913,13 +1124,19 @@ class CarTens():
         try:
             x = self.mfmat
         except AttributeError:
-            raise AttributeError("you need to multiply tensor with field before applying it to a vector") from None
+            raise AttributeError(
+                f"you need to multiply tensor with field before applying it " \
+                    + f"to a vector"
+            ) from None
 
         if not isinstance(vec, Mapping):
-            raise TypeError(f"bad argument type for 'vec': '{type(vec)}'") from None
+            raise TypeError(
+                f"bad argument type for `vec`: '{type(vec)}'"
+            ) from None
 
         assert (matvec_lib in ['scipy', 'numba', 'cupy']), \
-            f"'matvec_lib' is unknown: '{matvec_lib}' (must be 'scipy' or 'numba' or 'cupy')"
+            f"bad argument for `matvec_lib`: '{matvec_lib}' " \
+                + f"(must be 'scipy', 'numba', 'cupy')"
 
         def matvec_func():
 
@@ -935,7 +1152,9 @@ class CarTens():
                             for k in range(indptr[j], indptr[j + 1]):
                                 u[j, i] += data[k] * v[indices[k], i]
                     return u
-                return lambda spm, v : matvec_numba(spm.data, spm.indices, spm.indptr, spm.shape[0], v)
+                return lambda spm, v : matvec_numba(
+                    spm.data, spm.indices, spm.indptr, spm.shape[0], v
+                )
 
             elif matvec_lib == 'cupy':
                 def matvec_cupy(spm, v):
@@ -945,8 +1164,6 @@ class CarTens():
                 return lambda spm, v : matvec_cupy(spm, v)
 
         matvec = matvec_func()
-
-        #nirrep = len(set(omega for (omega,sigma) in self.os)) # number of tensor irreps
 
         vec2 = dict()
 
@@ -974,7 +1191,9 @@ class CarTens():
                 res = []
                 for irrep in list(set(mfmat.keys()) & set(kmat.keys())):
                     tmat = matvec(kmat[irrep], vecT)
-                    res.append(matvec(mfmat[irrep], np.transpose(tmat)).reshape(dim))
+                    res.append(
+                        matvec(mfmat[irrep], np.transpose(tmat)).reshape(dim)
+                    )
 
                 try:
                     vec2[J1][sym1] += sum(res)
@@ -988,8 +1207,9 @@ class CarTens():
         """ Multiplication with `scalar` (:py:func:`mul`), `field`
                 (:py:func:`field`) and `vector` (:py:func:`vec`)
         """
-        scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
-                  np.float16, np.float32, np.float64, np.complex64, np.complex128)
+        scalar = ( int, float, complex, np.int, np.int8, np.int16, np.int32,
+                   np.int64, np.float, np.float16, np.float32, np.float64,
+                   np.complex64, np.complex128 )
         if isinstance(arg, scalar):
             # multiply with a scalar
             res = copy.deepcopy(self)
@@ -1003,8 +1223,10 @@ class CarTens():
             res = copy.deepcopy(self)
             res.vec(arg)
         else:
-            raise TypeError(f"unsupported operand type(s) for '*': '{self.__class__.__name__}' and " + \
-                f"'{type(arg)}'") from None
+            raise TypeError(
+                f"unsupported operand type(s) for '*': " \
+                    + f"'{self.__class__.__name__}' and '{type(arg)}'"
+            ) from None
         return res
 
 
@@ -1013,8 +1235,10 @@ class CarTens():
         if isinstance(arg, CarTens):
             res = self.add_cartens(arg)
         else:
-            raise TypeError(f"unsupported operand type(s) for '+': '{self.__class__.__name__}' and " + \
-                f"'{type(arg)}'") from None
+            raise TypeError(
+                f"unsupported operand type(s) for '+': " \
+                    + f"'{self.__class__.__name__}' and '{type(arg)}'"
+            ) from None
         return res
 
 
@@ -1023,8 +1247,10 @@ class CarTens():
         if isinstance(arg, CarTens):
             res = self.add_cartens(arg * (-1))
         else:
-            raise TypeError(f"unsupported operand type(s) for '-': '{self.__class__.__name__}' and " + \
-                f"'{type(arg)}'") from None
+            raise TypeError(
+                f"unsupported operand type(s) for '-': " \
+                    + f"'{self.__class__.__name__}' and '{type(arg)}'"
+            ) from None
         return res
 
 
@@ -1067,8 +1293,11 @@ class CarTens():
                     group = fl.create_group(name)
                 else:
                     group = fl[name]
-                    #print(f"found existing dataset '{name}' in file '{filename}', " + \
-                    #    f"will append it, potentially replacing some data")
+                    #print(
+                    #    f"found existing dataset '{name}' in file " \
+                    #        + f"'{filename}', will append it, potentially " \
+                    #        + f"replacing some data"
+                    #)
             else:
                 group = fl.create_group(name)
 
@@ -1082,10 +1311,13 @@ class CarTens():
             except KeyError:
                 doc = "Cartesian tensor operator"
 
-            date = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+            date = datetime.datetime.fromtimestamp(
+                time.time()
+            ).strftime('%Y-%m-%d %H:%M:%S')
             doc += ", store date: " + date.replace('\n','')
             if comment is not None:
-                doc += ", comment: " + " ".join(elem for elem in comment.split())
+                doc += ", comment: " \
+                    + " ".join(elem for elem in comment.split())
 
             group.attrs["__doc__"] = doc
 
@@ -1120,7 +1352,9 @@ class CarTens():
                 kmat_sym = self.kmat[(J1, J2)]
 
                 # loop over pairs of coupled symmetries
-                for (sym1, sym2) in list(set(mmat_sym.keys()) & set(kmat_sym.keys())):
+                for (sym1, sym2) in list(
+                    set(mmat_sym.keys()) & set(kmat_sym.keys())
+                ):
 
                     # store K-matrix
 
@@ -1150,29 +1384,51 @@ class CarTens():
                         try:
                             group_sym = group_j[sym_group_key(sym1, sym2)]
                         except:
-                            group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                            group_sym = group_j.create_group(
+                                sym_group_key(sym1, sym2)
+                            )
                         if replace_k is True:
                             del group_sym["kmat_data"]
                             del group_sym["kmat_indices"]
                             del group_sym["kmat_indptr"]
                         try:
-                            group_sym.create_dataset("kmat_data", data=np.concatenate(data))
-                            group_sym.create_dataset("kmat_indices", data=np.concatenate(indices))
-                            group_sym.create_dataset("kmat_indptr", data=np.concatenate(indptr))
+                            group_sym.create_dataset(
+                                "kmat_data", data=np.concatenate(data)
+                            )
+                            group_sym.create_dataset(
+                                "kmat_indices", data=np.concatenate(indices)
+                            )
+                            group_sym.create_dataset(
+                                "kmat_indptr", data=np.concatenate(indptr)
+                            )
                         except:
-                            raise RuntimeError(f"found existing K-tensor dataset for (J1, J2) = {(J1, J2)} " + \
-                                f"and (sym1, sym2) = {(sym1, sym2)} in file '{filename}', " + \
-                                f"use replace_k=True to replace K-tensor datasets") from None
-                        group_sym.attrs["kmat_nnz"] = [len(dat) for dat in data]
-                        group_sym.attrs["kmat_nind"] = [len(ind) for ind in indices]
-                        group_sym.attrs["kmat_nptr"] = [len(ind) for ind in indptr]
+                            raise RuntimeError(
+                                f"found existing K-tensor dataset for " \
+                                    + f"`(J1, J2)` = '{(J1, J2)}' and " \
+                                    + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
+                                    + f" in file '{filename}', use " \
+                                    + f"`replace_k` = True to replace " \
+                                    + f"K-tensor atasets"
+                                ) from None
+                        group_sym.attrs["kmat_nnz"] = [
+                            len(dat) for dat in data
+                        ]
+                        group_sym.attrs["kmat_nind"] = [
+                            len(ind) for ind in indices
+                        ]
+                        group_sym.attrs["kmat_nptr"] = [
+                            len(ind) for ind in indptr
+                        ]
                         group_sym.attrs["kmat_irreps"] = irreps
                         group_sym.attrs["kmat_shape"] = shape
 
                     # store M-matrix
 
-                    mmat = {(irrep, cart) : m for irrep, mat in mmat_sym[(sym1, sym2)].items()
-                            for cart, m in mat.items()}
+                    mmat = {
+                        (irrep, cart) : m
+                        for irrep, mat in mmat_sym[(sym1, sym2)].items()
+                        for cart, m in mat.items()
+                    }
 
                     # remove elements smaller than 'thresh'
                     if thresh is not None:
@@ -1198,22 +1454,41 @@ class CarTens():
                         try:
                             group_sym = group_j[sym_group_key(sym1, sym2)]
                         except:
-                            group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                            group_sym = group_j.create_group(
+                                sym_group_key(sym1, sym2)
+                            )
                         if replace_m is True:
                             del group_sym["mmat_data"]
                             del group_sym["mmat_indices"]
                             del group_sym["mmat_indptr"]
                         try:
-                            group_sym.create_dataset("mmat_data", data=np.concatenate(data))
-                            group_sym.create_dataset("mmat_indices", data=np.concatenate(indices))
-                            group_sym.create_dataset("mmat_indptr", data=np.concatenate(indptr))
+                            group_sym.create_dataset(
+                                "mmat_data", data=np.concatenate(data)
+                            )
+                            group_sym.create_dataset(
+                                "mmat_indices", data=np.concatenate(indices)
+                            )
+                            group_sym.create_dataset(
+                                "mmat_indptr", data=np.concatenate(indptr)
+                            )
                         except:
-                            raise RuntimeError(f"found existing M-tensor dataset for (J1, J2) = {(J1, J2)} " + \
-                                f"and (sym1, sym2) = {(sym1, sym2)} in file '{filename}', " + \
-                                f"use replace_m=True to replace M-tensor datasets") from None
-                        group_sym.attrs["mmat_nnz"] = [len(dat) for dat in data]
-                        group_sym.attrs["mmat_nind"] = [len(ind) for ind in indices]
-                        group_sym.attrs["mmat_nptr"] = [len(ind) for ind in indptr]
+                            raise RuntimeError(
+                                f"found existing M-tensor dataset for " \
+                                    + f"`(J1, J2)` = '{(J1, J2)}' and " \
+                                    + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
+                                    + f" in file '{filename}', use " \
+                                    + f"`replace_m` = True to replace " \
+                                    + f"M-tensor atasets"
+                                ) from None
+                        group_sym.attrs["mmat_nnz"] = [
+                            len(dat) for dat in data
+                        ]
+                        group_sym.attrs["mmat_nind"] = [
+                            len(ind) for ind in indices
+                        ]
+                        group_sym.attrs["mmat_nptr"] = [
+                            len(ind) for ind in indptr
+                        ]
                         group_sym.attrs["mmat_irrep_cart"] = irrep_cart
                         group_sym.attrs["mmat_shape"] = shape
 
@@ -1251,12 +1526,16 @@ class CarTens():
             try:
                 group = fl[name]
             except KeyError:
-                raise KeyError(f"file '{filename}' has no dataset with the name '{name}'") from None
+                raise KeyError(
+                    f"file '{filename}' has no dataset with the name '{name}'"
+                ) from None
 
             class_name = group.attrs["__class_name__"]
             if class_name != self.class_name():
-                raise TypeError(f"dataset with the name '{name}' in file '{filename}' " + \
-                    f"has different type: '{class_name}'") from None
+                raise TypeError(
+                    f"dataset with the name '{name}' in file '{filename}' " \
+                        + f"has different type: '{class_name}'"
+                ) from None
 
             # read attributes
 
@@ -1302,7 +1581,8 @@ class CarTens():
                             group_sym = group_j[key2]
 
                             # selected symmetries
-                            if sym1 not in self.symlist1[J1] or sym2 not in self.symlist2[J2]:
+                            if sym1 not in self.symlist1[J1] \
+                                or sym2 not in self.symlist2[J2]:
                                 continue
 
                             # indices of selected quanta in K and M tensors
@@ -1320,18 +1600,29 @@ class CarTens():
                                 nptr = group_sym.attrs['kmat_nptr']
                                 shape = group_sym.attrs['kmat_shape']
                                 irreps = group_sym.attrs['kmat_irreps']
-                                data = np.split(group_sym['kmat_data'], np.cumsum(nnz))[:-1]
-                                indices = np.split(group_sym['kmat_indices'], np.cumsum(nind))[:-1]
-                                indptr = np.split(group_sym['kmat_indptr'], np.cumsum(nptr))[:-1]
-                                kmat = {irrep : csr_matrix((dat, ind, ptr), shape=sh)[ik1, :].tocsc()[:, ik2].tocsr()
-                                        for irrep,dat,ind,ptr,sh in zip(irreps,data,indices,indptr,shape)}
+                                data = np.split(
+                                    group_sym['kmat_data'], np.cumsum(nnz)
+                                )[:-1]
+                                indices = np.split(
+                                    group_sym['kmat_indices'], np.cumsum(nind)
+                                )[:-1]
+                                indptr = np.split(
+                                    group_sym['kmat_indptr'], np.cumsum(nptr)
+                                )[:-1]
+                                kmat = {
+                                    irrep : csr_matrix(
+                                        (dat, ind, ptr), shape=sh
+                                    )[ik1, :].tocsc()[:, ik2].tocsr()
+                                    for irrep,dat,ind,ptr,sh \
+                                    in zip(irreps,data,indices,indptr,shape)
+                                }
 
                             except KeyError:
                                 pass
 
                             # add K-matrix to tensor object
                             if kmat is not None:
-                                # remove elements smaller that 'thresh'
+                                # remove elements smaller than 'thresh'
                                 if thresh is not None:
                                     kmat_ = dict()
                                     for key, mat in kmat.items():
@@ -1353,16 +1644,25 @@ class CarTens():
                                 nptr = group_sym.attrs['mmat_nptr']
                                 shape = group_sym.attrs['mmat_shape']
                                 irrep_cart = group_sym.attrs['mmat_irrep_cart']
-                                data = np.split(group_sym['mmat_data'], np.cumsum(nnz))[:-1]
-                                indices = np.split(group_sym['mmat_indices'], np.cumsum(nind))[:-1]
-                                indptr = np.split(group_sym['mmat_indptr'], np.cumsum(nptr))[:-1]
+                                data = np.split(
+                                    group_sym['mmat_data'], np.cumsum(nnz)
+                                )[:-1]
+                                indices = np.split(
+                                    group_sym['mmat_indices'], np.cumsum(nind)
+                                )[:-1]
+                                indptr = np.split(
+                                    group_sym['mmat_indptr'], np.cumsum(nptr)
+                                )[:-1]
                                 mmat = mydict()
-                                for ielem, (irrep, cart) in enumerate(irrep_cart):
+                                for ielem, (irrep, cart) \
+                                    in enumerate(irrep_cart):
                                     dat = data[ielem]
                                     ind = indices[ielem]
                                     ptr = indptr[ielem]
                                     sh = shape[ielem]
-                                    mat = csr_matrix((dat, ind, ptr), shape=sh)[im1, :].tocsc()[:, im2].tocsr()
+                                    mat = csr_matrix(
+                                        (dat, ind, ptr), shape=sh
+                                    )[im1, :].tocsc()[:, im2].tocsr()
                                     mmat[int(irrep)][cart] = mat
                             except KeyError:
                                 pass
@@ -1383,7 +1683,7 @@ class CarTens():
                                 if len(mmat) > 0:
                                     self.mmat[(J1, J2)][(sym1, sym2)] = mmat
 
-            # apply state selection filters again to reset the basis set indices
+            # apply state selection filters again to reset the basis set inds
             self.filter(thresh=thresh, **kwargs)
 
 
@@ -1424,7 +1724,9 @@ class CarTens():
                     enr = float(w[4])
                     qstr = ' '.join([w[i] for i in range(5,len(w))])
                 except (IndexError, ValueError):
-                    raise ValueError(f"error while reading file '{filename}'") from None
+                    raise ValueError(
+                        f"error while reading file '{filename}'"
+                    ) from None
 
                 for ideg in range(ndeg):
                     try:
@@ -1434,28 +1736,52 @@ class CarTens():
                         energy[J][sym] = [enr]
                         assign[J][sym] = [qstr]
 
-                    # mapping between (J,id,ideg) and basis set index in the group
-                    # of states sharing the same J and symmetry
+                    # mapping between (J,id,ideg) and basis set ind in the
+                    #   group of states sharing the same J and symmetry
                     map_k_ind[(J, id, ideg+1)] = (len(energy[J][sym])-1, sym)
 
         if len(list(energy.keys())) == 0:
-            raise Exception(f"zero number of states in file '{filename}'") from None
+            raise Exception(
+                f"zero number of states in file '{filename}'"
+            ) from None
 
         # list of m quanta for different J
-        mquanta = {J : [round(float(m),1) for m in np.linspace(-J, J, int(2*J)+1)] for J in energy.keys()}
+        mquanta = {
+            J : [ round(float(m), 1)
+                  for m in np.linspace(-J, J, int(2 * J) + 1) ]
+            for J in energy.keys()
+        }
 
         # generate mapping beteween m quanta and basis set index
-        map_m_ind = {(J, m) : ind_m for J in mquanta.keys() for ind_m,m in enumerate(mquanta[J]) }
+        map_m_ind = {
+            (J, m) : ind_m
+            for J in mquanta.keys() for ind_m, m in enumerate(mquanta[J])
+        }
 
         # generate attributes
 
         Jlist = list(energy.keys())
         symlist = {J : [sym for sym in energy[J].keys()] for J in Jlist}
-        dim_m = {J : {sym : len(mquanta[J]) for sym in symlist[J]} for J in Jlist}
-        dim_k = {J : {sym : len(energy[J][sym]) for sym in symlist[J]} for J in Jlist}
-        dim = {J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]} for J in Jlist}
-        quanta_m = {J : {sym : ["%4.1f"%m for m in mquanta[J]] for sym in symlist[J]} for J in Jlist}
-        quanta_k = {J : {sym : [(q,e) for q,e in zip(assign[J][sym], energy[J][sym])] for sym in symlist[J]} for J in Jlist}
+        dim_m = {
+            J : {sym : len(mquanta[J]) for sym in symlist[J]} for J in Jlist
+        }
+        dim_k = {
+            J : {sym : len(energy[J][sym]) for sym in symlist[J]}
+            for J in Jlist
+        }
+        dim = {
+            J : {sym : dim_m[J][sym] * dim_k[J][sym] for sym in symlist[J]}
+            for J in Jlist
+        }
+        quanta_m = {
+            J : {sym : ["%4.1f"%m for m in mquanta[J]] for sym in symlist[J]}
+            for J in Jlist
+        }
+        quanta_k = {
+            J : { sym : [(q,e) for q, e in zip(assign[J][sym], energy[J][sym])]
+                  for sym in symlist[J] }
+            for J in Jlist
+        }
 
         self.Jlist1 = Jlist
         self.symlist1 = symlist
@@ -1477,11 +1803,25 @@ class CarTens():
         self.os = [(0,0)]
         self.rank = 0
 
-        self.mmat = {(J, J) : {(sym, sym) : {0 : {'0' : csr_matrix(np.eye(len(mquanta[J])), dtype=np.complex128)}}
-                     for sym in symlist[J]} for J in Jlist}
+        self.mmat = {
+            (J, J) : {
+                (sym, sym) : {
+                    0 : { '0' : csr_matrix(
+                            np.eye(len(mquanta[J])), dtype=np.complex128
+                           ) }
+                } for sym in symlist[J]
+            } for J in Jlist
+        }
 
-        self.kmat = {(J, J) : {(sym, sym) : {0 : csr_matrix(np.diag(energy[J][sym]), dtype=np.complex128)}
-                     for sym in symlist[J]} for J in Jlist}
+        self.kmat = {
+            (J, J) : {
+                (sym, sym) : {
+                    0 : csr_matrix(
+                        np.diag(energy[J][sym]), dtype=np.complex128
+                    )
+                } for sym in symlist[J]
+            } for J in Jlist
+        }
 
         # following attributes to be used by read_trans only
         self.dim_m = dim_m
@@ -1592,8 +1932,11 @@ class CarTens():
 
                         if iline == 0:
                             if strline != "Start richmol format":
-                                raise Exception(f"file '{fname}' has bogus header '{strline}'")
-                            iline+=1
+                                raise Exception(
+                                    f"file '{fname}' has bogus header " \
+                                        + f"'{strline}'"
+                                )
+                            iline += 1
                             continue
 
                         if strline == "End richmol format":
@@ -1607,39 +1950,61 @@ class CarTens():
                                 nirrep = int(w[1])
                                 ncart = int(w[2])
                             except (IndexError, ValueError):
-                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
-                            if tens_nirrep is not None and tens_nirrep != nirrep:
-                                raise ValueError(f"'nirrep' = {nirrep} read from file {fname} is different from " + \
-                                    f"the value {tens_nirrep} read from previous files") from None
+                                raise ValueError(
+                                    f"error while reading file " \
+                                        + f"'{filename}', line = {iline}"
+                                ) from None
+                            if tens_nirrep is not None \
+                                and tens_nirrep != nirrep:
+                                raise ValueError(
+                                    f"`nirrep` = '{nirrep}' read from file " \
+                                        + f"'{fname}' is different from the " \
+                                        + f"value {tens_nirrep} read from " \
+                                        + f"previous files"
+                                ) from None
                             if tens_ncart is not None and tens_ncart != ncart:
-                                raise ValueError(f"'ncart' = {ncart} read from file {fname} is different from " + \
-                                    f"the value {tens_ncart} read from previous files") from None
+                                raise ValueError(
+                                    f"`ncart` = '{ncart}' read from file " \
+                                        + f"'{fname}' is different from the " \
+                                        + f"value '{tens_ncart}' read from " \
+                                        + f"previous files"
+                                ) from None
                             tens_nirrep = nirrep
                             tens_ncart = ncart
                             try:
                                 self.os = irreps[(ncart, nirrep)]
-                                irreps_list = sorted(list(set(omega for omega, sigma in self.os)))
+                                irreps_list = sorted(list(
+                                    set(omega for omega, sigma in self.os)
+                                ))
                             except KeyError:
-                                raise ValueError(f"can't infer Cartesian tensor irreps from the number " + \
-                                    f"of Cartesian components = {ncart} and number of irreps = {nirrep}") from None
+                                raise ValueError(
+                                    f"can't infer Cartesian tensor irreps " \
+                                        + f"from the number of Cartesian " \
+                                        + f"of Cartesian components = " \
+                                        + f"'{ncart}' and number of irreps " \
+                                        + f"= '{nirrep}'"
+                                ) from None
                             try:
                                 self.rank = ranks[ncart]
                             except KeyError:
-                                raise ValueError(f"can't infer rank of Cartesian tensor from the number " + \
-                                    f"of Cartesian components = {ncart}") from None
-                            iline+=1
+                                raise ValueError(
+                                    f"can't infer rank of Cartesian tensor " \
+                                        + f"from the number of Cartesian " \
+                                        + f"components = '{ncart}'"
+                                ) from None
+                            iline += 1
                             continue
 
                         if strline == "M-tensor":
                             read_m = True
                             read_k = False
-                            iline+=1
+                            iline += 1
                             continue
 
                         if strline == "K-tensor":
                             read_m = False
                             read_k = True
-                            iline+=1
+                            iline += 1
                             continue
 
                         if read_m is True and strline.split()[0] == "alpha":
@@ -1648,24 +2013,32 @@ class CarTens():
                                 icmplx = int(w[2])
                                 cart = w[3].lower()
                             except (IndexError, ValueError):
-                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
+                                raise ValueError(
+                                    f"error while reading file " \
+                                        + f"'{filename}', line = '{iline}'"
+                                ) from None
                             self.cart = list(set(self.cart + [cart]))
-                            cmplx_fac = (1j, 1)[icmplx+1]
-                            iline+=1
+                            cmplx_fac = (1j, 1)[icmplx + 1]
+                            iline += 1
                             continue
 
                         if read_m is True:
                             w = strline.split()
                             try:
-                                m1 = round(float(w[0]),1)
-                                m2 = round(float(w[1]),1)
-                                mval = [ float(val) * cmplx_fac for val in w[2:] ]
+                                m1 = round(float(w[0]), 1)
+                                m2 = round(float(w[1]), 1)
+                                mval = [ float(val) * cmplx_fac
+                                         for val in w[2:] ]
                             except (IndexError, ValueError):
-                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
+                                raise ValueError(
+                                    f"error while reading file " \
+                                        + f"'{filename}', line = '{iline}'"
+                                ) from None
                             im1 = self.map_m_ind[(J1, m1)]
                             im2 = self.map_m_ind[(J2, m2)]
                             for i,irrep in enumerate(irreps_list):
-                                if thresh is not None and abs(mval[i]) < thresh:
+                                if thresh is not None \
+                                    and abs(mval[i]) < thresh:
                                     continue
                                 try:
                                     mrow[irrep][cart].append(im1)
@@ -1685,12 +2058,16 @@ class CarTens():
                                 ideg2 = int(w[3])
                                 kval = [float(val) for val in w[4:]]
                             except (IndexError, ValueError):
-                                raise ValueError(f"error while reading file '{filename}', line = {iline}") from None
+                                raise ValueError(
+                                    f"error while reading file " \
+                                        + f"'{filename}', line = '{iline}'"
+                                ) from None
                             istate1, sym1 = self.map_k_ind[(J1, id1, ideg1)]
                             istate2, sym2 = self.map_k_ind[(J2, id2, ideg2)]
                             sym = (sym1, sym2)
                             for i,irrep in enumerate(irreps_list):
-                                if thresh is not None and abs(kval[i]) < thresh:
+                                if thresh is not None \
+                                    and abs(kval[i]) < thresh:
                                     continue
                                 try:
                                     krow[sym][irrep].append(istate1)
@@ -1704,7 +2081,9 @@ class CarTens():
                         iline +=1
 
                     if eof is False:
-                        raise Exception(f"'{fname}' has bogus footer '{strline}'")
+                        raise Exception(
+                            f"'{fname}' has bogus footer '{strline}'"
+                        )
 
                 # add data to M and K tensors
 
@@ -1729,36 +2108,53 @@ class CarTens():
                     mshape = (self.dim_m[J1_][sym1_], self.dim_m[J2_][sym2_])
                     kshape = (self.dim_k[J1_][sym1_], self.dim_k[J2_][sym2_])
 
-                    # in the old-format, J1/F1 and J2/F2 denote ket and bra states, respectively,
-                    # while here J1/F1 and J2/F2 denote the opposite, bra and ket states,
-                    # to account for this, we need to do additional complex conjugate
-                    # this cancels out conjugation when transp is True and adds it when transp is False
+                    # in the old-format, J1 / F1 and J2 / F2 denote ket and bra
+                    #   states, respectively, while here J1 / F1 and J2 / F2
+                    #   denote the opposite, bra and ket states, to account for
+                    #   this, we need to do additional complex conjugate this
+                    #   cancels out conjugation, when `transp` = True, and adds
+                    #   it, when `transp` = False
 
                     if transp is True:
 
-                        mmat = {irrep : {cart :
-                                    csr_matrix((mdata[irrep][cart], (mcol[irrep][cart], mrow[irrep][cart])),
-                                               shape=mshape)[im1, :].tocsc()[:, im2].tocsr()
-                                         for cart in mdata[irrep].keys()}
-                                for irrep in mdata.keys()}
+                        mmat = {
+                            irrep : {
+                                cart : csr_matrix(
+                                    ( mdata[irrep][cart],
+                                        (mcol[irrep][cart], mrow[irrep][cart]) ),
+                                    shape=mshape
+                                )[im1, :].tocsc()[:, im2].tocsr()
+                                for cart in mdata[irrep].keys() }
+                            for irrep in mdata.keys()
+                        }
 
-                        kmat = {irrep :
-                                    csr_matrix((kdata[sympair][irrep], (kcol[sympair][irrep], krow[sympair][irrep])),
-                                               shape=kshape)[ik1, :].tocsc()[:, ik2].tocsr()
-                                for irrep in kdata[sympair].keys()}
+                        kmat = {
+                            irrep : csr_matrix(
+                                ( kdata[sympair][irrep],
+                                    (kcol[sympair][irrep], krow[sympair][irrep])),
+                                shape=kshape)[ik1, :].tocsc()[:, ik2].tocsr()
+                            for irrep in kdata[sympair].keys()
+                        }
 
                     else:
 
-                        mmat = {irrep : {cart :
-                                    csr_matrix((np.conj(mdata[irrep][cart]), (mrow[irrep][cart], mcol[irrep][cart])),
-                                               shape=mshape)[im1, :].tocsc()[:, im2].tocsr()
-                                         for cart in mdata[irrep].keys()}
-                                for irrep in mdata.keys()}
+                        mmat = {
+                            irrep : {
+                                cart : csr_matrix(
+                                    ( np.conj(mdata[irrep][cart]),
+                                        (mrow[irrep][cart], mcol[irrep][cart]) ),
+                                    shape=mshape)[im1, :].tocsc()[:, im2].tocsr()
+                                for cart in mdata[irrep].keys() }
+                            for irrep in mdata.keys()
+                        }
 
-                        kmat = {irrep :
-                                    csr_matrix((np.conj(kdata[sympair][irrep]), (krow[sympair][irrep], kcol[sympair][irrep])),
-                                               shape=kshape)[ik1, :].tocsc()[:, ik2].tocsr()
-                                for irrep in kdata[sympair].keys()}
+                        kmat = {
+                            irrep : csr_matrix(
+                                ( np.conj(kdata[sympair][irrep]),
+                                    (krow[sympair][irrep], kcol[sympair][irrep]) ),
+                                shape=kshape)[ik1, :].tocsc()[:, ik2].tocsr()
+                            for irrep in kdata[sympair].keys()
+                        }
 
                     self.mmat[(J1_, J2_)][(sym1_, sym2_)] = mmat
                     self.kmat[(J1_, J2_)][(sym1_, sym2_)] = kmat
@@ -1769,15 +2165,17 @@ class CarTens():
         del self.dim_m
         del self.dim_k
 
-        # apply state filters, note that state selection was already done before, in read_states,
-        # here we call it again to delete some small elements in mmat and kmat (thresh parameter)
-        # as well as reset state indexes in ind_m1, ind_m2, ind_k1, and ind_k2
+        # apply state filters, note that state selection was already done
+        #   before, in read_states, here we call it again to delete some small
+        #   elements in mmat and kmat (thresh parameter) as well as reset state
+        #   indexes in ind_m1, ind_m2, ind_k1, and ind_k2
         self.filter(thresh=thresh, **kwargs)
 
 
     def class_name(self):
         """ Generates '__class_name__' attribute for the tensor data group in
-               HDF5 file"""
+               HDF5 file
+        """
         return self.__module__ + '.' + self.__class__.__name__
 
 
@@ -1825,6 +2223,7 @@ def sym_group_key(sym1, sym2):
 def retrieve_name(var):
     """ Gets the name of var. Does it from the out most frame inner-wards """
     for fi in reversed(inspect.stack()):
-        names = [var_name for var_name, var_val in fi.frame.f_locals.items() if var_val is var]
+        names = [ var_name for var_name, var_val in fi.frame.f_locals.items() \
+                  if var_val is var ]
         if len(names) > 0:
             return names[0]
