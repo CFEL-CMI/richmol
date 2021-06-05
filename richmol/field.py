@@ -8,12 +8,10 @@ import copy
 import h5py
 import inspect
 import datetime
-import time
 import regex as re
 from collections import defaultdict
 from collections.abc import Mapping
 from richmol import json_ext as json
-from richmol.pyexpokit import zhexpv, expv_lanczos
 import os
 from numba import njit, prange, complex128
 
@@ -24,24 +22,27 @@ if torch.cuda.is_available():
 
 
 class CarTens():
-    """General class for laboratory-frame Cartesian tensor operator
+    """ General class for laboratory-frame Cartesian tensor operator
 
     Args:
         filename : str
-            Name of the HDF5 file from which tensor data is loaded. Alternatively, one can load
-            tensor from the old-format ASCII files, by providing in `filename` the name of the richmol
-            states file and in `matelem` a template for generating the names of the richmol matrix
-            elements files.
+            Name of the HDF5 file from which tensor data is loaded.
+            Alternatively, one can load tensor from the old-format ASCII files,
+            by providing in `filename` the name of the richmol states file and
+            in `matelem` a template for generating the names of the richmol
+            matrix elements files.
         matelem : str
-            In the old-format, matrix elements of Cartesian tensors for different values of bra
-            and ket J (or F) quanta are stored in separate files.
-            The argument `matelem` provides a template for generating the names of these files.
-            For example, for `matelem` = "me<j1>_<j2>", the following files will be searched:
-            "me0_0", "me0_1", "me1_0", "me2_0", "me2_1", and so on, i.e. <j1> and <j2> will be
-            replaced by integer values of bra and ket J quanta, respectively.
-            For half-integer values of the F quantum number, replace <j1> and <j2> in the template
-            by <f1> and <f2>, these will then be substituted by the floating point values of bra
-            and ket F quanta rounded to the first decimal.
+            In the old-format, matrix elements of Cartesian tensors for
+            different values of bra and ket J (or F) quanta are stored in
+            separate files. The argument `matelem` provides a template for
+            generating the names of these files. For example, for `matelem` =
+            'me<j1>_<j2>', the following files will be searched: 'me0_0',
+            'me0_1", "me1_0", 'me2_0', 'me2_1', and so on, i.e. <j1> and <j2>
+            will be replaced by integer values of bra and ket J quanta,
+            respectively. For half-integer values of the F quantum number,
+            replace <j1> and <j2> in the template by <f1> and <f2>, these will
+            then be substituted by the floating point values of bra and ket F
+            quanta rounded to the first decimal.
         name : str
             Name of the data group in HDF5 file.
 
@@ -49,11 +50,13 @@ class CarTens():
         thresh : float
             Threshold for neglecting matrix elements when reading from file
         bra, ket : function(**kw)
-            State filters for bra and ket basis sets, take as arguments state quantum numbers, symmetry,
-            and energy, i.e., `J`, `m`, `k`, `sym`, and `enr`, and return True or False depending on if
-            the corresponding state needs to be included or excluded form the basis.
-            By default, all states stored in the file are included.
-            The following keyword arguments are passed into the bra and ket functions:
+            State filters for bra and ket basis sets, take as arguments state
+            quantum numbers, symmetry, and energy, i.e., `J`, `m`, `k`, `sym`,
+            and `enr`, and return True or False depending on if the
+            corresponding state needs to be included or excluded form the
+            basis. By default, all states stored in the file are included. The
+            following keyword arguments are passed into the bra and ket
+            functions:
                 J : float (round to first decimal)
                     Value of J (or F) quantum number
                 sym : str
@@ -61,23 +64,28 @@ class CarTens():
                 enr : float
                     State energy
                 m : str
-                    State assignment in the M subspace, usually just a value of the m quantum number
+                    State assignment in the M subspace, usually just a value of
+                    the m quantum number
                 k : str
-                    State assignment in the K subspace, which are the rotational or ro-vibrational
-                    quanta joined in a string
+                    State assignment in the K subspace, which are the
+                    rotational or ro-vibrational quanta joined in a string
 
     Attrs:
         rank : int
             Rank of tensor operator.
         cart : list of str
-            Contains string labels of tensor Cartesian components (e.g, 'x', 'y', 'z', 'xx', 'xy', 'xz', ...)
-        os : [(omega,sigma) for omega in range(nirrep) for sigma in range(-omega,omega+1)]
-            List of spherical-tensor indices (omega,sigma), here `nirrep` is the number of tensor
-            irreducible representations.
+            Contains string labels of tensor Cartesian components (e.g, 'x',
+            'y', 'z', 'xx', 'xy', 'xz', ...)
+        os : [ (omega, sigma) for omega in range(nirrep)
+               for sigma in range(-omega, omega + 1) ]
+            List of spherical-tensor indices (omega, sigma), here `nirrep` is
+            the number of tensor irreducible representations.
         Jlist1, Jlist2 : list
-            Lists of J quanta, spanned by the bra and ket basis sets, respectively.
+            Lists of J quanta, spanned by the bra and ket basis sets,
+            respectively.
         symlist1, symlist2 : dict
-            List of symmetries, for each J, spanned by the bra and ket basis sets, respectively.
+            List of symmetries, for each J, spanned by the bra and ket basis
+            sets, respectively.
             Example:
 
             .. code-block:: python
@@ -85,42 +93,49 @@ class CarTens():
                 [sym for J in self.Jlist1 for sym in symlist1[J]]
 
         dim1, dim2 : nested dict
-            Matrix dimensions of tensor for different J and symmetry, spanned by the bra and ket
-            basis sets, respectively.
+            Matrix dimensions of tensor for different J and symmetry, spanned
+            by the bra and ket basis sets, respectively.
             Example:
 
             .. code-block:: python
 
-                [dim for J in self.Jlist1 for sym in symlist1[J] for dim in dim1[J][sym]]
+                [ dim for J in self.Jlist1 for sym in symlist1[J]
+                  for dim in dim1[J][sym] ]
 
         dim_m1, dim_k1 : nested dict
-            Dimensions of M and K tensors for different J and symmetry, spanned by the bra basis.
+            Dimensions of M and K tensors for different J and symmetry, spanned
+            by the bra basis.
             Example:
 
             .. code-block:: python
 
-                [dim for J in self.Jlist1 for sym in symlist1[J] for dim in dim_m1[J][sym]]
+                [ dim for J in self.Jlist1 for sym in symlist1[J]
+                  for dim in dim_m1[J][sym] ]
 
         dim_m2, dim_k2 : nested dict
-            Same as dim_m1 and dim_m2 but for the ket basis.
+            Same as `dim_m1` and `dim_m2` but for the ket basis.
         quanta_m1, quanta_k1 : nested dict
-            M and ro-vibrational quantum numbers, respectively, for different J and symmetry,
-            spanned by the bra basis set.
-            The elements of quanta_m1[J][sym] list represent the m quantum number, while
-            the elements of quanta_k1[J][sym] list are tuples (q, enr), where q is the string
-            of ro-vibrational quantum numbers and enr is the ro-vibrational energy (or None).
+            M and ro-vibrational quantum numbers, respectively, for different J
+            and symmetry, spanned by the bra basis set.
+            The elements of `quanta_m1[J][sym]` list represent the m quantum
+            number, while the elements of `quanta_k1[J][sym]` list are tuples
+            (q, enr), where q is the string of ro-vibrational quantum numbers
+            and enr is the ro-vibrational energy (or None).
             Example:
 
             .. code-block:: python
 
-                [int(m) for J in self.Jlist1 for sym in symlist1[J] for m in quanta_m1[J][sym]]
-                [(k, energy) for J in self.Jlist1 for sym in symlist1[J] for m in quanta_k1[J][sym]]
+                [ int(m) for J in self.Jlist1 for sym in symlist1[J]
+                  for m in quanta_m1[J][sym] ]
+                [ (k, energy) for J in self.Jlist1 for sym in symlist1[J]
+                  for m in quanta_k1[J][sym] ]
 
         quanta_m2, quanta_k2 : nested dict
-            Same as quanta_m1 and quanta_k1 but for the ket basis.
+            Same as quanta_m1 and `quanta_k1` but for the ket basis.
         kmat : nested dict
-            K-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-            symmetries, and irreducible spherical-tensor components.
+            K-tensor matrix elements (in CSR format) for different pairs of bra
+            and ket J quanta, symmetries, and irreducible spherical-tensor
+            components.
             Example:
 
             .. code-block:: python
@@ -132,8 +147,9 @@ class CarTens():
                             print(type(kmat_irrep)) # scipy.sparse.spmatrix
 
         mmat : nested dict
-            M-tensor matrix elements (in CSR format) for different pairs of bra and ket J quanta,
-            symmetries, irreducible spherical-tensor and Cartesian components.
+            M-tensor matrix elements (in CSR format) for different pairs of bra
+            and ket J quanta, symmetries, irreducible spherical-tensor and
+            Cartesian components.
             Example:
 
             .. code-block:: python
@@ -144,10 +160,11 @@ class CarTens():
                             for cart, mmat_cart in mmat_irrep.items():
                                 # M-subspace matrix elements
                                 print(type(mmat_cart)) # scipy.sparse.spmatrix
+
         mfmat : nested dict
-            M-tensor matrix elements contracted with field. Produced after multiplication
-            of tensor with a vector of X, Y, and Z field values (see :py:func:`field`).
-            has the same structure as :py:attr:`kmat`.
+            M-tensor matrix elements contracted with field. Produced after
+            multiplication of tensor with a vector of X, Y, and Z field values
+            (see :py:func:`field`). Has the same structure as :py:attr:`kmat`.
     """
 
     def __init__(self, filename=None, matelem=None, name=None, **kwargs):
@@ -168,15 +185,17 @@ class CarTens():
 
 
     def filter(self, thresh=None, bra=lambda **kw: True, ket=lambda **kw: True):
-        """Applies state selection filters to tensor matrix elements
+        """ Applies state selection filters to tensor matrix elements
 
         Args:
             thresh : float
                 Threshold for neglecting matrix elements
             bra : function(**kw)
-                State filter function for bra basis sets (see `bra` in kwargs of :py:class:`CarTens`).
+                State filter function for bra basis sets (see `bra` in kwargs
+                of :py:class:`CarTens`).
             ket : function(**kw)
-                State filter function for ket basis sets (see `ket` in kwargs of :py:class:`CarTens`).
+                State filter function for ket basis sets (see `ket` in kwargs
+                of :py:class:`CarTens`).
         """
         # truncate quantum numbers
 
@@ -316,28 +335,33 @@ class CarTens():
 
 
     def tomat(self, form='block', repres='csr_matrix', thresh=None, cart=None):
-        """Returns full matrix representation of tensor
+        """ Returns full matrix representation of tensor
 
         Args:
             form : str
-                For form='block', the matrix representation is build as dictionary containing
-                matrix blocks for different pairs of J and symmetries.
-                For form='full', full 2D matrix is constructed.
+                For `form` = 'block', the matrix representation is build as
+                dictionary containing matrix blocks for different pairs of J
+                and symmetries. For `form` = 'full', full 2D matrix is
+                constructed.
             repres : str
-                Defines representation for matrix blocks or full 2D matrix.
-                Can be set to the name of one of :py:class:`scipy.sparse` matrix classes,
-                e.g., structure="coo_matrix". Alternatively it can be set to "dense".
+                Defines representation for matrix blocks or full 2D matrix. Can
+                be set to the name of one of :py:class:`scipy.sparse` matrix 
+                classes, e.g., `repres` = 'coo_matrix'. Alternatively it can be
+                set to 'dense'.
             thresh : float
-                Threshold for neglecting matrix elements when converting into the sparse form.
+                Threshold for neglecting matrix elements when converting into 
+                the sparse form.
             cart : str
-                Desired Cartesian component of tensor, e.g., cart='z' or cart='xx'.
-                If set to None (default), the function will attempt to return a matrix representation
-                of the corresponding potential (i.e., product of tensor and field)
+                Desired Cartesian component of tensor, e.g., `cart` = 'z' or
+                `cart` = 'xx'. If set to None (default), the function will
+                attempt to return a matrix representation of the corresponding
+                potential (i.e., product of tensor and field)
 
         Returns:
             nested dict or 2D array
-                For form='block', returns dictionary containing matrix blocks for different pairs
-                of J and symmetries. For form='full', returns 2D matrix.
+                For `form` = 'block', returns dictionary containing matrix
+                blocks for different pairs of J and symmetries. For `form` =
+                'full', returns 2D matrix.
         """
         assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
 
@@ -420,23 +444,26 @@ class CarTens():
 
 
     def assign(self, form='block'):
-        """Returns assignments of bra and ket basis states
+        """ Returns assignments of bra and ket basis states
 
         Args:
             form : str
-                Form of the assignment output, see 'form' argument to :py:func:`CarTens.tomat` function
+                Form of the assignment output (see `form` argument of
+                :py:func:`CarTens.tomat` function)
 
         Returns:
             assign1, assign2 : dict
-                Assignments of bra and ket states, respectively.
-                For form='block', assign[J][sym]['m'] and assign[J][sym]['k'] contain list
-                of m and ro-vibrational quantum numbers, respectively, for states with given values
-                of J quantum number and symmetry sym.
-                For form='full', assign['m'], assign['k'], assign['sym'], and assign['J']
-                contain list of m quanta, ro-vibrational quanta, symmetries, and J values for all
-                states in the basis.
-                The ordering of elements in assign1 and assign2 lists corresponds to the ordering
-                of rows and columns in a matrix returned by :py:func:`CarTens.tomat` function.
+                Assignments of bra and ket states, respectively. For `form` =
+                'block', `assign[J][sym]['m']` and `assign[J][sym]['k']`
+                contain list of m and ro-vibrational quantum numbers,
+                respectively, for states with given values of J quantum number
+                and symmetry sym. For `form` = 'full', `assign['m']`,
+                `assign['k']`, `assign['sym']`, and `assign['J']` contain list
+                of m quanta, ro-vibrational quanta, symmetries, and J values
+                for all states in the basis. The ordering of elements in
+                `assign1` and `assign2` lists corresponds to the ordering of
+                rows and columns in a matrix returned by
+                :py:func:`CarTens.tomat` function.
         """
         assert (form in ('block', 'full')), f"bad value of argument 'form' = '{form}' (use 'block' or 'full')"
 
@@ -487,17 +514,19 @@ class CarTens():
 
 
     def full_form(self, mat, repres='csr_matrix', thresh=None):
-        """Converts block representation of tensor matrix into 2D matrix form
+        """ Converts block representation of tensor matrix into 2D matrix form
 
         Args:
             mat : nested dict
-                Block representation of matrix for different values of bra and ket J quanta
-                and different symmetries
+                Block representation of matrix for different values of bra and
+                ket J quanta and different symmetries
             repres : str
-                Set to the name of one of :py:class:`scipy.sparse` matrix classes to output the matrix
-                in sparse format, e.g., sparse="coo_matrix" or "csr_matrix". Alternatively set to "dense".
+                Set to the name of one of :py:class:`scipy.sparse` matrix
+                classes to output the matrix in sparse format, e.g., `sparse` =
+                'coo_matrix' or 'csr_matrix'. Alternatively set to 'dense'.
             thresh : float
-                Threshold for neglecting matrix elements when converting into sparse form.
+                Threshold for neglecting matrix elements when converting into
+                sparse form.
 
         Returns:
             array
@@ -518,7 +547,7 @@ class CarTens():
 
 
     def block_form(self, mat):
-        """Converts 2D tensor matrix into a block form
+        """ Converts 2D tensor matrix into a block form
 
         Args:
             mat : array (numpy.ndarray or scipy.sparse.spmatrix)
@@ -526,8 +555,8 @@ class CarTens():
 
         Returns:
             nested dict
-                Block form of tensor matrix, split for different values of bra and ket
-                J quanta and different symmetries.
+                Block form of tensor matrix, split for different values of bra
+                and ket J quanta and different symmetries.
         """
         ind0 = np.cumsum([self.dim1[J][sym] for J in self.Jlist1 for sym in self.symlist1[J]])
         ind1 = np.cumsum([self.dim2[J][sym] for J in self.Jlist2 for sym in self.symlist2[J]])
@@ -561,18 +590,21 @@ class CarTens():
 
 
     def map(self, tens, vbra=None, vket=None):
-        """Maps elements of bra and ket vectors `vbra` and `vket`, defined with respect to bra and ket
-        basis sets of tensor operator `tens`, onto a larger basis set of `self` operator.
+        """ Maps elements of bra and ket vectors `vbra` and `vket`, defined
+                with respect to bra and ket basis sets of tensor operator
+                `tens`, onto a larger basis set of `self` operator.
 
-        The bra and ket basis sets of `tens` operator must be fully contained in `self`.
+        The bra and ket basis sets of `tens` operator must be fully contained
+            in `self`.
 
         Args:
             tens : :py:class:`CarTens`
                 Tensor operator.
             vbra : nested dict, numpy.ndarray, or scipy.sparse.spmatrix
-                Vector, defined with respect to the bra basis of `tens`, represented
-                by a numpy.ndarray or scipy.sparse.spmatrix array, or in block form
-                as dictionary for different J quanta and different symmetries.
+                Vector, defined with respect to the bra basis of `tens`,
+                represented by a numpy.ndarray or scipy.sparse.spmatrix array,
+                or in block form as dictionary for different J quanta and
+                different symmetries.
             vket : nested dict, numpy.ndarray, or scipy.sparse.spmatrix
                 Vector, defined with respect to the ket basis of `tens`.
 
@@ -581,9 +613,10 @@ class CarTens():
                 Input vectors mapped onto bra and ket basis sets of `self`.
         """
         def vec_map(vec, quanta_m, quanta_k, quanta_m_, quanta_k_):
-            """Maps elements of vector `vec`, defined wrt to quanta `quanta_m` x `quanta_k`,
-            into a new vector wrt larger space of quanta `quanta_m_` x `quanta_k_`.
-            Input vector must be in block form.
+            """Maps elements of vector `vec`, defined wrt to quanta `quanta_m`
+                   x `quanta_k`, into a new vector wrt larger space of quanta
+                   `quanta_m_` x `quanta_k_`. Input vector must be in block
+                   form.
             """
             vec_ = dict()
             for J in vec.keys():
@@ -618,7 +651,7 @@ class CarTens():
 
 
         def vec_to_block(vec, vec_name, Jlist, symlist, dim):
-            """Converts vector into block form"""
+            """ Converts vector into block form """
             if isinstance(vec, (list, tuple, np.ndarray, np.generic)) or issparse(vec):
                 # convert `vec` into block form
                 ind = np.cumsum([dim[J][sym] for J in Jlist for sym in symlist[J]])
@@ -650,7 +683,7 @@ class CarTens():
 
 
         def vec_to_inpform(vec_inp, vec_name, vec_out, Jlist, symlist, dim):
-            """Converts output vector to the same form as input vector"""
+            """ Converts output vector to the same form as input vector """
             if isinstance(vec_inp, (list, tuple, np.ndarray, np.generic)) or issparse(vec_inp):
                 res = scipy.sparse.bmat(
                     [ vec_out[J][sym] if J in vec_out.keys() and sym in vec_out[J].keys()
@@ -691,8 +724,7 @@ class CarTens():
 
 
     def mul(self, arg):
-        """In-place multiplication of tensor with a scalar `arg`
-        """
+        """ In-place multiplication of tensor with a scalar `arg` """
         scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
                   np.float16, np.float32, np.float64, np.complex64, np.complex128)
         if isinstance(arg, scalar):
@@ -705,17 +737,19 @@ class CarTens():
 
 
     def add_cartens(self, arg):
-        """Adds two tensors together
+        """ Adds two tensors together
 
         Args:
             arg : :py:class:`CarTens`
-                Tensor operator, must be defined with respect to the same basis as `self`.
+                Tensor operator, must be defined with respect to the same basis
+                as `self`.
 
         Returns:
             :py:class:`CarTens`
-                Sum of `self` and `arg` tensor operators. Please note that functionality of the returned
-                class is limited to class's matrix-vector operations. Some of the attributes are
-                missing, such as, for example, `mmat`, `cart`, `os`, `rank`.
+                Sum of `self` and `arg` tensor operators. Please note that
+                functionality of the returned class is limited to class's
+                matrix-vector operations. Some of the attributes are missing,
+                such as, for example, `mmat`, `cart`, `os`, `rank`.
         """
         if not isinstance(arg, CarTens):
             raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
@@ -796,7 +830,7 @@ class CarTens():
 
 
     def field(self, field, thresh=None):
-        """In-place multiplication of tensor with field
+        """ In-place multiplication of tensor with field
 
         The result is stored in the attribute :py:attr:`mfmat`.
 
@@ -856,11 +890,12 @@ class CarTens():
 
 
     def vec(self, vec, matvec_lib='scipy'):
-        """Computes product of tensor with vector
+        """ Computes product of tensor with vector
 
         Args:
             vec : nested dict
-                Dictionary containing vector elements for different J and symmetries.
+                Dictionary containing vector elements for different J and
+                symmetries.
 
                 .. code-block:: python
 
@@ -869,7 +904,7 @@ class CarTens():
                             print( vec[J][sym].shape == self.dim2[J][sym] ) # must be True
             matvec_lib : str
                 The python library to use for SpMV. By default, this is set to
-                `scipy`. Alternatively this can be set to `numba` or `cupy`.
+                'scipy'. Alternatively this can be set to 'numba' or 'cupy'.
 
         Returns:
             nested dict
@@ -949,56 +984,9 @@ class CarTens():
         return vec2
 
 
-    def U(self, dt, vec=None, matvec_lib='scipy'):
-        """Time-propagation"""
-
-        # numpy array to CarTens vec
-        def array_to_vec(v_):
-            vec_, ind = dict(), 0
-            for J in self.Jlist2:
-                vec_[J] = dict()
-                for sym in self.symlist2[J]:
-                    vec_[J][sym] = v_[ind: ind + self.dim2[J][sym]]
-                    ind += self.dim2[J][sym]
-            return vec_
-
-        # CarTens vec to numpy array
-        def vec_to_array(vec_):
-            return np.concatenate(
-                tuple( [ vec_[J][sym] for J in self.Jlist2
-                         for sym in self.symlist2[J] ] )
-            )
-
-        # `CarTens.vec()` wrapper
-        def cartensvec(v_):
-            vec_ = self.vec(array_to_vec(v_), matvec_lib=matvec_lib)
-            return vec_to_array(vec_)
-
-        # initialize v
-        if vec is None:
-            v = np.zeros(
-                sum( [ dim2_J_sym for J, dim2_J in self.dim2.items()
-                       for sym, dim2_J_sym in dim2_J.items() ] ),
-                dtype=np.complex128
-            )
-            v[0] += 1
-        elif type(vec) is dict:
-            v = vec_to_array(vec)
-
-        # propagate
-        fac = -1j * 2 * np.pi * 1e2 * const.c * dt # (cm)
-        m, tol = 12, 1e-15
-        res = expv_lanczos(v, m, fac, lambda v : cartensvec(v), tol=tol)
-        #mat = self.tomat(form='full')
-        #norm = scipy.sparse.linalg.onenormest(mat)
-        #res = zhexpv(v, norm, m, fac, lambda v : cartensvec(v))
-
-        return array_to_vec(res)
-
-
     def __mul__(self, arg):
-        """Multiplication with `scalar` (:py:func:`mul`), `field` (:py:func:`field`),
-        and `vector` (:py:func:`vec`).
+        """ Multiplication with `scalar` (:py:func:`mul`), `field`
+                (:py:func:`field`) and `vector` (:py:func:`vec`)
         """
         scalar = (int, float, complex, np.int, np.int8, np.int16, np.int32, np.int64, np.float, \
                   np.float16, np.float32, np.float64, np.complex64, np.complex128)
@@ -1046,23 +1034,28 @@ class CarTens():
 
 
     def store(self, filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False, thresh=None):
-        """Stores object into HDF5 file
+        """ Stores object into HDF5 file
     
         Args:
             filename : str
                 Name of HDF5 file.
             name : str
-                Name of the data group, by default the name of the variable will be used.
+                Name of the data group, by default the name of the variable
+                will be used.
             comment : str
                 User comment.
             replace : bool
-                If True, the existing in file complete tensor data group will be replaced.
+                If True, the existing in file complete tensor data group will
+                be replaced.
             replace_k : bool
-                If True, the existing in file K-tensor data sets will be replaced.
+                If True, the existing in file K-tensor data sets will be 
+                replaced.
             replace_m : bool
-                If True, the existing in file M-tensor data sets will be replaced.
+                If True, the existing in file M-tensor data sets will be
+                replaced.
             thresh : float
-                Threshold for neglecting matrix elements (M and K tensors) when writing into file.
+                Threshold for neglecting matrix elements (M and K tensors) when
+                writing into file.
         """
         if name is None:
             name = retrieve_name(self)
@@ -1226,21 +1219,25 @@ class CarTens():
 
 
     def read(self, filename, name=None, thresh=None, **kwargs):
-        """Reads object from HDF5 file
+        """ Reads object from HDF5 file
 
         Args:
             filename : str
                 Name of HDF5 file.
             name : str
-                Name of the data group, by default the name of the variable will be used.
+                Name of the data group, by default the name of the variable
+                will be used.
             thresh : float
-                Threshold for neglecting matrix elements when reading from file.
+                Threshold for neglecting matrix elements when reading from
+                file.
 
         Kwargs:
             bra : function(**kw)
-                State filter for bra basis sets (see `bra` in kwargs of :py:class:`CarTens`).
+                State filter for bra basis sets (see `bra` in kwargs of
+                :py:class:`CarTens`).
             ket : function(**kw)
-                State filter for ket basis sets (see `ket` in kwargs of :py:class:`CarTens`).
+                State filter for ket basis sets (see `ket` in kwargs of
+                :py:class:`CarTens`).
         """
         J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
         sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
@@ -1391,8 +1388,8 @@ class CarTens():
 
 
     def read_states(self, filename, **kwargs):
-        """Reads stationary basis states information from the old-format richmol states file produced,
-        for example, by TROVE program
+        """ Reads stationary basis states information from the old-format
+                richmol states file produced,for example, by TROVE program
 
         Args:
             filename : str
@@ -1400,11 +1397,14 @@ class CarTens():
 
         Kwargs:
             bra : function(**kw)
-                State filter for bra basis sets (see `bra` in kwargs of :py:class:`CarTens`).
+                State filter for bra basis sets (see `bra` in kwargs of
+                :py:class:`CarTens`).
             ket : function(**kw)
-                State filter for ket basis sets (see `ket` in kwargs of :py:class:`CarTens`).
+                State filter for ket basis sets (see `ket` in kwargs of
+                :py:class:`CarTens`).
             thresh : float
-                Threshold for neglecting matrix elements when reading from file.
+                Threshold for neglecting matrix elements when reading from
+                file.
         """
         # read states file
 
@@ -1494,31 +1494,38 @@ class CarTens():
 
 
     def read_trans(self, filename, thresh=None, **kwargs):
-        """Reads matrix elements of Cartesian tensor from the old-format richmol matrix element files
-        produced, for example, by TROVE program
+        """ Reads matrix elements of Cartesian tensor from the old-format
+                richmol matrix element files produced, for example, by TROVE
+                program
 
-        NOTE: call :py:func:`read_states` before :py:func:`read_trans` to load the information
-        about the stationary states stored in richmol states file.
+        NOTE: call :py:func:`read_states` before :py:func:`read_trans` to load
+            the information about the stationary states stored in richmol
+            states file
 
         Args:
             filename : str
-                In the old-format, matrix elements of Cartesian tensors for different values of bra
-                and ket J (or F) quanta are stored in separate files.
-                The parameter `filename` provides a template for generating the names of these files.
-                For example, for `filename` = "me<j1>_<j2>", the following files will be searched:
-                "me0_0", "me0_1", "me1_0", "me2_0", "me2_1", and so on, i.e. <j1> and <j2> will be
-                replaced by integer values of bra and ket J quanta, respectively.
-                For half-integer values of the F quantum number, replace <j1> and <j2> in the template
-                by <f1> and <f2>, these will then be substituted by the floating point values of bra
-                and ket F quanta rounded to the first decimal.
+                In the old-format, matrix elements of Cartesian tensors for
+                different values of bra and ket J (or F) quanta are stored in
+                separate files. The parameter `filename` provides a template
+                for generating the names of these files. For example, for
+                `filename` = 'me<j1>_<j2>', the following files will be searched:
+                'me0_0', 'me0_1', 'me1_0', 'me2_0', 'me2_1', and so on, i.e.
+                <j1> and <j2> will be replaced by integer values of bra and ket
+                J quanta, respectively. For half-integer values of the F
+                quantum number, replace <j1> and <j2> in the template by <f1>
+                and <f2>, these will then be substituted by the floating point
+                values of bra and ket F quanta rounded to the first decimal.
             thresh : float
-                Threshold for neglecting matrix elements when reading from file.
+                Threshold for neglecting matrix elements when reading from
+                file.
 
         Kwargs:
             bra : function(**kw)
-                State filter for bra basis sets (see `bra` in kwargs of :py:class:`CarTens`).
+                State filter for bra basis sets (see `bra` in kwargs of
+                :py:class:`CarTens`).
             ket : function(**kw)
-                State filter for ket basis sets (see `ket` in kwargs of :py:class:`CarTens`).
+                State filter for ket basis sets (see `ket` in kwargs of
+                :py:class:`CarTens`).
         """
         mydict = lambda: defaultdict(mydict)
 
@@ -1769,21 +1776,25 @@ class CarTens():
 
 
     def class_name(self):
-        """Generates '__class_name__' attribute for the tensor data group in HDF5 file"""
+        """ Generates '__class_name__' attribute for the tensor data group in
+               HDF5 file"""
         return self.__module__ + '.' + self.__class__.__name__
 
 
 
 def filter(obj, bra, ket, thresh=None):
-    """Applies state selection filters to input Cartesian tensor :py:class:`CarTens`
+    """ Applies state selection filters to input Cartesian tensor
+            :py:class:`CarTens`
 
     Args:
         obj : :py:class:`CarTens`
             Cartesian tensor.
         bra : function(**kw)
-            State filter for bra basis sets (see `bra` in kwargs of :py:class:`CarTens`).
+            State filter for bra basis sets (see `bra` in kwargs of
+            :py:class:`CarTens`).
         ket : function(**kw)
-            State filter for ket basis sets (see `ket` in kwargs of :py:class:`CarTens`).
+            State filter for ket basis sets (see `ket` in kwargs of
+            :py:class:`CarTens`).
 
     Returns:
         :py:class:`CarTens`
@@ -1798,15 +1809,15 @@ def filter(obj, bra, ket, thresh=None):
 
 
 def J_group_key(J1, J2):
-    """Generates HDF5 data group name for matrix elements between states
-    with bra and ket J quanta equal to J1 and J2, respectively
+    """ Generates HDF5 data group name for matrix elements between states with
+            bra and ket J quanta equal to J1 and J2, respectively
     """
     return 'J:' + str(round(float(J1), 1)) + ',' + str(round(float(J2), 1))
 
 
 def sym_group_key(sym1, sym2):
-    """Generates HDF5 data group name for matrix elements between states
-    with bra and ket state symmetries equal to sym1 and sym2, respectively
+    """ Generates HDF5 data group name for matrix elements between states with
+            bra and ket state symmetries equal to sym1 and sym2, respectively
     """
     return 'sym:' + str(sym1) + ',' + str(sym2)
 
