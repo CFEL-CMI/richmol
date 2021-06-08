@@ -108,6 +108,7 @@ class LabTensor(CarTens):
 
         tens = None
         func = None
+        tens_str = None
 
         # if arg is Molecule
         if isinstance(arg, Molecule):
@@ -123,6 +124,8 @@ class LabTensor(CarTens):
         # if arg is function of spherical coordinates
         elif isinstance(arg, collections.Callable):
             func = arg
+        elif isinstance(arg, str):
+            tens_str = arg
         else:
             raise TypeError(f"bad argument type for 'arg': '{type(arg)}'") from None
 
@@ -132,6 +135,8 @@ class LabTensor(CarTens):
             self.init_tens_from_rank(tens, thresh=thresh)
         elif func is not None:
             self.init_tens_from_func(func, thresh=thresh, **kwargs)
+        elif tens_str is not None:
+            self.init_tens_from_name(tens_str, thresh=thresh)
 
         # matrix elements
 
@@ -297,6 +302,32 @@ class LabTensor(CarTens):
             self.Ux[0, i] = ovlp[omega][isigma]
             if sigma == 0:
                 self.Us[i, 0] = 1
+
+
+    def init_tens_from_name(self, tens_name, thresh=None):
+        """Initializes Cartesian tensor operator from given name.
+        Used to initialize simple "observable" quantities such as cos(theta), cos^2(theta)
+        """
+        if tens_name.lower() == "costheta":
+            self.rank = 0
+            self.cart = ["0"]
+            self.os = [(1,0)]
+            self.tens_flat = np.array([1], dtype=np.float64)
+            self.Ux = np.zeros((1, len(self.os)), dtype=np.complex128)
+            self.Us = np.zeros((len(self.os), 1), dtype=np.complex128)
+            self.Us[0,:] = 1
+            self.Ux[:,0] = 1
+        elif tens_name.lower() == "cos2theta":
+            self.rank = 0
+            self.cart = ["0"]
+            self.os = [(2,0)]
+            self.tens_flat = np.array([1], dtype=np.float64)
+            self.Ux = np.zeros((1, len(self.os)), dtype=np.complex128)
+            self.Us = np.zeros((len(self.os), 1), dtype=np.complex128)
+            self.Us[0,:] = 1
+            self.Ux[:,0] = 2.0/3.0
+        else:
+            raise ValueError(f"unknown name for tensor operator: '{tens_name}'") from None
 
 
     def ham_proj(self, basis):
