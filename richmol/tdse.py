@@ -195,20 +195,23 @@ class TDSE():
         self._dt = val
 
 
-    def initial_state(self, H, temp=None):
+    def initial_state(self, H, temp=None, pf_thr=1e-3):
         """Generates initial state vectors as eigenfunctions of Hamiltonian `H`
         for given temperature `temp` (in Kelvin).
-        If temperature is None, all eigenfunctions without weighting will be returned.
+        If temperature is None, all eigenfunctions without Boltzmann weighting will be returned.
 
         Args:
             H : :py:class:`field.CarTens`
                 Hamiltonian operator
             temp : float
                 Temperature in Kelvin
+            pf_thr : float
+                Threshold for neglecting all higher energy states whose collective contribution
+                to a partition function is less than `pf_thr`
 
         Returns:
             vec : list
-                List of initial vectors
+                List of Boltzmann-weighted initial vectors
         """
         # convert field-free tensor into Hamiltonian
         try:
@@ -229,7 +232,7 @@ class TDSE():
         if temp is None:
             w = [1.0 for i in range(v.shape[1])]
         elif temp == 0:
-            w = [1.0 if i==0 else 0 for i in range(v.shape[1])]
+            w = [1.0]
         else:
             e *= self.energy_units # in Joules
             beta = 1.0 / (constants.value("Boltzmann constant") * temp) # in 1/Joules
@@ -237,7 +240,10 @@ class TDSE():
             w = np.exp(-beta * (e - zpe))
             pf = np.sum(w)
             w /= pf
-        vec = [v[:,i] * w[i] for i in range(v.shape[1])]
+            mask = [0]
+            mask += [i for i in range(1, len(w)) if np.abs(np.sum(w[:i+1]) - 1) > np.abs(pf_thr)]
+            w = w[mask]
+        vec = [v[:,i] * w[i] for i in range(len(w))]
         return vec
 
 
