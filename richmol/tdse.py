@@ -3,7 +3,7 @@ from scipy import constants
 import functools
 from scipy.sparse.linalg import expm
 from richmol import convert_units
-from mpi4py import MPI
+# from mpi4py import MPI
 
 
 def update_counter(func):
@@ -22,7 +22,7 @@ class TDSE():
     @update_counter
     def update(self, H, H0=None, vecs=None, matvec_lib='scipy', tol=1e-15):
         # this factor should make (dt/hbar * H) dimensionless
-        exp_fac = -1j * self.dt * self.time_to_sec * self.enr_to_J \
+        exp_fac = -1j * self.dt * self.time_units * self.energy_units \
             / constants.value("reduced Planck constant")
 
         # numpy array to CarTens compatible vec
@@ -193,6 +193,52 @@ class TDSE():
         except AttributeError:
             pass
         self._dt = val
+
+
+    def initial_state(self, H, temp=None):
+        """Generates initial state vectors as eigenfunctions of Hamiltonian `H`
+        for given temperature `temp` (in Kelvin).
+        If temperature is None, all eigenfunctions without weighting will be returned.
+
+        Args:
+            H : :py:class:`field.CarTens`
+                Hamiltonian operator
+            temp : float
+                Temperature in Kelvin
+
+        Returns:
+            vec : list
+                List of initial vectors
+        """
+        # convert field-free tensor into Hamiltonian
+        try:
+            if H.cart[0] == "0":
+                H.field([0, 0, 1])
+        except AttributeError:
+            pass
+
+        # eigenvectors of H
+        try:
+            x = H.mfmat
+            hmat = H.tomat(form="full", repres="dense")
+        except AttributeError:
+            raise AttributeError(f"input argument 'H' is not a Hamiltonian") from None
+        e, v = np.linalg.eigh(hmat)
+
+        # Boltzmann weights
+        if temp is None:
+            w = [1.0 for i in range(v.shape[1])]
+        elif temp == 0:
+            w = [1.0 if i==0 else 0 for i in range(v.shape[1])]
+        else:
+            e *= self.energy_units # in Joules
+            beta = 1.0 / (constants.value("Boltzmann constant") * temp) # in 1/Joules
+            zpe = e[0]
+            w = np.exp(-beta * (e - zpe))
+            pf = np.sum(w)
+            w /= pf
+        vec = [v[:,i] * w[i] for i in range(v.shape[1])]
+        return vec
 
 
 def expv_lanczos(vec, t, matvec, maxorder=100, tol=0):
