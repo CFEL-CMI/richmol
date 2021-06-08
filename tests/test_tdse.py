@@ -42,7 +42,7 @@ class testTDSE(unittest.TestCase):
             return J_pass and M_pass
         filename = path + 'matelem/ocs_energies_j0_j30.rchm'
         matelem = path + 'matelem/ocs_matelem_alpha_j<j1>_j<j2>.rchm'
-        H0 = CarTens(filename, bra=filt, ket=filt) * [0, 0, 1]
+        H0 = CarTens(filename, bra=filt, ket=filt)
         Hbar = CarTens(filename, matelem, bra=filt, ket=filt) \
             * (-0.5) * AUpol_x_Vm_to_invcm()
 
