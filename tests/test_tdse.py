@@ -52,13 +52,9 @@ class testTDSE(unittest.TestCase):
             field = [[0, 0, 1e2 * float(line.split()[3])] for line in f]
 
         # compute chronological sequence of occupation probabilities
-        tdse = TDSE()
-        tdse.tstart = 0
-        tdse.tend = 10
-        tdse.dt = 0.01
-        tdse.time_units = 'ps'
-        tdse.energy_units = 'invcm'
-        occu_probs, vecs = [], None
+        tdse = TDSE(t_end=10, dt=0.01)
+        vecs = tdse.init_state(H0, temp=0)
+        occu_probs = []
         for ind, _ in enumerate(tdse.time_grid()):
             Hbar.field(field[ind])
             vecs, t = tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
