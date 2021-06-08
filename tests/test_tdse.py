@@ -42,7 +42,7 @@ class testTDSE(unittest.TestCase):
             return J_pass and M_pass
         filename = path + 'matelem/ocs_energies_j0_j30.rchm'
         matelem = path + 'matelem/ocs_matelem_alpha_j<j1>_j<j2>.rchm'
-        H0 = CarTens(filename, bra=filt, ket=filt) * [0, 0, 1]
+        H0 = CarTens(filename, bra=filt, ket=filt)
         Hbar = CarTens(filename, matelem, bra=filt, ket=filt) \
             * (-0.5) * AUpol_x_Vm_to_invcm()
 
@@ -52,13 +52,9 @@ class testTDSE(unittest.TestCase):
             field = [[0, 0, 1e2 * float(line.split()[3])] for line in f]
 
         # compute chronological sequence of occupation probabilities
-        tdse = TDSE()
-        tdse.tstart = 0
-        tdse.tend = 10
-        tdse.dt = 0.01
-        tdse.time_units = 'ps'
-        tdse.energy_units = 'invcm'
-        occu_probs, vecs = [], None
+        tdse = TDSE(t_end=10, dt=0.01)
+        vecs = tdse.init_state(H0, temp=0)
+        occu_probs = []
         for ind, _ in enumerate(tdse.time_grid()):
             Hbar.field(field[ind])
             vecs, t = tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
