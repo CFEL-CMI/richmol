@@ -165,14 +165,22 @@ class LabTensor(CarTens):
                      for J, bas_J in basis.items() }
         try:
             # use (k, energy) as k-assignment
-            quanta_k = { J : { sym : [ (" ".join(q for q in elem[1:]), e)
-                         for elem,e in zip(bas_sym.k.table['stat'][:dim_k[J][sym]], bas_sym.k.enr) ]
+            # quanta_k = { J : { sym : [ (" ".join(q for q in elem), e)
+            #              for elem,e in zip(bas_sym.k.table['stat'][:dim_k[J][sym]], bas_sym.k.enr) ]
+            #              for sym, bas_sym in bas_J.items() }
+            #              for J, bas_J in basis.items() }
+            quanta_k = { J : { sym : [ (" ".join(q for q in elem), e)
+                         for elem,e in zip(bas_sym.assign, bas_sym.k.enr) ]
                          for sym, bas_sym in bas_J.items() }
                          for J, bas_J in basis.items() }
         except AttributeError:
             # use (k, None) as k-assignment
-            quanta_k = { J : { sym : [ (" ".join(q for q in elem[1:]), None)
-                         for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
+            # quanta_k = { J : { sym : [ (" ".join(q for q in elem), None)
+            #              for elem in bas_sym.k.table['stat'][:dim_k[J][sym]] ]
+            #              for sym, bas_sym in bas_J.items() }
+            #              for J, bas_J in basis.items() }
+            quanta_k = { J : { sym : [ (" ".join(q for q in elem), None)
+                         for elem in bas_sym.assign ]
                          for sym, bas_sym in bas_J.items() }
                          for J, bas_J in basis.items() }
 
