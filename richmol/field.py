@@ -478,7 +478,7 @@ class CarTens():
                     kmat = kmat_J[sympair]
 
                     # do M \otimes K
-                    me = np.sum(
+                    me = sum(
                         kron(mmat[irrep], kmat[irrep])
                         for irrep in list(set(mmat.keys()) & set(kmat.keys()))
                     )
