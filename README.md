@@ -355,7 +355,7 @@ To cite this repository
 
 ```
 @article{richmol2021github,
-  author = {Cem Saribal, Guang Yahg, Emil Zak, A. Yachmenev, J. Kuepper},
+  author = {Cem Saribal, Guang Yahg, Emil Zak, A. Yachmenev, J. Küpper},
   title = {{R}ichmol: {P}ython package for variational simulations of molecular nuclear motion dynamics in fields},
   journal = {Comput. Phys. Commun.},
   year = {2021},
