@@ -8,6 +8,7 @@ import copy
 import h5py
 import inspect
 import datetime
+import time
 import regex as re
 from collections import defaultdict
 from collections.abc import Mapping
