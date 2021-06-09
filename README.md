@@ -16,6 +16,10 @@ It includes:
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties in arbitrary static and time-dependent fields
 * **Ro-vibrational dynamics and spectra** (interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics in static and time-dependent fields
 
+Following releases will include:
+* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, obtained from nuclear quadrupole, spin-spin, and spin-rotation interactions
+* **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
+
 
 ## Quick install
 
@@ -29,12 +33,6 @@ Latest version
 ```
 > pip install --upgrade git+https://github.com/CFEL-CMI/richmol.git
 ```
-
-## Planned features & improvements
-
-* Link our Fortran-based HyFor code for computing quadrupole, spin-spin, and spin-rotation hyperfine effects
-* Computation of time-dependent probability density functions on grids (simulations of VMI observables)
-
 
 ## Citing richmol
 
