@@ -220,7 +220,7 @@ ax2.plot(fz_grid, muz[:, istate, istate].real)
 plt.show()
 ```
 <div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="100px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="200px"/>
 </div>
 
 ## Citing richmol
