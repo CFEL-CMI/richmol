@@ -283,9 +283,6 @@ class TDSE():
 
             vec_ = H.vec(vec_, matvec_lib=matvec_lib)
 
-            # TODO: what if vec_ = {} because the field is becomes zero
-            #       and we want to run purely field-free dynamics
-
             # CarTens compatible vec to numpy array
             vec_ = np.concatenate(
                 tuple( [ vec_[J][sym] for J in H.Jlist2
@@ -307,9 +304,10 @@ class TDSE():
                         exp_fac / 2 * H0.tomat(form='full').diagonal()
                     )
                 res = self._exp_fac_H0 * vec
-                res = _expv_lanczos(
-                    res, exp_fac, lambda v : cartensvec(v), tol=tol
-                )
+                if not len(H.mfmat) == 0:
+                    res = _expv_lanczos(
+                        res, exp_fac, lambda v : cartensvec(v), tol=tol
+                    )
                 vecs2.append(self._exp_fac_H0 * res)
         else:
             for vec in vecs:
