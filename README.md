@@ -10,7 +10,7 @@ Richmol is intended for computing rotational and ro-vibrational energy levels, s
 
 ## Overview
 
-Richmol is a library for simulating the molecular nuclear motion dynamics and related properties.
+Richmol is a library for simulating molecular nuclear motion dynamics and related properties.
 It is based on Python, although some of the libraries are written in Fortran.
 Richmol time-dependent propagation can run on GPUs using `numba` and `cupu` libraries.
 It includes:
