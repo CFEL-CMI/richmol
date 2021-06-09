@@ -197,6 +197,29 @@ for fz in fz_grid:
 # matrix dimensions: (286, 286)
 ```
 
+Plot the results for selected state index
+
+```py
+import matplotlib.pyplot as plt
+
+# plot energies and dipoles vs field
+
+enr = np.array(enr)
+muz = np.array(muz)
+
+istate = 0 # choose state index
+
+fig, (ax1, ax2) = plt.subplots(1,2, constrained_layout=True)
+plt.suptitle(f"state #{istate}")
+ax1.set_ylabel("energy in cm$^{-1}$")
+ax1.set_xlabel("field in V/m")
+ax2.set_ylabel("$\\mu_Z$ in au")
+ax2.set_xlabel("field in V/m")
+ax1.plot(fz_grid, enr[:, istate])
+ax2.plot(fz_grid, muz[:, istate, istate].real)
+plt.show()
+```
+
 ## Citing richmol
 
 To cite this repository
