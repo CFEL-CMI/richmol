@@ -9,10 +9,15 @@ def update_counter(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         vecs = func(self, *args, **kwargs)
-        time = self._time_grid[1][wrapper.count]
-        wrapper.count += 1
+        func_name = func.__name__
+        try:
+            icall = self._ncalls[func_name]
+        except KeyError:
+            self._ncalls[func_name] = 0
+            icall = self._ncalls[func_name]
+        time = self._time_grid[1][icall]
+        self._ncalls[func_name] += 1
         return vecs, time # time corresponding to updated vectors
-    wrapper.count = 0
     return wrapper
 
 
@@ -47,6 +52,9 @@ class TDSE():
                 Propagates vectors by one time-step
     """
 
+    _ncalls = dict() # keep track of the number of calls for various functions
+
+
     def __init__(self, **kwargs):
         """ Initializes a time-propagator object
 
@@ -62,6 +70,7 @@ class TDSE():
                 enr_units : str
                     Energy units
         """
+        self._ncalls = dict()
 
         # starting time
         if 't_start' in kwargs:
