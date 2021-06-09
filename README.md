@@ -220,8 +220,53 @@ ax2.plot(fz_grid, muz[:, istate, istate].real)
 plt.show()
 ```
 <div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="200px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="300px"/>
 </div>
+
+### Time-dependent simulations
+
+Here is an example of simulation of 'truncated-pulse' alignment for linear OCS molecule.
+To begin, compute the field-free energies, matrix elements of polarizability interaction tensor, and matrix elements of squared cosine function of the Euler angle $\theta$, that is used to quantify the degree of alignment
+
+```py
+from richmol.rot import Molecule, solve, LabTensor
+from richmol.tdse import TDSE
+from richmol.convert_units import AUpol_x_Vm_to_invcm
+from richmol.field import filter
+import numpy as np
+import matplotlib.pyplot as plt
+
+ocs = Molecule()
+
+ocs.XYZ = ("angstrom",
+           "C",  0.0,  0.0,  -0.522939783141,
+           "O",  0.0,  0.0,  -1.680839357,
+           "S",  0.0,  0.0,  1.037160128)
+
+# molecular-frame dipole moment (in au)
+ocs.dip = [0, 0, -0.31093]
+
+# molecular-frame polarizability tensor (in au)
+ocs.pol = [[25.5778097, 0, 0], [0, 25.5778097, 0], [0, 0, 52.4651140]]
+
+Jmax = 10
+sol = solve(ocs, Jmax=Jmax)
+
+# laboratory-frame dipole moment operator
+dip = LabTensor(ocs.dip, sol)
+
+# laboratory-frame polarizability tensor
+pol = LabTensor(ocs.pol, sol)
+
+# field-free Hamiltonian
+h0 = LabTensor(ocs, sol)
+
+# matrix elements of cos(theta)
+cos = LabTensor("costheta", sol)
+
+# matrix elements of cos^2(theta)
+cos2 = LabTensor("cos2theta", sol) # NOTE: you need to add a constant factor 1/3 to get the true values
+```
 
 ## Citing richmol
 
