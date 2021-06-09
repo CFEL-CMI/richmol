@@ -68,7 +68,7 @@ class TDSE():
             assert (type(kwargs['t_start']) in [int, float]), \
                 f"`initial time `t_start` has bad type: " \
                     + f"'{type(kwargs['t_start'])}', (use 'int', 'float')"
-            self.t_start = kwargs['t_start']
+            self._t_start = kwargs['t_start']
         else:
             self._t_start = 0.0
 
