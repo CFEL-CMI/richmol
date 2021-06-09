@@ -346,6 +346,13 @@ class CarTens():
         # truncate M and K tensors
 
         Jpairs = list(set(self.mmat.keys()) & set(self.kmat.keys()))
+
+        # delete J pairs for which M and K tensors have no overlap
+        for J in set(self.mmat.keys()) - set(Jpairs):
+            del self.mmat[J]
+        for J in set(self.kmat.keys()) - set(Jpairs):
+            del self.kmat[J]
+
         for (J1, J2) in Jpairs:
 
             if J1 not in self.Jlist1 or J2 not in self.Jlist2:
@@ -357,6 +364,13 @@ class CarTens():
             kmat_J = self.kmat[(J1, J2)]
 
             sympairs = list(set(mmat_J.keys()) & set(kmat_J.keys()))
+
+            # delete symmetry pairs for which M and K tensors have no overlap
+            for sym in set(mmat_J.keys()) - set(sympairs):
+                del self.mmat[(J1, J2)][sym]
+            for sym in set(kmat_J.keys()) - set(sympairs):
+                del self.kmat[(J1, J2)][sym]
+
             for (sym1, sym2) in sympairs:
 
                 if sym1 not in self.symlist1[J1] \
@@ -1085,10 +1099,10 @@ class CarTens():
                     # contract M-tensor with field
                     mat = []
                     for cart in list(set(mmat.keys()) & set(field_prod.keys())):
-                        if not field_prod[cart] == 0:
-                            mat.append(
-                                field_prod[cart] * mmat[cart].toarray()
-                            )
+                        # if not field_prod[cart] == 0: # this is already prescreened in field_prod
+                        mat.append(
+                            field_prod[cart] * mmat[cart].toarray()
+                        )
                     if len(mat) == 1:
                         mat = csr_matrix(mat[0])
                     else:
