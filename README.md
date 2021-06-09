@@ -226,7 +226,7 @@ plt.show()
 ### Time-dependent simulations
 
 Here is an example of simulation of 'truncated-pulse' alignment for linear OCS molecule.
-To begin, compute the field-free energies, matrix elements of polarizability interaction tensor, and matrix elements of squared cosine function of the Euler angle sub>&theta;</sub>, that is used to quantify the degree of alignment
+To begin, compute the field-free energies, matrix elements of polarizability interaction tensor, and matrix elements of cos<sup>2</sup>&theta;, that is used to quantify the degree of alignment
 
 ```py
 from richmol.rot import Molecule, solve, LabTensor
@@ -287,6 +287,66 @@ plt.show()
 ```
 <div align="left">
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
+</div>
+
+For initial state distribution assume a hypothetical temperature of $T=0$ Kelvin and use the eigenfunctions of field-free operator `h0` as initial state vectors. Run dynamics from time zero to 200 ps with a time step of 10 fs
+
+```py
+tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
+
+# initial states - Boltzmann-weighted eigenfunctions of `h0`, at T=0 K - only ground state
+vecs = tdse.init_state(h0, temp=0)
+
+# interaction Hamiltonian
+H = -1/2 * pol * AUpol_x_Vm_to_invcm() # `AUpol_x_Vm_to_invcm` converts pol[au]*field[V/m] into [cm^-1]
+
+# matrix elements of cos^2(theta)
+cos2mat = cos2.tomat(form="full", cart="0")
+
+cos2_expval = []
+
+for i, t in enumerate(tdse.time_grid()):
+
+    # apply field to Hamiltonian
+    H.field([0, 0, field[i, 2]])
+
+    # update vector
+    vecs, t_ = tdse.update(H, H0=h0, vecs=vecs, matvec_lib='scipy')
+
+    # expectation value of cos^2(theta)-1/3
+    expval = sum(np.dot(np.conj(vecs[i][:]), cos2mat.dot(vecs[i][:])) for i in range(len(vecs)))
+    cos2_expval.append(expval)
+
+    if i % 1000 == 0:
+        print(t, expval+1/3)
+
+# prints out
+# 0.005 (0.33333335011354287-3.3881317890172014e-21j)
+# 10.005 (0.34739158187693825-1.734723475976807e-18j)
+# 20.005 (0.4213669350942997-1.0408340855860843e-17j)
+# 30.005 (0.6609918655846478-2.7755575615628914e-17j)
+# ...
+```
+
+Plot the expectation value of cos<sup>2</sup>&theta; and compare with some [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
+
+```py
+plt.plot([t for t in tdse.time_grid()], [elem.real + 1/3 for elem in cos2_expval], 'b', linewidth=4, label="present")
+
+# compare with reference results
+with open("trunc_pulse_cos2theta.txt", "r") as fl:
+    cos2_expval_ref = np.array([float(line.split()[1]) for line in fl])
+    fl.seek(0)
+    times_ref = np.array([float(line.split()[0]) for line in fl])
+
+plt.plot(times_ref, cos2_expval_ref, 'r--', linewidth=2, label="reference")
+plt.xlabel("time in ps")
+plt.ylabel("$\cos^2\\theta$")
+plt.legend()
+plt.show()
+```
+<div align="left">
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
 
 ## Citing richmol
