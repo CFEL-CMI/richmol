@@ -10,6 +10,8 @@ Richmol is intended for computing the rotational and ro-vibrational energy level
 
 ## Overview
 
+
+
 ## Quick install
 
 ```
@@ -25,13 +27,23 @@ Latest version
 
 ## Planned features & improvements
 
-* Link Fortran-based HyFor code for computing hyperfine effects
-* Time-dependent probability density functions on grids (simulations of VMI observables)
+* Link our Fortran-based HyFor code for computing quadrupole, spin-spin, and spin-rotation hyperfine effects
+* Computation of time-dependent probability density functions on grids (simulations of VMI observables)
 
 
 ## Citing richmol
 
 To cite this repository
 
-
+```
+@article{richmol2021github,
+  author = {Cem Saribal, Guang Yahg, Emil Zak, A. Yachmenev, J. Kuepper},
+  title = {{R}ichmol: {P}ython package for variational simulations of molecular nuclear motion dynamics in fields},
+  journal = {Comput. Phys. Commun.},
+  year = {2021},
+  volume = {xx},
+  pages = {xx},
+  note = {Current version is available from \href{https://github.com/CFEL-CMI/richmol}{GitHub}},
+}
+```
 
