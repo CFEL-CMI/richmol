@@ -219,6 +219,75 @@ ax1.plot(fz_grid, enr[:, istate])
 ax2.plot(fz_grid, muz[:, istate, istate].real)
 plt.show()
 ```
+<div align="left">
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="300px"/>
+</div>
+
+### Time-dependent simulations
+
+Here is an example of simulation of 'truncated-pulse' alignment for linear OCS molecule.
+To begin, compute the field-free energies, matrix elements of polarizability interaction tensor, and matrix elements of squared cosine function of the Euler angle sub>&theta;</sub>, that is used to quantify the degree of alignment
+
+```py
+from richmol.rot import Molecule, solve, LabTensor
+from richmol.tdse import TDSE
+from richmol.convert_units import AUpol_x_Vm_to_invcm
+from richmol.field import filter
+import numpy as np
+import matplotlib.pyplot as plt
+
+ocs = Molecule()
+
+ocs.XYZ = ("angstrom",
+           "C",  0.0,  0.0,  -0.522939783141,
+           "O",  0.0,  0.0,  -1.680839357,
+           "S",  0.0,  0.0,  1.037160128)
+
+# molecular-frame dipole moment (in au)
+ocs.dip = [0, 0, -0.31093]
+
+# molecular-frame polarizability tensor (in au)
+ocs.pol = [[25.5778097, 0, 0], [0, 25.5778097, 0], [0, 0, 52.4651140]]
+
+Jmax = 10
+sol = solve(ocs, Jmax=Jmax)
+
+# laboratory-frame dipole moment operator
+dip = LabTensor(ocs.dip, sol)
+
+# laboratory-frame polarizability tensor
+pol = LabTensor(ocs.pol, sol)
+
+# field-free Hamiltonian
+h0 = LabTensor(ocs, sol)
+
+# matrix elements of cos^2(theta)
+cos2 = LabTensor("cos2theta", sol) # NOTE: you need to add a constant factor 1/3 to get the true values
+```
+
+Now we define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt). The field in units V/cm has a single $Z$ component and is defined on a time grid ranging from 0 to 300 picoseconds
+
+```py
+# truncated-pulse field
+with open("trunc_pulse.txt", "r") as fl:
+    field = np.array([[float(elem) for elem in line.split()[1:]] for line in fl]) # X, Y, Z field's components
+    fl.seek(0)
+    times = [float(line.split()[0]) for line in fl] # time grid
+
+# convert field from V/cm to V/m
+field *= 1e2
+
+# plot Z component
+plt.plot(times, field[:, 2], label="Z component")
+plt.xlim([0,70]) # plot first 70 ps
+plt.xlabel("time in ps")
+plt.ylabel("field in V/m")
+plt.legend()
+plt.show()
+```
+<div align="left">
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
+</div>
 
 ## Citing richmol
 
