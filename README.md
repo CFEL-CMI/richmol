@@ -4,43 +4,34 @@
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
 
-Richmol was started by theory team members of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron.
+Richmol was started by theory team members of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron. We hope to attract a larger community of develoers and researchers working in the field of molecular nuuclear motion dynamics, spectroscopy, and coherent control.
 
-Richmol is intended for computing the rotational and ro-vibrational energy levels, spectra, and field-induced time-dependent dynamics of molecules.
-Please report any feature requests, issues, questions or concerns in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
+Richmol is intended for computing the rotational and ro-vibrational energy levels, spectra, and field-induced time-dependent dynamics of molecules. It can be interfaced with other similar computer programs, such  as, for exmaple, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
 
 ## Overview
 
+## Quick install
 
-* [Stable release 0.1.0](https://github.com/CFEL-CMI/richmol/releases/tag/v0.1.0)
-* [Changelog](../master/CHANGELOG)
-* [Documentation](http://www.richmol.org/richmol)
-* [Installation](#installation)
-* [Features](../master/FEATURES)
+```
+> pip install --upgrade pip
+> pip install --upgrade richmol
+```
 
-Installation
-------------
-* Prerequisites
-    - Python 3.6 or higher
-    - Numpy 1.17.3 or higher
-    - Scipy 1.3.1 or higher
-    - h5py 2.10.0 or higher
-    - hypothesis 5.20.2 or higher
-    - mendeleev 0.6.0 or higher
-    - gfortran/gcc 7.5.0 or higher (alternatively use Intel Fortran Compiler)
+Latest version
 
-* Compile core module
+```
+> pip install --upgrade git+https://github.com/CFEL-CMI/richmol.git
+```
 
-       cd richmol
-       configure
-       python3 setup.py build
-       python3 setup.py install --user
+## Planned features & improvements
 
-Tutorials
----------
-* A user-guide ....
-* Developer's tutorial ...
+* Link Fortran-based HyFor code for computing hyperfine effects
+* Time-dependent probability density functions on grids (simulations of VMI observables)
 
-Citing richmol
---------------
+
+## Citing richmol
+
+To cite this repository
+
+
 
