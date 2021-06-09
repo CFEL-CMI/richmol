@@ -283,6 +283,9 @@ class TDSE():
 
             vec_ = H.vec(vec_, matvec_lib=matvec_lib)
 
+            # TODO: what if vec_ = {} because the field is becomes zero
+            #       and we want to run purely field-free dynamics
+
             # CarTens compatible vec to numpy array
             vec_ = np.concatenate(
                 tuple( [ vec_[J][sym] for J in H.Jlist2
