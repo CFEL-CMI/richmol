@@ -35,18 +35,20 @@ class LabTensor(CarTens):
         Us : numpy.complex128 2D array
             Cartesian-to-spherical tensor transformation matrix.
         Ux : numpy.complex128 2D array
-            Spherical-to-Cartesian tensor transformation matrix, Ux = np.conj(Us).T
+            Spherical-to-Cartesian tensor transformation matrix, Ux = np.conj(Us.T)
         tens_flat : 1D array
             Flattened molecular-frame Cartesian tensor.
         molecule : :py:class:`richmol.rot.Molecule`
             Molecular parameters.
 
     Args:
-        arg : numpy.ndarray, list or tuple, :py:class:`richmol.rot.Molecule`, or function
+        arg : numpy.ndarray, list or tuple, :py:class:`richmol.rot.Molecule`, function, or str
             Depending on the type of argument, initializes lab-frame molecular tensor operator
-            (arg is numpy.ndarray, list, or tuple), field-free Hamiltonian operator
-            (arg is :py:class:`richmol.rot.Molecule`), or arbitrary function of spherical
-            coordinates theta and phi (arg is function(theta, phi)).
+            (`arg` is numpy.ndarray, list, or tuple), field-free Hamiltonian operator
+            (`arg` is :py:class:`richmol.rot.Molecule`), arbitrary function of spherical
+            coordinates theta and phi (`arg` is function(theta, phi)), or matrix elements of some
+            named operators (`arg` is str).
+            Named operators: "cos2theta" for cos²(theta), "costheta" for cos(theta).
         basis : :py:class:`richmol.rot.Solution`
             Rotational wave functions.
         thresh : float
@@ -55,9 +57,9 @@ class LabTensor(CarTens):
     Kwargs:
         bra, ket : function(**kw)
             State filters for bra and ket basis sets, take as arguments state quantum numbers, symmetry,
-            and energy, i.e., `J`, `m`, `k`, `sym`, and `enr`, and return True or False depending on if
-            the corresponding state needs to be included or excluded form the basis.
-            By default, all states stored in the file are included.
+            and energy, i.e., `J`, `m`, `k`, `sym`, and `enr`, and return True or False depending if
+            the corresponding state needs to be included (True) or excluded (False) form the basis.
+            By default, all states spanned by basis are included.
             The following keyword arguments are passed into the bra and ket functions:
                 J : float (round to first decimal)
                     Value of J (or F) quantum number
@@ -68,13 +70,14 @@ class LabTensor(CarTens):
                 m : str
                     State assignment in the M subspace, usually just a value of the m quantum number
                 k : str
-                    State assignment in the K subspace, which are the rotational or ro-vibrational
-                    quanta joined in a string
+                    State assignment in the K subspace, which are state's rotational or ro-vibrational
+                    quanta and energy combined in a string
         wig_jmax : int
-            Maximal value of J quantum number used in the expansion of a user-defined function
-            of spherical coordinates in terms of Wigner D-functions.
+            Maximal value of J quantum number used in the expansion of input user-defined function
+            of spherical coordinates in terms of Wigner D-functions (used when `arg` is function).
         leb_deg : int
-            Degree of the angular Lebedev quadrature used for computing the Wigner expansion coefficients.
+            Degree of angular Lebedev quadrature used for computing the Wigner expansion coefficients
+            (used when `arg` is function)
     """
     # transformation matrix from Cartesian to spherical-tensor representation
     # for tensors of different ranks (dict keys)

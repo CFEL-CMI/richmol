@@ -31,7 +31,7 @@ class Molecule:
 
         Args:
             arg
-                Atomic labels, Cartesian coordinates, and units in a tuple, for example,
+                Atomic labels, Cartesian coordinates of atoms, and units in a tuple, for example,
 
                 .. code-block:: python
 
@@ -42,11 +42,11 @@ class Molecule:
 
                 To define a non-standard isotoplogue, add the corresponding number next
                 to the atom label, e.g., "O18", "H2".
-                Cartesian coordinates can also be read from an XYZ file, in this case `arg` needs
-                to be a string with the name of the XYZ file.
+                Cartesian coordinates can also be read from an XYZ file, in this case `arg`
+                should contain the name of XYZ file.
 
         Returns:
-            structured numpy array, len = <number of atoms>
+            structured numpy array
                 XYZ['xyz'] - Cartesian coordinates of atoms in Angstrom,
                 XYZ['mass'] - atomic masses,
                 XYZ['label'] - atomic labels
@@ -120,11 +120,7 @@ class Molecule:
 
         Args:
             arg
-                String containing the name of the axes system (e.g., "ipas" for the
-                inertial principal axes system), or the name of an attribute to be used as a rotation
-                matrix, which can be combined with various linear operations (e.g., "diag" for diagonalization).
-
-                Examples:
+                String defining molecular frame
 
                 .. code-block:: python
 
@@ -314,8 +310,8 @@ class Molecule:
                 Tuple with Bx, By, and Bz user-defined rotational constants (in :math:`cm^{-1}`).
 
         Returns:
-            Tuple with Bx, By, and Bz user-defined rotational constants,
-            if they have been initialized, otherwise returns the constants computed
+            Tuple with Bx, By, and Bz user-defined rotational constants.
+            If constants were not defined, returns constants computed
             from the input molecular geometry.
         """
         try:
@@ -391,7 +387,7 @@ class Molecule:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default the name of the variable is used
+                Name of the data group, by default name of the variable is used
             comment : str
                 User comment
             replace : bool
@@ -445,7 +441,7 @@ class Molecule:
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, if None, the first group with the matching "__class_name__" 
+                Name of the data group, if None, first group with matching "__class_name__" 
                 attribute will be loaded
         """
         class_name = self.__module__ + "." + self.__class__.__name__
@@ -492,16 +488,15 @@ class Molecule:
 
 
 def mol_tensor(val):
-    """Declares a new user-defined Cartesian tensor which, when assigned to an attribute
-    of a Molecule object, will be dynamically rotated to a chosen molecular frame :py:func:`Molecule.frame`
-    whenever the latter is changed
+    """Declares new molecular-frame Cartesian tensor which is dynamically rotated
+    to a chosen molecular frame :py:func:`Molecule.frame` whenever the latter is changed
 
     Args:
         val : array
             Cartesian tensor
 
     Returns:
-        object, needs to be assigned to an attribute of Molecule class
+        object, needs to be assigned to an attribute of class :py:class:`Molecule`
     """
     try:
         tens = np.array(val)

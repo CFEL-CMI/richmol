@@ -33,7 +33,7 @@ def register_ham(func):
 
 
 class Solution(UserDict):
-    """Represents rotational solutions for different of J and symmetry
+    """Represents rotational solutions for different values of J and symmetry
 
     This is a subclass of :py:class:`collections.UserDict` class.
 
@@ -60,7 +60,7 @@ class Solution(UserDict):
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, by default the name of the variable is used
+                Name of the data group, by default name of the variable is used
             comment : str
                 User comment
             replace : bool
@@ -114,7 +114,7 @@ class Solution(UserDict):
             filename : str
                 Name of HDF5 file
             name : str
-                Name of the data group, if None, the first group with the matching "__class_name__" 
+                Name of the data group, if None, first group with matching "__class_name__" 
                 attribute will be loaded
         """
         with h5py.File(filename, 'a') as fl:
@@ -170,9 +170,9 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
         verbose : bool
             If True, some log will be printed.
         filter : function(**kw)
-            State filter, takes as arguments the state quantum numbers `J` and `m` and symmetry `sym`,
-            and returns True or False depending on if the corresponding state needs to be included
-            or excluded form the basis. By default, all states spanned by `J=Jmin..Jmax` will be included.
+            State filter, takes as arguments state quantum numbers `J` and `m` and symmetry `sym`,
+            and returns True or False depending if the corresponding state needs to be included (True)
+            or excluded (False) form the basis. By default, all states spanned by `J=Jmin..Jmax` will be included.
             The following keyword arguments are passed into the filter function:
                 J : int
                     J quantum number
