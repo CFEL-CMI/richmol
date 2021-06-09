@@ -166,7 +166,7 @@ class TDSE():
         return t_c
 
 
-    def init_state(self, H, temp=None, thresh=1e-3):
+    def init_state(self, H, temp=None, thresh=1e-3, zpe=None):
         """ Generates initial state vectors
 
             Initial state vectors are eigenfunctions of Hamiltonian `H`. If
@@ -183,6 +183,8 @@ class TDSE():
             thresh : float
                 Collective threshold below which to neglect higher energy
                 states
+            zpe : float
+                Zero-point energy, by default lowest eigenvalue of H is taken
 
         Returns:
             vecs : list
@@ -223,21 +225,27 @@ class TDSE():
             ) from None
         enrs, vecs = np.linalg.eigh(hmat)
 
+        if zpe is None:
+            zpe = enrs[0]
+        if enrs[0] - zpe < 0:
+            raise ValueError(f"input zero-point energy {zpe} is higher than lowest energy {enrs[0]}") from None
+
         # Boltzmann weights
         if temp is None:
             weights = [1.0 for i in range(vecs.shape[1])]
         elif temp == 0:
             weights = [1.0]
+            # weights = [np.exp(-beta * (enrs[0] - zpe))]
         else:
             enrs *= self.enr_to_J
             beta = 1.0 / (const.value("Boltzmann constant") * temp) # (1/J)
-            weights = np.exp(-beta * (enrs - enrs[0]))
+            weights = np.exp(-beta * (enrs - zpe))
             weights /= np.sum(weights)
             mask = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
             weights = weights[mask]
 
-        vecs = [vecs[:, i] * weights[i] for i in range(len(weights))]
+        vecs = [vecs[:, i] * np.sqrt(weights[i]) for i in range(len(weights))]
 
         return vecs
 
