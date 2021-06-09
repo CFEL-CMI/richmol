@@ -289,7 +289,7 @@ plt.show()
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
 </div>
 
-For initial state distribution assume a hypothetical temperature of $T=0$ Kelvin and use the eigenfunctions of field-free operator `h0` as initial state vectors. Run dynamics from time zero to 200 ps with a time step of 10 fs
+For initial state distribution assume a hypothetical temperature of *T* = 0 Kelvin and use the eigenfunctions of field-free operator `h0` as initial state vectors. Run dynamics from time zero to 200 ps with a time step of 10 fs
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
