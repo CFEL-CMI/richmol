@@ -1,5 +1,5 @@
-<div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/richmol_logo.jpg" height="100px"/>
+<div align="center">
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/richmol_logo.jpg" height="70px"/>
 </div>
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
@@ -14,9 +14,10 @@ Richmol is library for simulating the molecular nuclear motion dynamics and rela
 It includes:
 * **Rotational energy levels and spectra** (`richmol.rot`, `richmol.spectrum`): Watson Hamiltonians in *A* and *S* reduction forms, user-built custom effective rotational Hamiltonians, electric dipole, magentic dipole, electric quadrupole, and Raman spectra
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties in arbitrary static and time-dependent fields
-* **Ro-vibrational dynamics and spectra** (interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics in static and time-dependent fields
+* **Ro-vibrational dynamics and spectra** (via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics in static and time-dependent fields
+* **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics including non-adiabatic and spin-orbit coupling effects
 
-Following releases will include:
+Coming releases will include:
 * **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, obtained from nuclear quadrupole, spin-spin, and spin-rotation interactions
 * **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
 
@@ -33,6 +34,47 @@ Latest version
 ```
 > pip install --upgrade git+https://github.com/CFEL-CMI/richmol.git
 ```
+
+## Quick start
+
+Compute rotational energies and matrix elements of dipole moment and polarizability for water molecule using data obtained from a quantum-chemical calculation
+
+```python
+from richmol.rot import Molecule, solve, LabTensor
+water = Molecule()
+
+# Cartesian coordinates of atoms
+water.XYZ = ("bohr",
+             "O",  0.00000000,   0.00000000,   0.12395915,
+             "H",  0.00000000,  -1.43102686,  -0.98366080,
+             "H",  0.00000000,   1.43102686,  -0.98366080)
+
+# choose frame of principal axes of inertia
+water.frame = "ipas"
+
+# molecular-frame dipole moment (au)
+water.dip = [0, 0, -0.7288]
+
+# molecular-frame polarizability tensor (au)
+water.pol = [[9.1369, 0, 0], [0, 9.8701, 0], [0, 0, 9.4486]]
+
+# symmetry group
+water.sym = "D2"
+
+# rotational solutions for J=0..5
+Jmax = 5
+sol = solve(water, Jmin=0, Jmax=Jmax)
+
+# laboratory-frame dipole moment operator
+dip = LabTensor(water.dip, sol, thresh=1e-12) # neglect matrix elements smaller than `thresh`
+
+# laboratory-frame polarizability tensor
+pol = LabTensor(water.pol, sol, thresh=1e-12)
+
+# field-free Hamiltonian
+h0 = LabTensor(water, sol, thresh=1e-12)
+```
+
 
 ## Citing richmol
 
