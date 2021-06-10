@@ -19,7 +19,7 @@ Richmol is intended for computing rotational and ro-vibrational energy levels, s
 
 Richmol is a library for simulating molecular nuclear motion dynamics and related properties.
 It is based on Python, although some of the libraries are written in Fortran.
-Richmol time-dependent propagation can run on GPUs using `numba` and `cupu` libraries.
+Richmol time-dependent propagation can run on GPUs using `numba` and `cupy` libraries.
 It includes:
 * **Rotational energy levels and spectra** (`richmol.rot`, `richmol.spectrum`): Watson Hamiltonians in *A* and *S* reduction forms, user-built custom effective rotational Hamiltonians, electric dipole, magnetic dipole, electric quadrupole, and Raman spectra
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties of molecules placed in static and time-dependent fields
