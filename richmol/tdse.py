@@ -238,7 +238,7 @@ class TDSE():
             weights = [1.0]
             # weights = [np.exp(-beta * (enrs[0] - zpe))]
         else:
-            enrs *= self.enr_to_J
+            enrs *= self._enr_to_J
             beta = 1.0 / (const.value("Boltzmann constant") * temp) # (1/J)
             weights = np.exp(-beta * (enrs - zpe))
             weights /= np.sum(weights)
