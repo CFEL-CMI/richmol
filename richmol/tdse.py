@@ -322,8 +322,8 @@ class TDSE():
                         res,
                         onenormest(H.tomat(form='full')),
                         12,
-                        exp_fac,
-                        lambda v : cartensvec(v),
+                        exp_fac.imag,
+                        lambda v : cartensvec(v) * 1j,
                         tol = tol
                     )
                 vecs2.append(self._exp_fac_H0 * res)
