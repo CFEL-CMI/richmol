@@ -315,17 +315,17 @@ class TDSE():
                     )
                 res = self._exp_fac_H0 * vec
                 if not len(H.mfmat) == 0:
-                    #res = _expv_lanczos(
-                    #    res, exp_fac, lambda v : cartensvec(v), tol=tol
-                    #)
-                    res = zhexpv(
-                        res,
-                        onenormest(H.tomat(form='full')),
-                        12,
-                        exp_fac.imag,
-                        lambda v : cartensvec(v) * 1j,
-                        tol = tol
+                    res = _expv_lanczos(
+                        res, exp_fac, lambda v : cartensvec(v), tol=tol
                     )
+                    # res = zhexpv(
+                    #     res,
+                    #     onenormest(H.tomat(form='full')),
+                    #     12,
+                    #     exp_fac.imag,
+                    #     lambda v : cartensvec(v) * 1j,
+                    #     tol = tol
+                    # )
                 vecs2.append(self._exp_fac_H0 * res)
         else:
             for vec in vecs:
