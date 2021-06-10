@@ -144,6 +144,7 @@ Here is an example of the simulation of Stark effect for water molecule
 ```py
 import numpy as np
 from richmol.convert_units import AUdip_x_Vm_to_invcm
+import matplotlib.pyplot as plt
 
 enr = []
 muz = []
@@ -169,16 +170,7 @@ for fz in fz_grid:
     # keep field-dressed matrix elements of Z-dipole
     muz.append( np.dot(np.conj(v.T), muz0.dot(v)) )
 
-# prints out
-# matrix dimensions: (286, 286)
-```
-
-Plot the results for selected state index
-
-```py
-import matplotlib.pyplot as plt
-
-# plot energies and dipoles vs field
+# plot the results for selected state index
 
 enr = np.array(enr)
 muz = np.array(muz)
@@ -195,6 +187,7 @@ ax1.plot(fz_grid, enr[:, istate])
 ax2.plot(fz_grid, muz[:, istate, istate].real)
 plt.show()
 ```
+
 <div align="left">
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="300px"/>
 </div>
@@ -270,7 +263,9 @@ plt.show()
 
 For initial state distribution assume a hypothetical temperature of *T* = 0 Kelvin
 and use the eigenfunctions of field-free operator `h0` as initial state vectors.
-Run dynamics from time zero to 200 ps with a time step of 10 fs
+Run dynamics from time zero to 200 ps with a time step of 10 fs,
+plot the expectation value of cos<sup>2</sup>&theta;
+and compare with some [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
@@ -301,20 +296,8 @@ for i, t in enumerate(tdse.time_grid()):
     if i % 1000 == 0:
         print(t, expval+1/3)
 
-# prints out
-# 0.005 (0.33333335011354287-3.3881317890172014e-21j)
-# 10.005 (0.34739158187693825-1.734723475976807e-18j)
-# 20.005 (0.4213669350942997-1.0408340855860843e-17j)
-# 30.005 (0.6609918655846478-2.7755575615628914e-17j)
-# ...
-```
-
-Plot the expectation value of cos<sup>2</sup>&theta; and compare with some [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
-
-```py
-plt.plot([t for t in tdse.time_grid()], [elem.real + 1/3 for elem in cos2_expval], 'b', linewidth=4, label="present")
-
 # compare with reference results
+
 with open("trunc_pulse_cos2theta.txt", "r") as fl:
     cos2_expval_ref = np.array([float(line.split()[1]) for line in fl])
     fl.seek(0)
@@ -325,7 +308,9 @@ plt.xlabel("time in ps")
 plt.ylabel("$\cos^2\\theta$")
 plt.legend()
 plt.show()
+
 ```
+
 <div align="left">
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
