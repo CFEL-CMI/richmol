@@ -4,6 +4,13 @@
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
 
+[**Overview**](#overview)
+| [**Quick install**](#quick-install)
+| [**Quick Start**](#quick-start)
+| [**Citing richmol**](#citing-richmol)
+| [**Documentation**](https://richmol.readthedocs.io/)
+
+
 Richmol is currently being developed and maintained by theory team of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron. We hope to attract for a joint development a larger community of researchers working in fields of molecular nuclear motion dynamics, spectroscopy, and coherent control.
 
 Richmol is intended for computing rotational and ro-vibrational energy levels, spectra, and field-induced time-dependent dynamics of molecules. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
