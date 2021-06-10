@@ -1,8 +1,9 @@
 import numpy as np
 import scipy.constants as const
 import functools
-from scipy.sparse.linalg import expm
+from scipy.sparse.linalg import expm, onenormest
 from richmol import convert_units
+from richmol.pyexpokit import zhexpv
 
 
 def update_counter(func):
@@ -314,8 +315,16 @@ class TDSE():
                     )
                 res = self._exp_fac_H0 * vec
                 if not len(H.mfmat) == 0:
-                    res = _expv_lanczos(
-                        res, exp_fac, lambda v : cartensvec(v), tol=tol
+                    #res = _expv_lanczos(
+                    #    res, exp_fac, lambda v : cartensvec(v), tol=tol
+                    #)
+                    res = zhexpv(
+                        res,
+                        onenormest(H.tomat(form='full')),
+                        12,
+                        exp_fac,
+                        lambda v : cartensvec(v),
+                        tol = tol
                     )
                 vecs2.append(self._exp_fac_H0 * res)
         else:

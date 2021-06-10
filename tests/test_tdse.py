@@ -15,7 +15,7 @@ class testTDSE(unittest.TestCase):
     def test_alignment_ocs_lanczos(self):
 
         #  read reference chronological sequence of occupation probabilities
-        path = 'tests/etc/alignment_ocs/'
+        path = 'tests/benchmarks/data/alignment_ocs/'
         fname_ref_pop = path + 'pop_reference.txt'
         J_list = [0, 2, 4, 6, 8, 10, 12]
         ref_occu_probs = []
@@ -52,19 +52,21 @@ class testTDSE(unittest.TestCase):
             field = [[0, 0, 1e2 * float(line.split()[3])] for line in f]
 
         # compute chronological sequence of occupation probabilities
-        tdse = TDSE(t_end=10, dt=0.01)
+        tdse = TDSE(t_end=5, dt=0.01)
         vecs = tdse.init_state(H0, temp=0)
         occu_probs = []
         for ind, _ in enumerate(tdse.time_grid()):
             Hbar.field(field[ind])
             vecs, t = tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
             if ind % 10 == 0:
+                print('tc = ', _)
+                print(vecs[0])
                 occu_probs.append(
                    [ round(t - 0.01, 2),
                      *[round(abs(vecs[0][int(J / 2)])**2, 4) for J in J_list] ]
                 )
-                #print('    result: ', occu_probs[-1],
-                #      '    reference: ', ref_occu_probs[int(ind / 10)])
+                print('    result: ', occu_probs[-1],
+                      '    reference: ', ref_occu_probs[int(ind / 10)])
         occu_probs = np.array(occu_probs)
 
         # write chronological sequence of occupation probabilities
