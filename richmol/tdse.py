@@ -293,7 +293,8 @@ class TDSE():
 
             # CarTens compatible vec to numpy array
             vec_ = np.concatenate(
-                tuple( [ vec_[J][sym] for J in H.Jlist2
+                tuple( [ vec_[J][sym] if J in vec_.keys() and sym in vec_[J].keys()
+                         else np.zeros(H.dim2[J][sym], dtype=np.complex128) for J in H.Jlist2
                          for sym in H.symlist2[J] ] )
             )
 
