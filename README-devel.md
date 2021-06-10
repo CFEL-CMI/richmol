@@ -1,4 +1,4 @@
-Some simple rules for coding on CMInject:
+Some simple rules for coding on Richmol:
 
 Please
 - keep the code consistent across the whole package!
