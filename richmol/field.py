@@ -1087,6 +1087,10 @@ class CarTens():
                 for key, val in field_prod.items() if abs(val) >= thresh
             }
 
+        # return if all field product elements below threshold
+        if len(field_prod) == 0:
+            return
+
         # compute MF-tensor
         mydict = lambda: defaultdict(mydict)
         self.mfmat = mydict()
