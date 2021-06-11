@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.constants as const
 import functools
+from scipy.sparse import diags
 from scipy.sparse.linalg import expm, onenormest
 from richmol import convert_units
 from richmol.pyexpokit import zhexpv
@@ -310,9 +311,18 @@ class TDSE():
                         H0.field([0, 0, 1])
                     except AttributeError:
                         pass
-                    self._exp_fac_H0 = np.exp(
-                        exp_fac / 2 * H0.tomat(form='full').diagonal()
-                    )
+                    mat = H0.tomat(form='full')
+                    H0_diag = mat.diagonal()
+                    H0_offd = mat - diags(H0_diag)
+                    if H0_offd.nnz == 0:
+                        # if H0 is diagonal
+                        self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_diag)
+                    else:
+                        # if H0 is non-diagonal
+                        # TODO: need to implement either static computation
+                        # of expm(H0.tomat()) or dynamic update exp(H)*vec
+                        # with _expv_lanczos
+                        raise ValueError(f"non-diagonal H0") from None
                 res = self._exp_fac_H0 * vec
                 if not len(H.mfmat) == 0:
                     res = _expv_lanczos(
