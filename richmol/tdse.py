@@ -305,38 +305,34 @@ class TDSE():
         # propagate
         vecs2 = []
         if H0 is not None:
-            for vec in vecs:
-                if '_exp_fac_H0' not in list(self.__dict__.keys()):
-                    try:
-                        H0.field([0, 0, 1])
-                    except AttributeError:
-                        pass
-                    mat = H0.tomat(form='full')
-                    H0_diag = mat.diagonal()
-                    H0_offd = mat - diags(H0_diag)
-                    if H0_offd.nnz == 0:
-                        # if H0 is diagonal
-                        self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_diag)
-                    else:
-                        # if H0 is non-diagonal
-                        # TODO: need to implement either static computation
-                        # of expm(H0.tomat()) or dynamic update exp(H)*vec
-                        # with _expv_lanczos
-                        raise ValueError(f"non-diagonal H0") from None
-                res = self._exp_fac_H0 * vec
-                if not len(H.mfmat) == 0:
-                    res = _expv_lanczos(
-                        res, exp_fac, lambda v : cartensvec(v), tol=tol
+            if '_exp_fac_H0' not in list(self.__dict__.keys()):
+                mat = H0.tomat(form='full', cart='0')
+                H0_diag = mat.diagonal()
+                H0_offd = mat - diags(H0_diag)
+                if H0_offd.nnz == 0:
+                    # if H0 is diagonal
+                    self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_diag)
+                else:
+                    # if H0 is non-diagonal
+                    # TODO: need to implement either static computation
+                    # of expm(H0.tomat()) or dynamic update exp(H0)*vec
+                    # with _expv_lanczos
+                    raise ValueError(f"non-diagonal H0") from None
+            res = np.array(vecs) * self._exp_fac_H0
+            if hasattr(H, 'mfmat') and len(H.mfmat) > 0:
+                for i in range(res.shape[0]):
+                    res[i, :] = _expv_lanczos(
+                        res[i, :], exp_fac, lambda v : cartensvec(v), tol=tol
                     )
                     # res = zhexpv(
-                    #     res,
+                    #     res[i, :],
                     #     onenormest(H.tomat(form='full')),
                     #     12,
                     #     exp_fac.imag,
                     #     lambda v : cartensvec(v) * 1j,
                     #     tol = tol
                     # )
-                vecs2.append(self._exp_fac_H0 * res)
+            vecs2 = res * self._exp_fac_H0
         else:
             for vec in vecs:
                 vecs2.append(_expv_lanczos(
