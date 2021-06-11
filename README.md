@@ -305,6 +305,8 @@ for i, t in enumerate(tdse.time_grid()):
 
 # compare with reference results
 
+plt.plot([t for t in tdse.time_grid()], [elem.real + 1/3 for elem in cos2_expval], 'b', linewidth=4, label="present")
+
 with open("trunc_pulse_cos2theta.txt", "r") as fl:
     cos2_expval_ref = np.array([float(line.split()[1]) for line in fl])
     fl.seek(0)
