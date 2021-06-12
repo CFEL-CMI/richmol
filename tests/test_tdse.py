@@ -59,8 +59,6 @@ class testTDSE(unittest.TestCase):
             Hbar.field(field[ind])
             vecs, t = tdse.update(Hbar, H0=H0, vecs=vecs, matvec_lib='scipy')
             if ind % 10 == 0:
-                print('tc = ', _)
-                print(vecs[0])
                 occu_probs.append(
                    [ round(t - 0.01, 2),
                      *[round(abs(vecs[0][int(J / 2)])**2, 4) for J in J_list] ]

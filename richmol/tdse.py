@@ -189,8 +189,8 @@ class TDSE():
                 Zero-point energy, by default lowest eigenvalue of H is taken
 
         Returns:
-            vecs : list
-                Initial state vectors
+            vecs : numpy.ndarray
+                Initial state vectors (each row represents an initial state)
         """
 
         # temperature
@@ -230,25 +230,27 @@ class TDSE():
         if zpe is None:
             zpe = enrs[0]
         if enrs[0] - zpe < 0:
-            raise ValueError(f"input zero-point energy {zpe} is higher than lowest energy {enrs[0]}") from None
+            raise ValueError(
+                f"input zero-point energy '{zpe}' is greater than " \
+                    + f"lowest energy '{enrs[0]}'"
+            ) from None
 
         # Boltzmann weights
+        vecs = vecs.T
         if temp is None:
-            weights = [1.0 for i in range(vecs.shape[1])]
+            pass
         elif temp == 0:
-            weights = [1.0]
+            vecs = vecs[0 : 1]
             # weights = [np.exp(-beta * (enrs[0] - zpe))]
         else:
             enrs *= self._enr_to_J
             beta = 1.0 / (const.value("Boltzmann constant") * temp) # (1/J)
             weights = np.exp(-beta * (enrs - zpe))
             weights /= np.sum(weights)
-            mask = [ i for i in range(len(weights))
+            inds = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
-            weights = weights[mask]
-
-        vecs = [vecs[:, i] * np.sqrt(weights[i]) for i in range(len(weights))]
-
+            vecs = vecs[inds] * np.expand_dims(weights[inds], axis=1)
+ 
         return vecs
 
 
@@ -295,15 +297,17 @@ class TDSE():
 
             # CarTens compatible vec to numpy array
             vec_ = np.concatenate(
-                tuple( [ vec_[J][sym] if J in vec_.keys() and sym in vec_[J].keys()
-                         else np.zeros(H.dim2[J][sym], dtype=np.complex128) for J in H.Jlist2
-                         for sym in H.symlist2[J] ] )
+                tuple(
+                    [ vec_[J][sym]
+                      if J in vec_.keys() and sym in vec_[J].keys()
+                      else np.zeros(H.dim2[J][sym], dtype=np.complex128)
+                      for J in H.Jlist2 for sym in H.symlist2[J] ]
+                )
             )
 
             return vec_
 
         # propagate
-        vecs2 = []
         if H0 is not None:
             if '_exp_fac_H0' not in list(self.__dict__.keys()):
                 mat = H0.tomat(form='full', cart='0')
@@ -318,25 +322,26 @@ class TDSE():
                     # of expm(H0.tomat()) or dynamic update exp(H0)*vec
                     # with _expv_lanczos
                     raise ValueError(f"non-diagonal H0") from None
-            res = np.array(vecs) * self._exp_fac_H0
+            vecs2 = vecs * self._exp_fac_H0
             if hasattr(H, 'mfmat') and len(H.mfmat) > 0:
-                for i in range(res.shape[0]):
-                    res[i, :] = _expv_lanczos(
-                        res[i, :], exp_fac, lambda v : cartensvec(v), tol=tol
+                for ind, vec in enumerate(vecs2):
+                    vecs2[ind] = _expv_lanczos(
+                        vec, exp_fac, lambda v : cartensvec(v), tol=tol
                     )
-                    # res = zhexpv(
-                    #     res[i, :],
+                    # vecs2[ind] = zhexpv(
+                    #     vec,
                     #     onenormest(H.tomat(form='full')),
                     #     12,
                     #     exp_fac.imag,
                     #     lambda v : cartensvec(v) * 1j,
                     #     tol = tol
                     # )
-            vecs2 = res * self._exp_fac_H0
+            vecs2 *= self._exp_fac_H0
         else:
-            for vec in vecs:
-                vecs2.append(_expv_lanczos(
-                    vec, exp_fac, lambda v : cartensvec(v), tol=tol)
+            vecs2 = np.empty(vecs.shape, dtype=vecs.dtype)
+            for ind, vec in enumerate(vecs):
+                vecs2[ind] = _expv_lanczos(
+                    vec, exp_fac, lambda v : cartensvec(v), tol=tol
                 )
 
         return vecs2
