@@ -310,18 +310,10 @@ class TDSE():
         # propagate
         if H0 is not None:
             if '_exp_fac_H0' not in list(self.__dict__.keys()):
-                mat = H0.tomat(form='full', cart='0')
-                H0_diag = mat.diagonal()
-                H0_offd = mat - diags(H0_diag)
-                if H0_offd.nnz == 0:
-                    # if H0 is diagonal
-                    self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_diag)
-                else:
-                    # if H0 is non-diagonal
-                    # TODO: need to implement either static computation
-                    # of expm(H0.tomat()) or dynamic update exp(H0)*vec
-                    # with _expv_lanczos
-                    raise ValueError(f"non-diagonal H0") from None
+                H0_mat = H0.tomat(form='full', cart='0')
+                assert ((H0_mat - diags(H0_mat.diagonal())).nnz == 0), \
+                    f"non-diagonal H0: split-operator approach not applicable"
+                self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_mat.toarray())
             vecs2 = vecs * self._exp_fac_H0
             if hasattr(H, 'mfmat') and len(H.mfmat) > 0:
                 for ind, vec in enumerate(vecs2):
