@@ -1853,6 +1853,7 @@ class CarTens():
         self.dim_k = dim_k
         self.map_k_ind = map_k_ind
         self.map_m_ind = map_m_ind
+        self.store_exclude = ["dim_m", "dim_k", "map_k_ind", "map_m_ind"] # exclude attributes from stroing into h5 file
 
         # apply state selection filters
         self.filter(**kwargs)
