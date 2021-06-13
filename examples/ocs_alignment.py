@@ -1,5 +1,5 @@
-"""Laser kick alignment of OCS molecule for different pulse durations
-and selected initial temperature
+"""An example of calculation of the laser kick alignment of OCS molecule
+for different pulse durations and selected initial temperature
 """
 
 from richmol.rot import Molecule, solve, LabTensor
