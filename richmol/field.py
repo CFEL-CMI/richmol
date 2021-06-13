@@ -16,8 +16,8 @@ from richmol import json_ext as json
 import os
 from numba import njit, prange, complex128
 
-import torch # temporary fix
-if torch.cuda.is_available():
+from jax.lib import xla_bridge
+if xla_bridge.get_backend().platform == "gpu":
     import cupy as cp
     import cupyx
 
