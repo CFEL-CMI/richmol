@@ -6,7 +6,6 @@ Authors: @yachmena
 
 import urllib.request
 import os
-import sys
 import h5py
 from richmol.field import CarTens
 import numpy as np
