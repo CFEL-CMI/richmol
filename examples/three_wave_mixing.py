@@ -1,3 +1,4 @@
-"""Example of a three-wave mixing simulation for chiral molecule"""
+"""Example of a three-wave mixing simulation for chiral molecule
 
-@Andrey
+Authors: @yachmena
+"""

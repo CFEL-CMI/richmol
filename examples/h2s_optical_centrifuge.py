@@ -1,3 +1,4 @@
-"""An example of calculation of the optical-centrifuge excitation of H2S"""
+"""An example of calculation of the optical-centrifuge excitation of H2S
 
-@Andrey
+Authors: @yachmena
+"""
