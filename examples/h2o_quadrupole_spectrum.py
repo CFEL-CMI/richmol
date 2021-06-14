@@ -7,7 +7,7 @@ import urllib.request
 import os
 import h5py
 from richmol.field import CarTens
-# from richmol import spectrum
+from richmol.spectrum import FieldFreeSpec
 
 # get richmol file
 
@@ -20,10 +20,28 @@ if not os.path.exists(richmol_file):
 
 # print available datasets and their description
 
-fl = h5py.File(richmol_file, "r")
-print("Available datasets")
-for key, val in fl.items():
-    print(f"'{key}'")                   # dataset name
-    print("\t", val.attrs["__doc__"])   # dataset description
+with h5py.File(richmol_file, "r") as fl:
+    print("Available datasets")
+    for key, val in fl.items():
+        print(f"'{key}'")                   # dataset name
+        print("\t", val.attrs["__doc__"])   # dataset description
 
-# ... do spectrum 
+# ... do spectrum
+
+# initialization
+spec = FieldFreeSpec(
+    richmol_file,
+    names = ['h0', 'quad'],
+    j_max = 40,
+    type = 'elec',
+    order = 'quad',
+    units = 'a.u.',
+    e_max = 15e3
+)
+
+# linestrengths
+spec.linestr(thresh=0)
+
+# absorption intensities
+temp, part_sum = 296.0, 174.5813
+spec.abs_intens(temp, part_sum, abun=1, thresh=1e-36)
