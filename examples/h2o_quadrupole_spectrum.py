@@ -5,6 +5,7 @@ Authors: @saribalc, @yangguang888 (@yachmena - data in Zenodo repository)
 
 import urllib.request
 import os
+import h5py
 from richmol.field import CarTens
 # from richmol import spectrum
 
