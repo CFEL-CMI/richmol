@@ -15,7 +15,7 @@ from mpi4py import MPI
 import matplotlib.pyplot as plt
 
 
-class field_free_spectrum():
+class FieldFreeSpec():
     """ Class for field-free spectrum
 
         Attrs:
@@ -29,6 +29,10 @@ class field_free_spectrum():
                 In the old-format, matrix elements of Cartesian tensors for
                 different values of bra and ket J (or F) quanta are stored in
                 separate files.
+            names: list
+                Names (str) of two data groups in HDF5 file. First name
+                represents group name of field-free data, while second name
+                represents group name of matrix element data.
             out_f : str
                 Name of the HDF5 file to which results are written.
             type : str
@@ -82,7 +86,7 @@ class field_free_spectrum():
                 Writes results into ASCII file.
     """
 
-    def __init__(self, filename, matelem=None, **kwargs):
+    def __init__(self, filename, matelem=None, names=None, **kwargs):
         """ Initializes a field-free spectrum object.
 
             Args:
@@ -96,6 +100,10 @@ class field_free_spectrum():
                     In the old-format, matrix elements of Cartesian tensors for
                     different values of bra and ket J (or F) quanta are stored
                     in separate files.
+                names : list
+                    Names (str) of two data groups in HDF5 file. First name
+                    represents group name of field-free data, while second name
+                    represents group name of matrix element data.
 
             Kwargs:
                 type : str
@@ -119,8 +127,19 @@ class field_free_spectrum():
         # set main filename
         self.filename = filename
 
-        # set matelem filename
+        # set names / matelem filename
+        assert ( (matelem is None) != (names is None)), \
+            f"keyword arguments conflict: either use `matelem` for old " \
+                + f"richmol format or `names` for new richmol format"
         self.matelem = matelem
+        if names is not None:
+            assert (type(names) is list), \
+                f"`names` has bad type: '{type(names)}', " \
+                    + f"(must be 'list')"
+            assert (len(names) == 2), \
+                f"`names` has bad length: '{len(names)}', " \
+                    + f"(must be '2')"
+        self.names = names
 
         # set coupling moment type
         if 'type' in kwargs:
@@ -279,11 +298,21 @@ class field_free_spectrum():
         while j <= self.j_max:
 
             # field-free states
-            free_states = CarTens(
-                self.filename, 
-                bra = lambda **kwargs : False, 
-                ket = filt_ket
-            )
+            if self.names is None and self.matelem is not None:
+                # old richmol-format
+                free_states = CarTens(
+                    self.filename,
+                    bra = lambda **kwargs : False, 
+                    ket = filt_ket
+                )
+            elif self.names is not None and self.matelem is None:
+                # new richmol-format
+                free_states = CarTens(
+                    self.filename,
+                    name = self.names[0],
+                    bra = lambda **kwargs : False, 
+                    ket = filt_ket
+                )
 
             # assignment
             _, assign_ket = free_states.assign(form='full')
@@ -378,12 +407,22 @@ class field_free_spectrum():
                     if abs(j_ket - j_bra) > 2 or (j_ket + j_bra) < 2: continue
 
                 # Cartesian tensor operator
-                moment = CarTens(
-                    self.filename,
-                    matelem = self.matelem,
-                    bra = filt(j_bra),
-                    ket = filt(j_ket)
-                )
+                if self.names is None and self.matelem is not None:
+                    # old richmol-format
+                    moment = CarTens(
+                        self.filename,
+                        matelem = self.matelem,
+                        bra = filt(j_bra),
+                        ket = filt(j_ket)
+                    )
+                elif self.names is not None and self.matelem is None:
+                    # new richmol-format
+                    moment = CarTens(
+                        self.filename,
+                        name = self.names[1],
+                        bra = filt(j_bra),
+                        ket = filt(j_ket)
+                    )
 
                 # linestrength
                 linestr = []
@@ -506,7 +545,10 @@ class field_free_spectrum():
                     The total internal partition sum.
 
             Kwargs:
-                filters: list
+                abun : float
+                    Natural terrestrail isotopic abundance Set to 1.0 by
+                    default
+                filters : list
                     User defined filtering functions for transitions (see
                     `filters` in kwargs of :py:class:`field_free_spectrum`).
                 thresh : int, float
@@ -878,7 +920,7 @@ class field_free_spectrum():
                     for j in list(f['assign'].keys()):
                         txt.write('\n    J = {}\n\n'.format(j))
                         np.savetxt(
-                            txt, f['assign'][j][:], fmt='%10.4f %3s  %3.1f %s'
+                            txt, f['assign'][j][:], fmt='%10.4f %3s %s'
                         )
 
                 # write spectrum TXT
@@ -890,6 +932,37 @@ class field_free_spectrum():
                             f['spec'][jj][:],
                             fmt = '%6.1f %6.1f %12.6f %16.6e %16.6e'
                         )
+
+                # write filtered data
+                dtype = [
+                    ('enr bra', 'f8'), ('sym bra', 'S2'), ('qstr bra', 'S50'),
+                    ('enr ket', 'f8'), ('sym ket', 'S2'), ('qstr ket', 'S50'),
+                    ('freq', 'f8'), ('intens', 'f8')
+                ]
+                for filt in self.filters:
+                    data = f[filt.__name__][:]
+                    res = np.empty(data.shape[0], dtype=dtype)
+                    res['freq'] = data['freq']
+                    res['intens'] = data['intens']
+                    for ind in range(data.shape[0]):
+                        bra = f['assign'][str(data['J bra'][ind])][:][
+                            data['bra ind'][ind]
+                        ]
+                        res['enr bra'][ind] = bra['enr']
+                        res['sym bra'][ind] = bra['sym']
+                        res['qstr bra'][ind] = bra['qstr']
+                        ket = f['assign'][str(data['J ket'][ind])][:][
+                           data['ket ind'][ind]
+                        ]
+                        res['enr ket'][ind] = ket['enr']
+                        res['sym ket'][ind] = ket['sym']
+                        res['qstr ket'][ind] = ket['qstr']
+                    np.savetxt(
+                        '{}_spec.txt'.format(filt.__name__),
+                        res,
+                        fmt = 2 * '%10.4f %3s %s    ' + '%16.6e %16.6e'
+                    )
+
 
             # TODO: implement other formats (e.g. HITRAN)
 
@@ -907,7 +980,7 @@ if __name__ == "__main__":
     # INITIALIZATION
     filename = 'matelem/hyfor_energies_f0.0_f39.0.chk'
     matelem = 'matelem/matelem_MU_ns_f<f1>_f<f2>.rchm'
-    spec = field_free_spectrum(filename, matelem=matelem, j_max=2, e_max=15e3)
+    spec = FieldFreeSpec(filename, matelem=matelem, j_max=2, e_max=15e3)
 
     # LINESTRENGTH
     spec.linestr(thresh=0)
