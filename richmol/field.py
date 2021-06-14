@@ -1546,7 +1546,7 @@ class CarTens():
         if name is None:
             name = retrieve_name(self)
 
-        with h5py.File(filename, 'a') as fl:
+        with h5py.File(filename, 'r') as fl:
 
             try:
                 group = fl[name]
