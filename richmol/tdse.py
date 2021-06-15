@@ -312,8 +312,8 @@ class TDSE():
             if '_exp_fac_H0' not in list(self.__dict__.keys()):
                 H0_mat = H0.tomat(form='full', cart='0')
                 assert ((H0_mat - diags(H0_mat.diagonal())).nnz == 0), \
-                    f"non-diagonal H0: split-operator approach not applicable"
-                self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_mat.toarray())
+                    f"non-diagonal H0: split-operator approach not applicable/implemented"
+                self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_mat.diagonal())
             vecs2 = vecs * self._exp_fac_H0
             if hasattr(H, 'mfmat') and len(H.mfmat) > 0:
                 for ind, vec in enumerate(vecs2):
