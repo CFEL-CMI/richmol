@@ -1,4 +1,4 @@
-"""An example of calculation of the laser kick alignment of OCS molecule
+"""Example of calculation of the laser kick alignment of OCS molecule
 for different pulse durations and selected initial temperature
 
 Authors: @yachmena
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                 print(f"time {t} ps")
 
         plt.plot(tdse.time_grid(), cos2_expval[FWHM], linewidth=2, label=f"FWHM {FWHM}")
-        plt.title(f"alignment of OCS at T = {temp} K, Gaussian pulse, 800 nm, E$_0$ = 1e10 V/m")
+        plt.title(f"Alignment of OCS at T = {temp} K, Gaussian pulse, 800 nm, E$_0$ = 1e10 V/m")
         plt.xlabel("time in ps")
         plt.ylabel("$\cos^2\\theta$")
         plt.legend()
