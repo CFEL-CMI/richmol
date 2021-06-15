@@ -65,7 +65,7 @@ if __name__ == "__main__":
             "License :: OSI Approved :: GNU General Public License v3.0",
             "Programming Language :: Python :: 3.6",
             "Topic :: Scientific",
-            ]
+            ],
         author="Richmol team",
         maintainer_email="andrey.yachmenev@cfel.de",
         url="https://github.com/CFEL-CMI/richmol",
