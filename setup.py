@@ -48,7 +48,6 @@ install_requires = [
     "h5py>=2.10.0",
     "jax>=0.2.13",
     "numba>=0.53.1",
-    "json>=2.0.9"
     ]
 
 if __name__ == "__main__":
@@ -69,7 +68,7 @@ if __name__ == "__main__":
         author="Richmol team",
         maintainer_email="andrey.yachmenev@cfel.de",
         url="https://github.com/CFEL-CMI/richmol",
-        download_url = 'https://pypi.python.org/pypi/richmol'
+        download_url = 'https://pypi.python.org/pypi/richmol',
         packages=setuptools.find_packages(),
         include_package_data=True,
         ext_modules=[expokit, potentials, wigner],
