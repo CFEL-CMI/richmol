@@ -62,7 +62,7 @@ if __name__ == "__main__":
         classifiers=[
             "Development Status :: 1 - Beta",
             "Intended Audience :: Science/Research",
-            "License :: OSI Approved :: GNU General Public License v3.0,
+            "License :: OSI Approved :: GNU General Public License v3.0",
             "Programming Language :: Python :: 3.6",
             "Topic :: Scientific",
             ]
