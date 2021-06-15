@@ -1900,12 +1900,13 @@ class CarTens():
             (3,1) : [(1,-1), (1,0), (1,1)],                               # rank-1 tensor
             (9,1) : [(2,-2), (2,-1), (2,0), (2,1), (2,2)],                # traceless and symmetric rank-2 tensor
             (9,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],         # symmetric rank-2 tensor
+            (6,2) : [(0,0), (2,-2), (2,-1), (2,0), (2,1), (2,2)],         # symmetric rank-2 tensor (to read old-style files)
             (9,3) : [ (0,0), (1,-1), (1,0), (1,1), (2,-2), (2,-1), (2,0),
                       (2,1), (2,2) ]                                      # non-symmetric rank-2 tensor
         }
 
         # tensor ranks ranks[ncart]
-        ranks = {3 : 1, 9 : 2}
+        ranks = {3 : 1, 9 : 2, 6 : 2} # "6 : 2" to read old-style files
 
         self.cart = []
         self.mmat = mydict()
@@ -2009,9 +2010,8 @@ class CarTens():
                                 raise ValueError(
                                     f"can't infer Cartesian tensor irreps " \
                                         + f"from the number of Cartesian " \
-                                        + f"of Cartesian components = " \
-                                        + f"'{ncart}' and number of irreps " \
-                                        + f"= '{nirrep}'"
+                                        + f"components '{ncart}' and number " \
+                                        + f"of irreps = '{nirrep}'"
                                 ) from None
                             try:
                                 self.rank = ranks[ncart]
