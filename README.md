@@ -7,27 +7,27 @@
 [**Overview**](#overview)
 | [**Quick install**](#quick-install)
 | [**Quick Start**](#quick-start)
+| [**Examples**](examples/)
 | [**Citing richmol**](#citing-richmol)
 | [**Documentation**](https://richmol.readthedocs.io/)
 
 
 Richmol is currently being developed and maintained by theory team of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron. We hope to attract for a joint development a larger community of researchers working in fields of molecular nuclear motion dynamics, spectroscopy, and coherent control.
 
-Richmol is intended for computing rotational and ro-vibrational energy levels, spectra, and field-induced time-dependent dynamics of molecules. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
+Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
 
 ## Overview
 
 Richmol is a library for simulating molecular nuclear motion dynamics and related properties.
-It is based on Python, although some of the libraries are written in Fortran.
-Richmol time-dependent propagation can run on GPUs using `numba` and `cupy` libraries.
-It includes:
+It is based on Python, some of its parts, for example, time-dependent propagation, can run on GPUs using `numba` and `cupy` libraries.
+Richmol can be used for predicting:
 * **Rotational energy levels and spectra** (`richmol.rot`, `richmol.spectrum`): Watson Hamiltonians in *A* and *S* reduction forms, user-built custom effective rotational Hamiltonians, electric dipole, magnetic dipole, electric quadrupole, and Raman spectra
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties of molecules placed in static and time-dependent fields
-* **Ro-vibrational dynamics and spectra** (via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
+* **Ro-vibrational dynamics and spectra** (currently via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
 * **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics of diatomic molecules including non-adiabatic and spin-orbit coupling effects
 
-Coming releases will include:
-* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, obtained from nuclear quadrupole, spin-spin, and spin-rotation interactions
+We plan to include following new features in the next release:
+* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, including nuclear quadrupole, spin-spin, and spin-rotation interactions
 * **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
 
 
@@ -46,22 +46,24 @@ Latest version
 
 ## Quick start
 
-Calculation of rotational (and generally ro-vibrational) dynamics proceeds in two steps.
-First, molecular field-free rotational energies and wave functions are obtained,
-together with matrix elements of various molecule-field interaction tensors (multipoles).
-These are then used in a subsequent calculation of molecular dynamics in static or time-dependent
-external electric and magnetic fields.
+In Richmol, calculations of rotational (and generally ro-vibrational) dynamics proceeds in two steps.
+At the first step, molecular energy levels and matrix elements of molecule-field interation tensors
+(multipoles) are computed.
+These are then used in the second step for calculation of molecular dynamics in static or time-dependent
+external electric and/or magnetic fields.
 
-The calculations of field-free molecular rotational or ro-vibrational eigenstates can be extremely
-tedious and can in principle be done using other variational codes.
+The calculations of field-free molecular rotational or ro-vibrational energy levels and wave functions can be extremely
+tedious and can, in principle, be done using other variational codes.
 One of such programs is [TROVE](https://github.com/Trovemaster/TROVE), that can be used to generate
-accurate ro-vibrational energies, wave functions, and matrix elements of various interaction tensors
-for small and medium size molecules. These are stored in an HDF5 file format and can be directly
-used by `richmol` for spectral simulations or dynamics in fields.
-A collection of matrix elements HDF5 files for different molecules is available through
-"Richmol database" section of the main documentation.
+accurate ro-vibrational energies, wave functions, and matrix elements of various molecule-field interaction tensors
+for small and medium size molecules. These can be stored in an HDF5 file and later
+used by Richmol for simulations of molecular spectra or dynamics.
+A collection of such HDF5 data files for different molecules is available through
+*Richmol database* section of the main documentation.
 
-Here we show few examples of the pure rotational dynamics
+Below, we show few simple examples of simulations using pure rotational states.
+For more examples and tutorials, please have look at the [**examples**](examples/) folder
+and the main [**Documentation**](https://richmol.readthedocs.io/)
 
 ### Molecular field-free rotational solutions
 
@@ -106,15 +108,11 @@ h0 = LabTensor(water, sol, thresh=1e-12)
 
 ### Storing and reading matrix elements from HDF5 files
 
-The calculation of field-free energies and matrix elements of interaction tensors can be computationally
-expensive, especially if one considers the vibrational motions. Once computed, the rotational solutions
-and matrix elements can be stored in an HDF5 format file. The HDF5 files containing rotational, ro-vibrational,
-and even hyperfine solutions and matrix elements for different molecules can be produced by other programs,
-such as, for example, [TROVE](https://github.com/Trovemaster/TROVE).
-A collection of such files for different molecules is available through "Richmol database" section
-of the main documentation.
-
-Here is how matrix elements can be stored
+Once computed, rotational solutions and matrix elements can be stored in an HDF5 file.
+A collection of pre-computed HDF5 files containing rotational, ro-vibrational,
+and even hyperfine solutions and matrix elements for different molecules are available
+through *Richmol database* section of the main [**Documentation**](https://richmol.readthedocs.io/).
+Here is how the matrix elements can be stored in HDF5 file
 
 ```py
 dip.store("water.h5", replace=True, comment="dipole moment in au computed using CCSD(T)/AVTZ")
@@ -122,7 +120,7 @@ pol.store("water.h5", replace=True, comment="polarizability in au computed using
 h0.store("water.h5", replace=True, comment="rot solutions from CCSD(T)/AVTZ equilibrium geometry")
 ```
 
-and how can be read
+and how they can be read
 
 ```py
 from richmol.field import CarTens
@@ -144,7 +142,7 @@ print("field-free H0:", h02.__doc__)
 
 ### Static field simulations
 
-Once the field-free solutions and matrix elements are obtained, the simulations of the field dynamics
+Once the field-free molecular solutions and matrix elements are obtained, the simulations of field-induced dynamics
 are straightforward.
 Here is an example of the simulation of Stark effect for water molecule 
 
@@ -202,7 +200,7 @@ plt.show()
 ### Time-dependent simulations
 
 Here is an example of the simulation of 'truncated-pulse' alignment for linear OCS molecule.
-To begin, compute the field-free energies, matrix elements of polarizability interaction tensor,
+To begin, we compute the field-free energies, matrix elements of polarizability interaction tensor,
 and matrix elements of cos<sup>2</sup>&theta;, that is used to quantify the degree of alignment
 
 ```py
@@ -242,7 +240,7 @@ h0 = LabTensor(ocs, sol)
 cos2 = LabTensor("cos2theta", sol) # NOTE: you need to add a constant factor 1/3 to get the true values
 ```
 
-Now, define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt).
+Now, we define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt).
 The field in units V/cm has a single *Z* component and is defined on a time grid ranging
 from 0 to 300 picoseconds
 
@@ -268,11 +266,11 @@ plt.show()
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
 </div>
 
-For initial state distribution assume a hypothetical temperature of *T* = 0 Kelvin
-and use the eigenfunctions of field-free operator `h0` as initial state vectors.
+For initial state distribution we assume a hypothetical temperature of *T* = 0 Kelvin
+and use eigenfunctions of the field-free operator `h0` as the initial state vectors.
 Run dynamics from time zero to 200 ps with a time step of 10 fs,
 plot the expectation value of cos<sup>2</sup>&theta;
-and compare with some [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
+and compare with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
@@ -323,6 +321,9 @@ plt.show()
 <div align="left">
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
+
+For more examples and tutorials, please have a look at the [**examples**](examples/) folder
+and the main [**Documentation**](https://richmol.readthedocs.io/)
 
 ## Citing richmol
 
