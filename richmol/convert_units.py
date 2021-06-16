@@ -9,7 +9,7 @@ def MHz_to_invcm(*args):
 
 
 def J_to_invcm(*args):
-    """Converts `J` to :math:`cm^{-1}`"""
+    """Converts `Joule` to :math:`cm^{-1}`"""
     fac = 1 / (constants.value('Planck constant') \
         * 1e2 * constants.value('speed of light in vacuum'))
     return convert(fac, *args)
@@ -46,6 +46,7 @@ def Debye_x_Vm_to_invcm(*args):
 
 
 def Debye_x_Vm_to_MHz(*args):
+    """Converts product of dipole moment (in `Debye`) with field (in `Volts/meter`) to `MHz`"""
     fac = Debye_x_Vm_to_invcm() / MHz_to_invcm()
     return convert(fac, *args)
 
@@ -74,6 +75,12 @@ def AUdip_x_Vm_to_invcm(*args):
         / (constants.value('Planck constant') \
         * constants.value('speed of light in vacuum')) \
         / 1e2
+    return convert(fac, *args)
+
+
+def AUdip_x_Vm_to_MHz(*args):
+    """Converts product of dipole moment (in atomic units) with field (in `Volts/meter`) to `MHz`"""
+    fac = AUdip_x_Vm_to_invcm() / MHz_to_invcm()
     return convert(fac, *args)
 
 
