@@ -44,6 +44,19 @@ Latest version
 > pip install --upgrade git+https://github.com/CFEL-CMI/richmol.git
 ```
 
+Some of modules (e.g. `spectrum`) require MPI libraries to be installed on your system, you can install them using
+
+```
+> apt install libopenmpi-dev
+> pip install mpi4py 
+```
+alternatively
+```
+> brew install mpich
+> conda install mpi4py 
+```
+
+
 ## Quick start
 
 In Richmol, calculations of rotational (and generally ro-vibrational) dynamics proceeds in two steps.
