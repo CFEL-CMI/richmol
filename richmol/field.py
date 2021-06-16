@@ -1284,15 +1284,15 @@ class CarTens():
     __rsub__ = __sub__
 
 
-    def store(self, filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False, thresh=None):
+    def store(self, filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False,
+              store_k=True, store_m=True, thresh=None):
         """ Stores object into HDF5 file
     
         Args:
             filename : str
                 Name of HDF5 file.
             name : str
-                Name of the data group, by default the name of the variable
-                will be used.
+                Name of the data group, by default, name of the variable will be used.
             comment : str
                 User comment.
             replace : bool
@@ -1304,6 +1304,10 @@ class CarTens():
             replace_m : bool
                 If True, the existing in file M-tensor data sets will be
                 replaced.
+            store_k : bool
+                If False, writing K-tensor into file will be skipped.
+            store_m : bool
+                If False, writing M-tensor into file will be skipped.
             thresh : float
                 Threshold for neglecting matrix elements (M and K tensors) when
                 writing into file.
@@ -1377,145 +1381,125 @@ class CarTens():
                 kmat_sym = self.kmat[(J1, J2)]
 
                 # loop over pairs of coupled symmetries
-                for (sym1, sym2) in list(
-                    set(mmat_sym.keys()) & set(kmat_sym.keys())
-                ):
+                for (sym1, sym2) in list(set(mmat_sym.keys()) & set(kmat_sym.keys())):
 
                     # store K-matrix
 
-                    kmat = kmat_sym[(sym1, sym2)]
+                    if store_k is True:
 
-                    # remove elements smaller than 'thresh'
-                    if thresh is not None:
-                        kmat_ = dict()
-                        for irrep, mat in kmat.items():
-                            mask = np.abs(mat.data) < thresh
-                            mat.data[mask] = 0
-                            mat.eliminate_zeros()
-                            if mat.nnz > 0:
-                                kmat_[irrep] = mat
-                        kmat = kmat_
+                        kmat = kmat_sym[(sym1, sym2)]
 
-                    data = [k.data for k in kmat.values() if k.nnz > 0]
-                    indices = [k.indices for k in kmat.values() if k.nnz > 0]
-                    indptr = [k.indptr for k in kmat.values() if k.nnz > 0]
-                    shape = [k.shape for k in kmat.values() if k.nnz > 0]
-                    irreps = [key for key,k in kmat.items() if k.nnz > 0]
-                    if len(data) > 0:
-                        try:
-                            group_j = group[J_group_key(J1, J2)]
-                        except:
-                            group_j = group.create_group(J_group_key(J1, J2))
-                        try:
-                            group_sym = group_j[sym_group_key(sym1, sym2)]
-                        except:
-                            group_sym = group_j.create_group(
-                                sym_group_key(sym1, sym2)
-                            )
-                        if replace_k is True:
-                            del group_sym["kmat_data"]
-                            del group_sym["kmat_indices"]
-                            del group_sym["kmat_indptr"]
-                        try:
-                            group_sym.create_dataset(
-                                "kmat_data", data=np.concatenate(data)
-                            )
-                            group_sym.create_dataset(
-                                "kmat_indices", data=np.concatenate(indices)
-                            )
-                            group_sym.create_dataset(
-                                "kmat_indptr", data=np.concatenate(indptr)
-                            )
-                        except:
-                            raise RuntimeError(
-                                f"found existing K-tensor dataset for " \
-                                    + f"`(J1, J2)` = '{(J1, J2)}' and " \
-                                    + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
-                                    + f" in file '{filename}', use " \
-                                    + f"`replace_k` = True to replace " \
-                                    + f"K-tensor atasets"
-                                ) from None
-                        group_sym.attrs["kmat_nnz"] = [
-                            len(dat) for dat in data
-                        ]
-                        group_sym.attrs["kmat_nind"] = [
-                            len(ind) for ind in indices
-                        ]
-                        group_sym.attrs["kmat_nptr"] = [
-                            len(ind) for ind in indptr
-                        ]
-                        group_sym.attrs["kmat_irreps"] = irreps
-                        group_sym.attrs["kmat_shape"] = shape
+                        # remove elements smaller than 'thresh'
+                        if thresh is not None:
+                            kmat_ = dict()
+                            for irrep, mat in kmat.items():
+                                mask = np.abs(mat.data) < thresh
+                                mat.data[mask] = 0
+                                mat.eliminate_zeros()
+                                if mat.nnz > 0:
+                                    kmat_[irrep] = mat
+                            kmat = kmat_
+
+                        data = [k.data for k in kmat.values() if k.nnz > 0]
+                        indices = [k.indices for k in kmat.values() if k.nnz > 0]
+                        indptr = [k.indptr for k in kmat.values() if k.nnz > 0]
+                        shape = [k.shape for k in kmat.values() if k.nnz > 0]
+                        irreps = [key for key,k in kmat.items() if k.nnz > 0]
+                        if len(data) > 0:
+                            try:
+                                group_j = group[J_group_key(J1, J2)]
+                            except:
+                                group_j = group.create_group(J_group_key(J1, J2))
+                            try:
+                                group_sym = group_j[sym_group_key(sym1, sym2)]
+                            except:
+                                group_sym = group_j.create_group(sym_group_key(sym1, sym2))
+                            if replace_k:
+                                for key in ("kmat_data", "kmat_indices", "kmat_indptr"):
+                                    try:
+                                        del group_sym[key]
+                                    except KeyError:
+                                        pass
+                            try:
+                                group_sym.create_dataset("kmat_data", data=np.concatenate(data))
+                                group_sym.create_dataset("kmat_indices", data=np.concatenate(indices))
+                                group_sym.create_dataset("kmat_indptr", data=np.concatenate(indptr))
+                            except:
+                                raise RuntimeError(
+                                    f"found existing K-tensor dataset for " \
+                                        + f"`(J1, J2)` = '{(J1, J2)}' and " \
+                                        + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
+                                        + f" in file '{filename}', use " \
+                                        + f"`replace_k` = True to replace " \
+                                        + f"K-tensor datasets"
+                                    ) from None
+                            group_sym.attrs["kmat_nnz"] = [len(dat) for dat in data]
+                            group_sym.attrs["kmat_nind"] = [len(ind) for ind in indices]
+                            group_sym.attrs["kmat_nptr"] = [len(ind) for ind in indptr]
+                            group_sym.attrs["kmat_irreps"] = irreps
+                            group_sym.attrs["kmat_shape"] = shape
 
                     # store M-matrix
 
-                    mmat = {
-                        (irrep, cart) : m
-                        for irrep, mat in mmat_sym[(sym1, sym2)].items()
-                        for cart, m in mat.items()
-                    }
+                    if store_m is True:
 
-                    # remove elements smaller than 'thresh'
-                    if thresh is not None:
-                        mmat_ = dict()
-                        for key, mat in mmat.items():
-                            mask = np.abs(mat.data) < thresh
-                            mat.data[mask] = 0
-                            mat.eliminate_zeros()
-                            if mat.nnz > 0:
-                                mmat_[key] = mat
-                        mmat = mmat_
+                        mmat = {
+                            (irrep, cart) : m
+                            for irrep, mat in mmat_sym[(sym1, sym2)].items()
+                            for cart, m in mat.items()
+                        }
 
-                    data = [m.data for m in mmat.values() if m.nnz > 0]
-                    indices = [m.indices for m in mmat.values() if m.nnz > 0]
-                    indptr = [m.indptr for m in mmat.values() if m.nnz > 0]
-                    shape = [m.shape for m in mmat.values() if m.nnz > 0]
-                    irrep_cart = [key for key,m in mmat.items() if m.nnz > 0]
-                    if len(data) > 0:
-                        try:
-                            group_j = group[J_group_key(J1, J2)]
-                        except:
-                            group_j = group.create_group(J_group_key(J1, J2))
-                        try:
-                            group_sym = group_j[sym_group_key(sym1, sym2)]
-                        except:
-                            group_sym = group_j.create_group(
-                                sym_group_key(sym1, sym2)
-                            )
-                        if replace_m is True:
-                            del group_sym["mmat_data"]
-                            del group_sym["mmat_indices"]
-                            del group_sym["mmat_indptr"]
-                        try:
-                            group_sym.create_dataset(
-                                "mmat_data", data=np.concatenate(data)
-                            )
-                            group_sym.create_dataset(
-                                "mmat_indices", data=np.concatenate(indices)
-                            )
-                            group_sym.create_dataset(
-                                "mmat_indptr", data=np.concatenate(indptr)
-                            )
-                        except:
-                            raise RuntimeError(
-                                f"found existing M-tensor dataset for " \
-                                    + f"`(J1, J2)` = '{(J1, J2)}' and " \
-                                    + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
-                                    + f" in file '{filename}', use " \
-                                    + f"`replace_m` = True to replace " \
-                                    + f"M-tensor atasets"
-                                ) from None
-                        group_sym.attrs["mmat_nnz"] = [
-                            len(dat) for dat in data
-                        ]
-                        group_sym.attrs["mmat_nind"] = [
-                            len(ind) for ind in indices
-                        ]
-                        group_sym.attrs["mmat_nptr"] = [
-                            len(ind) for ind in indptr
-                        ]
-                        group_sym.attrs["mmat_irrep_cart"] = irrep_cart
-                        group_sym.attrs["mmat_shape"] = shape
+                        # remove elements smaller than 'thresh'
+                        if thresh is not None:
+                            mmat_ = dict()
+                            for key, mat in mmat.items():
+                                mask = np.abs(mat.data) < thresh
+                                mat.data[mask] = 0
+                                mat.eliminate_zeros()
+                                if mat.nnz > 0:
+                                    mmat_[key] = mat
+                            mmat = mmat_
+
+                        data = [m.data for m in mmat.values() if m.nnz > 0]
+                        indices = [m.indices for m in mmat.values() if m.nnz > 0]
+                        indptr = [m.indptr for m in mmat.values() if m.nnz > 0]
+                        shape = [m.shape for m in mmat.values() if m.nnz > 0]
+                        irrep_cart = [key for key,m in mmat.items() if m.nnz > 0]
+                        if len(data) > 0:
+                            try:
+                                group_j = group[J_group_key(J1, J2)]
+                            except:
+                                group_j = group.create_group(J_group_key(J1, J2))
+                            try:
+                                group_sym = group_j[sym_group_key(sym1, sym2)]
+                            except:
+                                group_sym = group_j.create_group(
+                                    sym_group_key(sym1, sym2)
+                                )
+                            if replace_m:
+                                for key in ("mmat_data", "mmat_indices", "mmat_indptr"):
+                                    try:
+                                        del group_sym[key]
+                                    except KeyError:
+                                        pass
+                            try:
+                                group_sym.create_dataset("mmat_data", data=np.concatenate(data))
+                                group_sym.create_dataset("mmat_indices", data=np.concatenate(indices))
+                                group_sym.create_dataset("mmat_indptr", data=np.concatenate(indptr))
+                            except:
+                                raise RuntimeError(
+                                    f"found existing M-tensor dataset for " \
+                                        + f"`(J1, J2)` = '{(J1, J2)}' and " \
+                                        + f"`(sym1, sym2)` = '{(sym1, sym2)}' " \
+                                        + f" in file '{filename}', use " \
+                                        + f"`replace_m` = True to replace " \
+                                        + f"M-tensor datasets"
+                                    ) from None
+                            group_sym.attrs["mmat_nnz"] = [len(dat) for dat in data]
+                            group_sym.attrs["mmat_nind"] = [len(ind) for ind in indices]
+                            group_sym.attrs["mmat_nptr"] = [len(ind) for ind in indptr]
+                            group_sym.attrs["mmat_irrep_cart"] = irrep_cart
+                            group_sym.attrs["mmat_shape"] = shape
 
 
     def read(self, filename, name=None, thresh=None, **kwargs):
