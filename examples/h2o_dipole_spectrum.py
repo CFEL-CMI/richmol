@@ -1,6 +1,6 @@
 """An example of calculation of the rovibrational dipole spectrum of water
 
-Authors: @saribalc, @yangguang888 (@yachmena - data in Zenodo repository)
+Authors: @saribalc (@yachmena - data in Zenodo repository)
 """
 
 import urllib.request
@@ -32,11 +32,11 @@ with h5py.File(richmol_file, "r") as fl:
 spec = FieldFreeSpec(
     richmol_file,
     names = ['h0', 'dipole'],
-    j_max = 40,
+    j_max = 30,
     type = 'elec',
     order = 'dip',
     units = 'Debye',
-    e_max = 15e3
+    e_max = 1e4
 )
 
 # linestrengths
