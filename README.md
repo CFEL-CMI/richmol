@@ -59,10 +59,10 @@ accurate ro-vibrational energies, wave functions, and matrix elements of various
 for small and medium size molecules. These can be stored in an HDF5 file and later
 used by Richmol for simulations of molecular spectra or dynamics.
 A collection of such HDF5 data files for different molecules is available through
-"Richmol database" section of the main documentation.
+*Richmol database* section of the main documentation.
 
 Below, we show few simple examples of simulations using pure rotational states.
-For more examples, please have look at the [**examples**](examples/) folder
+For more examples and tutorials, please have look at the [**examples**](examples/) folder
 and the main [**Documentation**](https://richmol.readthedocs.io/)
 
 ### Molecular field-free rotational solutions
@@ -111,7 +111,7 @@ h0 = LabTensor(water, sol, thresh=1e-12)
 Once computed, rotational solutions and matrix elements can be stored in an HDF5 file.
 A collection of pre-computed HDF5 files containing rotational, ro-vibrational,
 and even hyperfine solutions and matrix elements for different molecules are available
-through "Richmol database" section of the main [**Documentation**](https://richmol.readthedocs.io/).
+through *Richmol database* section of the main [**Documentation**](https://richmol.readthedocs.io/).
 Here is how the matrix elements can be stored in HDF5 file
 
 ```py
