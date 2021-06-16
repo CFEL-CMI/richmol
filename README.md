@@ -14,21 +14,20 @@
 
 Richmol is currently being developed and maintained by theory team of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron. We hope to attract for a joint development a larger community of researchers working in fields of molecular nuclear motion dynamics, spectroscopy, and coherent control.
 
-Richmol is intended for computing rotational and ro-vibrational energy levels, spectra, and field-induced time-dependent dynamics of molecules. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
+Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
 
 ## Overview
 
 Richmol is a library for simulating molecular nuclear motion dynamics and related properties.
-It is based on Python, although some of the libraries are written in Fortran.
-Richmol time-dependent propagation can run on GPUs using `numba` and `cupy` libraries.
-It includes:
+It is based on Python, some of its parts, for example, time-dependent propagation, can run on GPUs using `numba` and `cupy` libraries.
+Richmol can be used for predicting:
 * **Rotational energy levels and spectra** (`richmol.rot`, `richmol.spectrum`): Watson Hamiltonians in *A* and *S* reduction forms, user-built custom effective rotational Hamiltonians, electric dipole, magnetic dipole, electric quadrupole, and Raman spectra
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties of molecules placed in static and time-dependent fields
-* **Ro-vibrational dynamics and spectra** (via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
+* **Ro-vibrational dynamics and spectra** (currently via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
 * **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics of diatomic molecules including non-adiabatic and spin-orbit coupling effects
 
-Coming releases will include:
-* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, obtained from nuclear quadrupole, spin-spin, and spin-rotation interactions
+We plan to include new feature in the next release:
+* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, including nuclear quadrupole, spin-spin, and spin-rotation interactions
 * **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
 
 
