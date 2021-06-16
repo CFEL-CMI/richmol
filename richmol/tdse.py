@@ -124,15 +124,18 @@ class TDSE():
             self._t_to_s = t_units['ps']
 
         # energy units
-        enr_units = {'invcm' : 1 / convert_units.J_to_invcm()}
+        enr_units = {
+                'invcm' : 1 / convert_units.J_to_invcm(),
+                'mhz'   : convert_units.MHz_to_invcm() / convert_units.J_to_invcm()
+                }
         if 'enr_units' in kwargs:
             assert (type(kwargs['enr_units']) == str), \
                 f"energy units `enr_units` has bad type: " \
                     + f"'{type(kwargs['enr_units'])}', (use 'str')"
-            assert (kwargs['enr_units'] in list(enr_units.keys())), \
+            assert (kwargs['enr_units'].lower() in list(enr_units.keys())), \
                 f"energy units `enr_units` has bad value: " \
-                    + f"'{kwargs['enr_units']}', (use 'invcm')"
-            self._enr_to_J = enr_units[kwargs['enr_units']]
+                    + f"'{kwargs['enr_units']}', (use 'invcm', 'MHz')"
+            self._enr_to_J = enr_units[kwargs['enr_units'].lower()]
         else:
             self._enr_to_J = enr_units['invcm']
 
