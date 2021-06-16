@@ -7,6 +7,7 @@
 [**Overview**](#overview)
 | [**Quick install**](#quick-install)
 | [**Quick Start**](#quick-start)
+| [**Examples**](examples/)
 | [**Citing richmol**](#citing-richmol)
 | [**Documentation**](https://richmol.readthedocs.io/)
 
