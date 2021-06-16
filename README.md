@@ -26,7 +26,7 @@ Richmol can be used for predicting:
 * **Ro-vibrational dynamics and spectra** (currently via interface with [TROVE](https://github.com/Trovemaster/TROVE)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
 * **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics of diatomic molecules including non-adiabatic and spin-orbit coupling effects
 
-We plan to include new feature in the next release:
+We plan to include following new features in the next release:
 * **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, including nuclear quadrupole, spin-spin, and spin-rotation interactions
 * **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
 
@@ -46,22 +46,22 @@ Latest version
 
 ## Quick start
 
-Calculation of rotational (and generally ro-vibrational) dynamics proceeds in two steps.
-First, molecular field-free rotational energies and wave functions are obtained,
-together with matrix elements of various molecule-field interaction tensors (multipoles).
-These are then used in a subsequent calculation of molecular dynamics in static or time-dependent
-external electric and magnetic fields.
+In Richmol, calculations of rotational (and generally ro-vibrational) dynamics proceeds in two steps.
+At the first step, molecular energy levels and matrix elements of molecule-field interation tensors
+(multipoles) are computed.
+These are then used in the second step for calculation of molecular dynamics in static or time-dependent
+external electric and/or magnetic fields.
 
-The calculations of field-free molecular rotational or ro-vibrational eigenstates can be extremely
-tedious and can in principle be done using other variational codes.
+The calculations of field-free molecular rotational or ro-vibrational energy levels and wave functions can be extremely
+tedious and can, in principle, be done using other variational codes.
 One of such programs is [TROVE](https://github.com/Trovemaster/TROVE), that can be used to generate
-accurate ro-vibrational energies, wave functions, and matrix elements of various interaction tensors
-for small and medium size molecules. These are stored in an HDF5 file format and can be directly
-used by `richmol` for spectral simulations or dynamics in fields.
-A collection of matrix elements HDF5 files for different molecules is available through
+accurate ro-vibrational energies, wave functions, and matrix elements of various molecule-field interaction tensors
+for small and medium size molecules. These can be stored in an HDF5 file and later
+used by Richmol for simulations of molecular spectra or dynamics.
+A collection of such HDF5 data files for different molecules is available through
 "Richmol database" section of the main documentation.
 
-Here we show few examples of the pure rotational dynamics
+Below, we show few simple examples of simulations using pure rotational states
 
 ### Molecular field-free rotational solutions
 
