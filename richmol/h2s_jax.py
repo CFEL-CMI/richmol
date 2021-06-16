@@ -77,11 +77,10 @@ batch_Gmat = jax.jit(jax.vmap(Gmat, in_axes=0))
 
 @jax.jit
 def dGmat(q):
-    # G = Gmat(q)
-    # dg = jacfwd(gmat)(q)
-    # # dg = jacrev(gmat)(q)
-    # return -jnp.dot(jnp.transpose(jnp.dot(G, dg), (2,0,1)), G)
-    return jacrev(Gmat)(q)
+    G = Gmat(q)
+    dg = jacfwd(gmat)(q)
+    dg = jnp.moveaxis(dg, -1, 0)
+    return -jnp.dot(jnp.dot(dg, G), G.T)
 
 
 @jax.jit
@@ -344,7 +343,7 @@ def manzhos1d(icoo, npt, quad, vmax, bas, ref, eref):
         loss_val, grad = loss_grad_fn(optimizer.target)
         optimizer = optimizer.apply_gradient(grad)
 
-        print(loss_val, loss_val - sum(eref[:vmax_train])) # for sum_of_enr loss function
+        print(i, loss_val, loss_val - sum(eref[:vmax_train])) # for sum_of_enr loss function
         # print(loss_val, loss_val - -sum(jnp.exp(-eref[:vmax_train]/temp))) # for trace_of_exp loss function
 
         # this is just to plot energies later
@@ -378,15 +377,15 @@ if __name__ == "__main__":
     ref = jnp.array([1.3359007, 1.3359007, 92.265883/180.0*jnp.pi])
 
     icoo = 0
-    npt = 100
+    npt = 200
     quad = quad_her1d
     bas = her1d
 
     # reference energy values
-    vmax = 30
+    vmax = 50
     e, psi, dpsi, points, weights, scale = sol1d(icoo, npt, quad, vmax, bas, ref)
 
     # variational NN
-    vmax = 5
+    vmax = 10
     manzhos1d(icoo, npt, quad, vmax, bas, ref, e[:vmax])
 

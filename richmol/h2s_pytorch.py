@@ -10,13 +10,16 @@ from jax import numpy as jnp
 from jax import jacfwd, jacrev, random, grad
 from jax.config import config
 import math
+import matplotlib.pyplot as plt
+import scipy
+import random as py_random
 import flax
 from flax import linen as nn
 from flax import optim
 import torch
 config.update("jax_enable_x64", True)
-import scipy
-import random as py_random
+# config.update('jax_disable_jit', True)
+
 
 
 ############################ KEO and potential ############################
@@ -28,6 +31,12 @@ G_to_invcm = constants.value('Planck constant') * constants.value('Avogadro cons
 
 eps = jnp.array([[[ int((i - j) * (j - k) * (k - i) * 0.5)
     for k in range(3) ] for j in range(3) ] for i in range(3) ], dtype=jnp.float64)
+
+global masses
+masses = np.array([31.97207070, 1.00782505, 1.00782505]) # atomic masses of S and H
+
+# equilibrium (reference) values of internal coordinates
+ref = jnp.array([1.3359007, 1.3359007, 92.265883/180.0*jnp.pi])
 
 
 def poten(q):
@@ -78,11 +87,10 @@ batch_Gmat = jax.jit(jax.vmap(Gmat, in_axes=0))
 
 @jax.jit
 def dGmat(q):
-    # G = Gmat(q)
-    # dg = jacfwd(gmat)(q)
-    # # dg = jacrev(gmat)(q)
-    # return -jnp.dot(jnp.transpose(jnp.dot(G, dg), (2,0,1)), G)
-    return jacrev(Gmat)(q)
+    G = Gmat(q)
+    dg = jacfwd(gmat)(q)
+    dg = jnp.moveaxis(dg, -1, 0)
+    return -jnp.dot(jnp.dot(dg, G), G.T)
 
 
 @jax.jit
@@ -227,7 +235,7 @@ def sol1d(icoo, npt, quad, vmax, bas, ref):
     return e, psi, dpsi, points, weights, scale[icoo]
 
 
-def manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, eref):
+def manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, eref=None, plots=True, epochs=1000):
     # 1d quadrature
     n = [npt if i == icoo else 1 for i in range(len(ref))]
     quads = [quad(n[i], i, ref) for i in range(len(ref))]
@@ -307,8 +315,6 @@ def manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, eref):
         return e[:neigvals].sum(), e, v
 
     # initialization
-    epochs = 1000
-
     NN = ExpNN(peaks=peaks, out_sz=vmax)
     x = points[:, icoo : icoo + 1]
     x = torch.from_numpy(x.reshape(-1, 1))
@@ -326,42 +332,54 @@ def manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, eref):
     err = torch.zeros((epochs,  neigvals))
 
     # training loop
+    plt.ion()
     for i in range(epochs):
         optimizer.zero_grad()
         loss, eigvals, eigvecs = sum_of_enr(NN, x)
+
+        if eref is not None:
+            print("Epoch:", i, "Error:", loss - sum(eref[:neigvals])) # for sum_of_enr loss function
+            err[i, :] = eigvals[:neigvals] - eref[:neigvals]
+        else:
+            print("Epoch:", i, "Error:", loss)
+            err[i, :] = eigvals[:neigvals]
+        # print(loss_val, loss_val - -sum(jnp.exp(-eref[:vmax_train]/temp))) # for trace_of_exp loss function
+
+        if plots and (i % 100 == 0 or i+1 == epochs) and eref is not None:
+            pred = NN(x).detach().numpy()
+            plt.figure(1)
+            plt.clf()
+            plt.title(f"Current output of NN in epoch {i} \n"
+                      f"loss: {loss - sum(eref[:neigvals])}")
+            plt.plot(x, pred, color='green')
+            plt.draw()
+            plt.pause(0.0001)
+
+        # actual optimization
         loss.backward()
         optimizer.step()
 
-        print("Epoch:", i, "Error:", loss - sum(eref[:neigvals])) # for sum_of_enr loss function
-        # print(loss_val, loss_val - -sum(jnp.exp(-eref[:vmax_train]/temp))) # for trace_of_exp loss function
-
-        err[i, :] = eigvals[:neigvals] - eref[:neigvals]
-
     err = err.detach().numpy()
-    eref = eref.detach().numpy()
-    plt.ioff()
-    plt.clf()
-    plt.yscale("log")
-    plt.grid(axis='x', color='0.95')
-    plt.grid(axis='y', color='0.95')
-    lower_ind = 0
-    for i in range(lower_ind, err.shape[1]):
-        plt.plot(np.arange(err.shape[0]), np.abs(err[:,i]), label=f"{round(eref[i],2)}")
-        # plt.plot(np.arange(err.shape[0]), err[:,i], label=f"{round(eref[i],2)}")
-    plt.legend(loc="upper right")
-    plt.title(f'Error w.r.t true Energies, basis size = {vmax}, eigvals considered = {neigvals} ')
-    plt.show()
+    if eref is not None:
+        eref = eref.detach().numpy()
+
+        plt.ioff()
+        plt.figure(2)
+        plt.clf()
+        plt.yscale("log")
+        plt.grid(axis='x', color='0.95')
+        plt.grid(axis='y', color='0.95')
+        lower_ind = 0
+        for i in range(lower_ind, err.shape[1]):
+            plt.plot(np.arange(err.shape[0]), np.abs(err[:,i]), label=f"{round(eref[i],2)}")
+            # plt.plot(np.arange(err.shape[0]), err[:,i], label=f"{round(eref[i],2)}")
+        plt.legend(loc="upper right")
+        plt.title(f'Error w.r.t true Energies, basis size = {vmax}, eigvals considered = {neigvals} ')
+        plt.show()
+
+    return err[-1, :], eigvals, eigvecs, NN,
 
 if __name__ == "__main__":
-
-    import matplotlib.pyplot as plt
-    import scipy
-
-    global masses
-    masses = np.array([31.97207070, 1.00782505, 1.00782505]) # atomic masses of S and H
-
-    # equilibrium (reference) values of internal coordinates
-    ref = jnp.array([1.3359007, 1.3359007, 92.265883/180.0*jnp.pi])
 
     icoo = 0
     npt = 200
@@ -382,6 +400,21 @@ if __name__ == "__main__":
 
     # variational NN
 
-    vmax = 10
-    neigvals = 5
-    manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, e)
+    vmax = 20
+    neigvals = 10
+    error, eigvals, eigvecs, NN_trained = manzhos1d(icoo, npt, quad, vmax, neigvals, bas, ref, e, plots=False)
+
+    plot_manzhos1D = False
+    if plot_manzhos1D:
+        x = points[:, icoo]
+        nn_out = NN_trained(x)
+        dnn_out = NN_trained.derivative(x)
+        waves = torch.matmul(nn_out.type(torch.DoubleTensor), eigvecs)
+        waves = waves.detach().numpy()
+        plt.figure(2)
+        plt.plot(x, waves[:, :3], color='red')
+        plt.title('NN Eigenfunctions')
+        plt.ioff()
+        plt.show()
+
+
