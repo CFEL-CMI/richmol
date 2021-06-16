@@ -64,7 +64,7 @@ def Buckingham_to_au(*args):
 
 def Buckingham_to_sqrt_erg_x_sqrt_cm5(*args):
     """Converts quadrupole moment from `Buckinghom` to `erg^(1/2)*cm^(5/2)`"""
-    fac = Debye_to_sqrt_erg_x_sqrt_cm3() * 1e-10
+    fac = Debye_to_sqrt_erg_x_sqrt_cm3() * 1e-8
     return convert(fac, *args)
 
 
