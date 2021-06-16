@@ -877,7 +877,7 @@ class FieldFreeSpec():
             plt.legend(loc='best')
             plt.title('absorption intensities')
             plt.tight_layout()
-            plt.savefig('absorption_intensities.png', dpi=500, format='png')
+            plt.savefig(self.out_f[: -5] + '.png', dpi=500, format='png')
             plt.close()
 
         # print to console
