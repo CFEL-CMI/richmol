@@ -61,7 +61,9 @@ used by Richmol for simulations of molecular spectra or dynamics.
 A collection of such HDF5 data files for different molecules is available through
 "Richmol database" section of the main documentation.
 
-Below, we show few simple examples of simulations using pure rotational states
+Below, we show few simple examples of simulations using pure rotational states.
+For more examples, please have look at the [**examples**](examples/) folder
+and the main [**Documentation**](https://richmol.readthedocs.io/)
 
 ### Molecular field-free rotational solutions
 
@@ -106,15 +108,11 @@ h0 = LabTensor(water, sol, thresh=1e-12)
 
 ### Storing and reading matrix elements from HDF5 files
 
-The calculation of field-free energies and matrix elements of interaction tensors can be computationally
-expensive, especially if one considers the vibrational motions. Once computed, the rotational solutions
-and matrix elements can be stored in an HDF5 format file. The HDF5 files containing rotational, ro-vibrational,
-and even hyperfine solutions and matrix elements for different molecules can be produced by other programs,
-such as, for example, [TROVE](https://github.com/Trovemaster/TROVE).
-A collection of such files for different molecules is available through "Richmol database" section
-of the main documentation.
-
-Here is how matrix elements can be stored
+Once computed, rotational solutions and matrix elements can be stored in an HDF5 file.
+A collection of pre-computed HDF5 files containing rotational, ro-vibrational,
+and even hyperfine solutions and matrix elements for different molecules are available
+through "Richmol database" section of the main [**Documentation**](https://richmol.readthedocs.io/).
+Here is how the matrix elements can be stored in HDF5 file
 
 ```py
 dip.store("water.h5", replace=True, comment="dipole moment in au computed using CCSD(T)/AVTZ")
@@ -122,7 +120,7 @@ pol.store("water.h5", replace=True, comment="polarizability in au computed using
 h0.store("water.h5", replace=True, comment="rot solutions from CCSD(T)/AVTZ equilibrium geometry")
 ```
 
-and how can be read
+and how they can be read
 
 ```py
 from richmol.field import CarTens
@@ -144,7 +142,7 @@ print("field-free H0:", h02.__doc__)
 
 ### Static field simulations
 
-Once the field-free solutions and matrix elements are obtained, the simulations of the field dynamics
+Once the field-free molecular solutions and matrix elements are obtained, the simulations of field-induced dynamics
 are straightforward.
 Here is an example of the simulation of Stark effect for water molecule 
 
@@ -202,7 +200,7 @@ plt.show()
 ### Time-dependent simulations
 
 Here is an example of the simulation of 'truncated-pulse' alignment for linear OCS molecule.
-To begin, compute the field-free energies, matrix elements of polarizability interaction tensor,
+To begin, we compute the field-free energies, matrix elements of polarizability interaction tensor,
 and matrix elements of cos<sup>2</sup>&theta;, that is used to quantify the degree of alignment
 
 ```py
@@ -242,7 +240,7 @@ h0 = LabTensor(ocs, sol)
 cos2 = LabTensor("cos2theta", sol) # NOTE: you need to add a constant factor 1/3 to get the true values
 ```
 
-Now, define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt).
+Now, we define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt).
 The field in units V/cm has a single *Z* component and is defined on a time grid ranging
 from 0 to 300 picoseconds
 
@@ -268,11 +266,11 @@ plt.show()
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
 </div>
 
-For initial state distribution assume a hypothetical temperature of *T* = 0 Kelvin
-and use the eigenfunctions of field-free operator `h0` as initial state vectors.
+For initial state distribution we assume a hypothetical temperature of *T* = 0 Kelvin
+and use eigenfunctions of the field-free operator `h0` as the initial state vectors.
 Run dynamics from time zero to 200 ps with a time step of 10 fs,
 plot the expectation value of cos<sup>2</sup>&theta;
-and compare with some [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
+and compare with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
@@ -323,6 +321,9 @@ plt.show()
 <div align="left">
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
+
+For more examples and tutorials, please have a look at the [**examples**](examples/) folder
+and the main [**Documentation**](https://richmol.readthedocs.io/)
 
 ## Citing richmol
 
