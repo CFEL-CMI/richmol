@@ -45,6 +45,11 @@ def Debye_x_Vm_to_invcm(*args):
     return convert(fac, *args)
 
 
+def Debye_x_Vm_to_MHz(*args):
+    fac = Debye_x_Vm_to_invcm() / MHz_to_invcm()
+    return convert(fac, *args)
+
+
 def Buckingham_to_si(*args):
     """Converts quadrupole moment form `Buckingham` to international system of units"""
     fac = Debye_to_si() * 1e-10
