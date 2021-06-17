@@ -282,8 +282,8 @@ plt.show()
 For the initial state distribution we assume a hypothetical temperature of *T* = 0 Kelvin
 and use eigenfunctions of the field-free operator `h0` as the initial state vectors.
 Run dynamics from time zero to 200 ps with a time step of 10 fs,
-plot the expectation value of cos<sup>2</sup>&theta;
-and compare with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
+plot the expectation values of cos<sup>2</sup>&theta;
+and compare them with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
