@@ -6,6 +6,7 @@ Tutorial: Richmol 101
 
    notebooks/molecule_101.ipynb
    notebooks/solve_101.ipynb
-   notebooks/tensors_101.ipynb
-   notebooks/field_101.ipynb
+   notebooks/potential_101.ipynb
+   notebooks/tdse_101.ipynb
+   notebooks/spectrum_101.ipynb
 
