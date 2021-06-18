@@ -12,5 +12,6 @@ quaternionic>=0.3.4
 spherical>=1.0.8
 h5py>=2.10.0
 jax>=0.2.13
+jaxlib>=0.1.67
 numba>=0.53.1
 
