@@ -33,11 +33,11 @@ and `examples <https://github.com/CFEL-CMI/richmol/tree/develop/examples>`_.
 
    richmol_database.rst
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Richmol for education
+.... toctree::
+..   :maxdepth: 2
+..   :caption: Richmol for education
 
-   education.rst
+..   education.rst
 
 .. toctree::
    :maxdepth: 3

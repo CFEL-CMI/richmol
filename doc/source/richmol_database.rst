@@ -8,5 +8,5 @@ water (:math:`\text{H}_2^{16}\text{O}`)
 * TROVE calculated accurate ro-vibrational energies, matrix elements of electric
   dipole and electric quadrupole moment operators
 
-  .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4946235.svg
-     :target: https://doi.org/10.5281/zenodo.4946235
+  .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4986069.svg
+     :target: https://doi.org/10.5281/zenodo.4986069
