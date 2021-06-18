@@ -38,7 +38,7 @@ def read(fname):
 __version__ = "0.1a1"
 
 install_requires = [
-    "numpy>=1.19",
+    "numpy>=1.17",
     "scipy>=1.6",
     "mendeleev>=0.7.0",
     "py3nj>=0.1.2",
@@ -59,11 +59,15 @@ if __name__ == "__main__":
         long_description=read("README.md"),
         long_description_content_type="text/markdown",
         classifiers=[
-            "Development Status :: 1 - Beta",
+            "Development Status :: 4 - Beta",
             "Intended Audience :: Science/Research",
             "License :: OSI Approved :: GNU General Public License v3.0",
             "Programming Language :: Python :: 3.6",
-            "Topic :: Scientific",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Topic :: Scientific/Engineering",
+            "Operating System :: Unix",
+            "Operating System :: MacOS",
             ],
         author="Richmol team",
         maintainer_email="andrey.yachmenev@cfel.de",
