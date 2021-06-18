@@ -4,6 +4,14 @@ jupyter-sphinx>=0.3.2
 nbsphinx>=0.8.1
 readthedocs-sphinx-search==0.1.0rc3
 pip>=19.0
-numpy
-scipy
+numpy>=1.17
+scipy>=1.6
+mendeleev>=0.7.0
+py3nj>=0.1.2
+quadpy>=0.16.7
+quaternionic>=0.3.4
+spherical>=1.0.8
+h5py>=2.10.0
+jax>=0.2.13
+numba>=0.53.1
 
