@@ -18,7 +18,7 @@ sys.setrecursionlimit(1500)
 
 MOCK_MODULES = ['numpy', 'scipy']
 for mod_name in MOCK_MODULES:
-sys.modules[mod_name] = mock.Mock()
+    sys.modules[mod_name] = mock.Mock()
 
 # -- Project information -----------------------------------------------------
 
