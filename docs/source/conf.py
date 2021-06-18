@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 sys.setrecursionlimit(1500)
 
-MOCK_MODULES = ['numpy', 'scipy']
+MOCK_MODULES = ['numpy', 'scipy', 'scipy.constants', 'scipy.sparse']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
