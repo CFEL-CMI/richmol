@@ -5,8 +5,8 @@ from scipy.sparse.linalg import expm
 from numba import njit, prange, cuda, int32, float64, complex128
 from numba import cuda, complex128
 
-import torch # temporary fix
-if torch.cuda.is_available():
+from jax.lib import xla_bridge
+if xla_bridge.get_backend().platform == "gpu":
     import cupy as cp
     import cupyx
 
