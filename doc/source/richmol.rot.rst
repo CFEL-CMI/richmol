@@ -18,16 +18,14 @@ Rigid molecule description
 
     .. automethod:: XYZ
     .. automethod:: frame
-    .. automethod:: ABC
     .. automethod:: B
+    .. automethod:: B_geom
     .. automethod:: sym
     .. automethod:: store_xyz
     .. automethod:: imom
     .. automethod:: gmat
     .. automethod:: linear
     .. automethod:: kappa
-    .. automethod:: ABC_geom
-    .. automethod:: B_geom
     .. automethod:: store
     .. automethod:: read
 
