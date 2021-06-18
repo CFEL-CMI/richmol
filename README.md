@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/richmol_logo.jpg" height="100px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/richmol_logo.jpg" height="100px"/>
 </div>
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
