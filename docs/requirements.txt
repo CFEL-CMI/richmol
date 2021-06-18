@@ -7,7 +7,6 @@ pip>=20.0
 numpy>=1.17
 scipy>=1.6
 mendeleev>=0.7.0
-py3nj>=0.1
 quadpy>=0.16.7
 quaternionic>=0.3.4
 spherical>=1.0.8
