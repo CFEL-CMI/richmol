@@ -207,7 +207,7 @@ plt.show()
 ```
 
 <div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_water_stark.png" height="300px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/readme_water_stark.png" height="300px"/>
 </div>
 
 ### Time-dependent simulations
@@ -253,7 +253,7 @@ h0 = LabTensor(ocs, sol)
 cos2 = LabTensor("cos2theta", sol) # NOTE: you need to add a constant factor 1/3 to get the true values
 ```
 
-Now, we define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse.txt).
+Now, we define the external electric field. Here, it is loaded from file [trunc_pulse.txt](https://github.com/CFEL-CMI/richmol/tree/develop/docs/source/notebooks/trunc_pulse.txt).
 The field in units V/cm has a single *Z* component and is defined on a time grid ranging
 from 0 to 300 picoseconds
 
@@ -276,14 +276,14 @@ plt.legend()
 plt.show()
 ```
 <div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_trunc_pulse.png" height="300px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/readme_trunc_pulse.png" height="300px"/>
 </div>
 
 For the initial state distribution we assume a hypothetical temperature of *T* = 0 Kelvin
 and use eigenfunctions of the field-free operator `h0` as the initial state vectors.
 Run dynamics from time zero to 200 ps with a time step of 10 fs,
 plot the expectation values of cos<sup>2</sup>&theta;
-and compare them with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/doc/source/notebooks/trunc_pulse_cos2theta.txt)
+and compare them with [reference values](https://github.com/CFEL-CMI/richmol/tree/develop/docs/source/notebooks/trunc_pulse_cos2theta.txt)
 
 ```py
 tdse = TDSE(t_start=0, t_end=200, dt=0.01, t_units="ps", enr_units="invcm")
@@ -332,7 +332,7 @@ plt.show()
 ```
 
 <div align="left">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/doc/source/_static/readme_ocs_alignment.png" height="300px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
 
 For more examples and tutorials, please have a look at the [**examples**](examples/) folder
