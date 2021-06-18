@@ -4,7 +4,7 @@ jupyter-sphinx>=0.3.2
 nbsphinx>=0.8.1
 readthedocs-sphinx-search==0.1.0rc3
 pip>=21.0
-numpy==1.14
+numpy>=1.14
 scipy>=1.6
 mendeleev>=0.7.0
 quadpy>=0.16.7
@@ -14,5 +14,5 @@ h5py>=2.10.0
 jax>=0.2.13
 jaxlib>=0.1.67
 numba>=0.53.1
-py3nj
+
 
