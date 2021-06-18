@@ -239,6 +239,7 @@ class TDSE():
             ) from None
 
         # Boltzmann weights
+        enrs -= zpe
         vecs = vecs.T
         if temp is None:
             pass
@@ -248,7 +249,7 @@ class TDSE():
         else:
             enrs *= self._enr_to_J
             beta = 1.0 / (const.value("Boltzmann constant") * temp) # (1/J)
-            weights = np.exp(-beta * (enrs - zpe))
+            weights = np.exp(-beta * enrs)
             weights /= np.sum(weights)
             inds = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
