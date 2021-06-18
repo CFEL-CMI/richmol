@@ -1,0 +1,295 @@
+python module real__user__routines
+    interface
+        subroutine matvec(n, x, y)
+          integer, intent(in) :: n
+          double precision, dimension(n), intent(in) :: x
+          double precision, dimension(n), intent(out) :: y
+        end subroutine
+    end interface
+end python module real__user__routines
+
+
+python module complex__user__routines
+    interface
+        subroutine matvec(n, x, y)
+          integer, intent(in) :: n
+          complex(16), dimension(n), intent(in) :: x
+          complex(16), dimension(n), intent(out) :: y
+        end subroutine
+    end interface
+end python module complex__user__routines
+
+
+python module expokit ! in 
+    interface  ! in :expokit
+
+! SMALL DENSE ROUTINES
+! dgpadm  zgpadm   exp(t*A) in full using irreducible Pade, A general
+! dspadm  zhpadm   exp(t*A) in full using Pade, A symmetric/Hermitian
+! dgchbv  zgchbv   exp(t*A)*v using Chebyshev, A general
+! dschbv           exp(t*A)*v using Chebyshev, A symmetric
+! dnchbv  znchbv   exp(t*A)*v using Chebyshev, A upper Hessenberg
+
+        subroutine dgpadm(ideg,m,t,h,ldh,wsp,lwsp,ipiv,iexph,ns,iflag) ! in :expokit:expokit.f
+            integer, intent(in) :: ideg
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            double precision, dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            double precision, dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(m), intent(in,out) :: ipiv
+            integer, intent(out) :: iexph
+            integer, intent(out) :: ns
+            integer, intent(out) :: iflag
+        end subroutine dgpadm
+
+        subroutine dspadm(ideg,m,t,h,ldh,wsp,lwsp,ipiv,iexph,ns,iflag) ! in :expokit:expokit.f
+            integer, intent(in) :: ideg
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            double precision, dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            double precision, dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(m), intent(in,out) :: ipiv
+            integer, intent(out) :: iexph
+            integer, intent(out) :: ns
+            integer, intent(out) :: iflag
+        end subroutine dspadm
+
+        subroutine zgpadm(ideg,m,t,h,ldh,wsp,lwsp,ipiv,iexph,ns,iflag) ! in :expokit:expokit.f
+            integer, intent(in) :: ideg
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            complex(16), dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            complex(16), dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(m), intent(in,out) :: ipiv
+            integer, intent(out) :: iexph
+            integer, intent(out) :: ns
+            integer, intent(out) :: iflag
+        end subroutine zgpadm
+
+        subroutine zhpadm(ideg,m,t,h,ldh,wsp,lwsp,ipiv,iexph,ns,iflag) ! in :expokit:expokit.f
+            integer, intent(in) :: ideg
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            complex(16), dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            complex(16), dimension(*), intent(in,out), check(len(wsp)>=4*m*m+ideg+1) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(m), intent(in,out) :: ipiv
+            integer, intent(out) :: iexph
+            integer, intent(out) :: ns
+            integer, intent(out) :: iflag
+        end subroutine zhpadm
+
+        subroutine dgchbv(m,t,h,ldh,y,wsp,iwsp,iflag) ! in :expokit:expokit.f
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            double precision, dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            double precision, dimension(m), intent(in,out) :: y
+            complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
+            integer, dimension(m), intent(in) :: iwsp
+            integer, intent(out) :: iflag
+        end subroutine dgchbv
+
+        subroutine dschbv(m,t,h,ldh,y,wsp,iwsp,iflag) ! in :expokit:expokit.f
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            double precision, dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            double precision, dimension(m), intent(in,out) :: y
+            complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
+            integer, dimension(m), intent(in) :: iwsp
+            integer, intent(out) :: iflag
+        end subroutine dschbv
+
+        subroutine zgchbv(m,t,h,ldh,y,wsp,iwsp,iflag) ! in :expokit:expokit.f
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            complex(16), dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            complex(16), dimension(m), intent(in,out) :: y
+            complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
+            integer, dimension(m), intent(in) :: iwsp
+            integer, intent(out) :: iflag
+        end subroutine zgchbv
+
+        subroutine dnchbv(m,t,h,ldh,y,wsp) ! in :expokit:expokit.f
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            double precision, dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            double precision, dimension(m), intent(in,out) :: y
+            complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
+        end subroutine dnchbv
+
+        subroutine znchbv(m,t,h,ldh,y,wsp) ! in :expokit:expokit.f
+            integer, intent(hide), depend(h) :: m=shape(h,1)
+            double precision, intent(in) :: t
+            complex(16), dimension(*,*), intent(in) :: h
+            integer, intent(hide), depend(h) :: ldh=shape(h,0)
+            complex(16), dimension(m), intent(in,out) :: y
+            complex(16), dimension(*), intent(in), check(len(wsp)>=m*(m+2)) :: wsp
+        end subroutine znchbv
+
+! LARGE SPARSE ROUTINES
+! dgexpv  zgexpv   exp(t*A)*v using Krylov, A general
+! dsexpv  zhexpv   exp(t*A)*v using Krylov, A symmetric/Hermitian
+! dgphiv  zgphiv   exp(t*A)*v + t*phi(t*A)*u using Krylov, A general
+! dsphiv  zhphiv   exp(t*A)*v + t*phi(t*A)*u using Krylov, A sym/Hem
+
+        subroutine dgexpv(n,m,t,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use real__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            double precision, dimension(n), intent(in) :: v
+            double precision, dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine dgexpv
+
+        subroutine dsexpv(n,m,t,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use real__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            double precision, dimension(n), intent(in) :: v
+            double precision, dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine dsexpv
+
+        subroutine zgexpv(n,m,t,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use complex__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            complex(16), dimension(n), intent(in) :: v
+            complex(16), dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine zgexpv
+
+        subroutine zhexpv(n,m,t,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use complex__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            complex(16), dimension(n), intent(in) :: v
+            complex(16), dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+2)*(m+2)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+2) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine zhexpv
+
+        subroutine dgphiv(n,m,t,u,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use real__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            double precision, dimension(n), intent(in) :: u
+            double precision, dimension(n), intent(in) :: v
+            double precision, dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine dgphiv
+
+        subroutine dsphiv(n,m,t,u,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use real__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            double precision, dimension(n), intent(in) :: u
+            double precision, dimension(n), intent(in) :: v
+            double precision, dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            double precision, dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>m+3) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine dsphiv
+
+        subroutine zgphiv(n,m,t,u,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use complex__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            complex(16), dimension(n), intent(in) :: u
+            complex(16), dimension(n), intent(in) :: v
+            complex(16), dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine zgphiv
+
+        subroutine zhphiv(n,m,t,u,v,w,tol,anorm,wsp,lwsp,iwsp,liwsp,matvec,itrace,iflag) ! in :expokit:expokit.f
+            use complex__user__routines
+            integer, intent(hide), depend(v) :: n=len(v)
+            integer, intent(in) :: m
+            double precision, intent(in) :: t
+            complex(16), dimension(n), intent(in) :: u
+            complex(16), dimension(n), intent(in) :: v
+            complex(16), dimension(n), intent(out) :: w
+            double precision, intent(in,out) :: tol
+            double precision, intent(in) :: anorm
+            complex(16), dimension(*), intent(in), check(len(wsp)>=n*(m+2)+5*(m+3)*(m+3)+7) :: wsp
+            integer, intent(hide), depend(wsp) :: lwsp=len(wsp)
+            integer, dimension(*), intent(in), check(len(iwsp)>=m+3) :: iwsp
+            integer, intent(hide), depend(iwsp) :: liwsp=len(iwsp)
+            external :: matvec
+            integer intent(in) :: itrace
+            integer intent(out) :: iflag
+        end subroutine zhphiv
+
+    end interface 
+end python module expokit

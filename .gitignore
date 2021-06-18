@@ -127,3 +127,21 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Fortran and lib files
+*.o
+*.mod
+*.so
+*.dylib
+
+# vim files
+*.swp
+
+#VS code
+.vscode
+
+#Pycharm
+.idea
+
+# Macos
+.DS_Store

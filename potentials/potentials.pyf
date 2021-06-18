@@ -1,0 +1,17 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module potentials ! in 
+    interface  ! in :potentials
+        subroutine h2s_tyuterev(npoints,r12,r32,alpha,f) ! in :potentials:h2s_tyuterev.f90
+            integer, optional,intent(in),check(len(r12)>=npoints),depend(r12) :: npoints=len(r12)
+            real(kind=8) dimension(npoints),intent(in) :: r12
+            real(kind=8) dimension(npoints),intent(in),depend(npoints) :: r32
+            real(kind=8) dimension(npoints),intent(in),depend(npoints) :: alpha
+            real(kind=8) dimension(npoints),intent(out),depend(npoints) :: f
+        end subroutine h2s_tyuterev
+    end interface 
+end python module potentials
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
