@@ -227,7 +227,7 @@ def solve(mol, Jmin=0, Jmax=10, verbose=False, filter=lambda **kw: True):
 def hamiltonian(mol, bas, verbose=False):
     """Computes action of Hamiltonian operator on wave function
 
-    Builds Hamiltonian from the user-defined rotational constants (mol.ABC_exp or mol.B_exp)
+    Builds Hamiltonian from the user-defined rotational constants (mol.B)
     when available, otherwise uses the rotational kinetic energy matrix G.
 
     Args:
