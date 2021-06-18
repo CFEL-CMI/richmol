@@ -35,10 +35,10 @@ potentials = Extension(name = 'potentials',
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
 
-__version__ = "0.1a1"
+__version__ = "1.0rc1"
 
 install_requires = [
-    "numpy>=1.17",
+    "numpy>=1.19.5",
     "scipy>=1.6",
     "mendeleev>=0.7.0",
     "py3nj>=0.1.2",
