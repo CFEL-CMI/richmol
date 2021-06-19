@@ -15,8 +15,6 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 sys.setrecursionlimit(1500)
 
-autodock_mock_imports = ['numpy']
-
 # -- Project information -----------------------------------------------------
 
 project = 'Richmol'
