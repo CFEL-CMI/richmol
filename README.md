@@ -75,8 +75,7 @@ A collection of such HDF5 data files for different molecules is available throug
 [Richmol molecular database](https://richmol.readthedocs.io/en/latest/richmol_database.html) section of the main documentation.
 
 Below, we show few simple examples of simulations using pure rotational states.
-For more examples and tutorials, please have look at the [examples](examples/) folder
-and the main [Documentation](https://richmol.readthedocs.io/)
+For more examples and tutorials, please see our [examples](examples/) folder and main [Documentation](https://richmol.readthedocs.io/)
 
 ### Molecular field-free rotational solutions
 
@@ -335,8 +334,8 @@ plt.show()
   <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/readme_ocs_alignment.png" height="300px"/>
 </div>
 
-For more examples and tutorials, please have a look at the [examples](examples/) folder
-and the main [Documentation](https://richmol.readthedocs.io/)
+For more examples and tutorials, please see our [examples](examples/) folder
+and [Documentation](https://richmol.readthedocs.io/)
 
 ## Citing richmol
 
