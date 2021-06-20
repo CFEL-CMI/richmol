@@ -4,6 +4,9 @@
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
 
+[![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
+
+
 [**Overview**](#overview)
 | [**Quick install**](#quick-install)
 | [**Quick Start**](#quick-start)
