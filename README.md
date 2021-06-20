@@ -1,8 +1,11 @@
 <div align="center">
-  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/richmol_logo.jpg" height="100px"/>
+  <img src="https://github.com/CFEL-CMI/richmol/blob/develop/docs/source/_static/richmol_logo.jpg" height="80px"/>
 </div>
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
+
+[![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
+
 
 [**Overview**](#overview)
 | [**Quick install**](#quick-install)
