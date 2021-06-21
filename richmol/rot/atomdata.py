@@ -92,7 +92,7 @@ def read_list(arg):
                 to_angstrom = 1
             else:
                 atom_label = elem
-                atom_mass = atomic_data(atom_label.upper())["mass"]
+                atom_mass = atomic_data(atom_label.title())["mass"]
                 try:
                     x,y,z = (float(val) for val in arg[ielem+1:ielem+4])
                 except ValueError:
