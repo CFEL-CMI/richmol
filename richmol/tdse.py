@@ -214,9 +214,11 @@ class TDSE():
                 + f"'{thresh}' (must be >= 0)"
 
         # convert field-free tensor into Hamiltonian
+        H_is_diag = False
         try:
             if H.cart[0] == "0":
                 H.field([0, 0, 1])
+                H_is_diag = True
         except AttributeError:
             pass
 
@@ -228,7 +230,7 @@ class TDSE():
             raise AttributeError(
                 f"Hamiltonian `H` has bad type (must be Hamiltonian)"
             ) from None
-        if np.count_nonzero(hmat - np.diag(np.diagonal(hmat))) == 0:
+        if H_is_diag:
             enrs = np.sort(np.einsum('ii->i', hmat))
             vecs = np.eye(hmat.shape[0])
         else:
