@@ -48,7 +48,7 @@ install_requires = [
     "h5py>=2.10.0",
     "jax>=0.2.13",
     "numba>=0.53.1",
-    "matplotlib>=3.4.1",
+    "matplotlib==3.3.4",
     ]
 
 if __name__ == "__main__":
