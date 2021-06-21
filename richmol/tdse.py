@@ -228,7 +228,11 @@ class TDSE():
             raise AttributeError(
                 f"Hamiltonian `H` has bad type (must be Hamiltonian)"
             ) from None
-        enrs, vecs = np.linalg.eigh(hmat)
+        if np.count_nonzero(hmat - np.diag(np.diagonal(hmat))) == 0:
+            enrs = np.sort(np.einsum('ii->i', hmat))
+            vecs = np.eye(hmat.shape[0])
+        else:
+            enrs, vecs = np.linalg.eigh(hmat)
 
         if zpe is None:
             zpe = enrs[0]
@@ -316,7 +320,8 @@ class TDSE():
             if '_exp_fac_H0' not in list(self.__dict__.keys()):
                 H0_mat = H0.tomat(form='full', cart='0')
                 assert ((H0_mat - diags(H0_mat.diagonal())).nnz == 0), \
-                    f"non-diagonal H0: split-operator approach not applicable/implemented"
+                    f"non-diagonal H0: split-operator approach not " \
+                        + f"applicable / implemented"
                 self._exp_fac_H0 = np.exp(exp_fac / 2 * H0_mat.diagonal())
             vecs2 = vecs * self._exp_fac_H0
             if hasattr(H, 'mfmat') and len(H.mfmat) > 0:
