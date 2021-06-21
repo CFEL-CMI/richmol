@@ -24,7 +24,7 @@ and `examples <https://github.com/CFEL-CMI/richmol/tree/develop/examples>`_.
    :caption: Advanced tutorials
 
    notebooks/watson.ipynb
-   notebooks/spectrum_mpi.ipynb
+   notebooks/tdse_mpi.ipynb
 
 
 .. toctree::
