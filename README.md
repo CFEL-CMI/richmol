@@ -4,7 +4,7 @@
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
 
-[![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
+See the extensive [Documentation on ReadTheDocs](https://richmol.readthedocs.io/) [![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
 
 
 [**Overview**](#overview)
@@ -12,7 +12,7 @@
 | [**Quick Start**](#quick-start)
 | [**Examples**](examples/)
 | [**Citing richmol**](#citing-richmol)
-| [**Documentation**](https://richmol.readthedocs.io/)
+
 
 
 Richmol is currently being developed and maintained by the Theory team of the [CFEL Controlled Molecule Imaging group](https://www.controlled-molecule-imaging.org) at [Deutsches Elektronen-Synchrotron DESY](https://www.desy.de) and [Universität Hamburg](https://www.uni-hamburg.de). We hope to attract collaborators for a joint development by a larger community of researchers working in fields of molecular nuclear-motion dynamics, spectroscopy, and laser alignment and coherent control of molecules.
