@@ -346,6 +346,7 @@ To refer to this project in scientic work please cite the following manuscript:
 
 Cem Saribal, Guang Yang, Emil Zak, Yahya Saleh, Jannik Eggers, Vishnu Sanjay, Andrey Yachmenev, and Jochen Küpper: "Richmol: Python package for variational simulations of molecular nuclear motion dynamics in fields", *Comput. Phys. Commun.*, in preparation (2021); the current version of the software is available on [GitHub](https://github.com/CFEL-CMI/richmol)
 
+## Bibtex entry
 
 ```
 @article{richmol2021github,
