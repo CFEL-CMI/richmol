@@ -4,7 +4,7 @@
 
 # Python-based Simulations of Rovibrational Molecular Dynamics
 
-[![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
+See the extensive [Documentation on ReadTheDocs](https://richmol.readthedocs.io/) [![Documentation Status](https://readthedocs.org/projects/richmol/badge/?version=latest)](https://richmol.readthedocs.io/en/latest/?badge=latest)
 
 
 [**Overview**](#overview)
@@ -12,12 +12,12 @@
 | [**Quick Start**](#quick-start)
 | [**Examples**](examples/)
 | [**Citing richmol**](#citing-richmol)
-| [**Documentation**](https://richmol.readthedocs.io/)
 
 
-Richmol is currently being developed and maintained by theory team of the Controlled Molecule Imaging group (https://www.controlled-molecule-imaging.org/), Center for Free-Electron Laser Science at Deutsches Elektronen-Synchrotron. We hope to attract for a joint development a larger community of researchers working in fields of molecular nuclear motion dynamics, spectroscopy, and coherent control.
 
-Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
+Richmol is currently being developed and maintained by the Theory team of the [CFEL Controlled Molecule Imaging group](https://www.controlled-molecule-imaging.org) at [Deutsches Elektronen-Synchrotron DESY](https://www.desy.de) and [Universität Hamburg](https://www.uni-hamburg.de). We hope to attract collaborators for a joint development by a larger community of researchers working in fields of molecular nuclear-motion dynamics, spectroscopy, and laser alignment and coherent control of molecules.
+
+Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions) or the [issue tracker](https://github.com/CFEL-CMI/richmol/issues).
 
 ## Overview
 
@@ -342,17 +342,20 @@ and [Documentation](https://richmol.readthedocs.io/)
 
 ## Citing richmol
 
-To cite this repository
+To refer to this project in scientic work please cite the following manuscript:
+
+Cem Saribal, Guang Yang, Emil Zak, Yahya Saleh, Jannik Eggers, Vishnu Sanjay, Andrey Yachmenev, and Jochen Küpper: "Richmol: Python package for variational simulations of molecular nuclear motion dynamics in fields", *Comput. Phys. Commun.*, in preparation (2021); the current version of the software is available on [GitHub](https://github.com/CFEL-CMI/richmol)
+
+## Bibtex entry
 
 ```
 @article{richmol2021github,
-  author = {Cem Saribal, Guang Yang, Emil Zak, Yahya Saleh, Jannik Eggers, Vishnu Sanjay, Andrey Yachmenev, Jochen Küpper},
+  author = {Cem Saribal and Guang Yang and Emil Zak and Yahya Saleh Jannik Eggers and Vishnu Sanjay and Andrey Yachmenev and Jochen Küpper},
   title = {{R}ichmol: {P}ython package for variational simulations of molecular nuclear motion dynamics in fields},
   journal = {Comput. Phys. Commun.},
   year = {2021},
-  volume = {xx},
-  pages = {xx},
-  note = {Current version is available from \href{https://github.com/CFEL-CMI/richmol}{GitHub}},
+  volume = {in preparation},
+  note = {The current version of the software is available on \href{https://github.com/CFEL-CMI/richmol}{GitHub}},
 }
 ```
 
