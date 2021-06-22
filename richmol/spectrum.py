@@ -458,15 +458,16 @@ class FieldFreeSpec():
                     # full form
                     linestr.append(
                         sp.sparse.bmat(
-                            [
-                                [
-                                    linestr_blocks[(sym1, sym2)]
-                                      if (sym1, sym2) in linestr_blocks.keys()
-                                      else None
-                                      for sym2 in moment.symlist2[j_ket]
-                                ]
-                              for sym1 in moment.symlist1[j_bra]
-                            ]
+                            [ [ linestr_blocks[(sym1, sym2)]
+                                  if (sym1, sym2) in linestr_blocks.keys()
+                                  else sp.sparse.csr_matrix(
+                                      np.zeros(
+                                          ( moment.dim_k1[j_bra][sym1],
+                                            moment.dim_k2[j_ket][sym2] )
+                                     )
+                                 )
+                                 for sym2 in moment.symlist2[j_ket] ]
+                                 for sym1 in moment.symlist1[j_bra] ]
                         )
                     )
 
