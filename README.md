@@ -342,17 +342,19 @@ and [Documentation](https://richmol.readthedocs.io/)
 
 ## Citing richmol
 
-To cite this repository
+To refer to this project in scientic work please cite the following manuscript:
+
+Cem Saribal, Guang Yang, Emil Zak, Yahya Saleh, Jannik Eggers, Vishnu Sanjay, Andrey Yachmenev, and Jochen Küpper: "Richmol: Python package for variational simulations of molecular nuclear motion dynamics in fields", *Comput. Phys. Commun.*, in preparation (2021); the current version of the software is available on [GitHub](https://github.com/CFEL-CMI/richmol)
+
 
 ```
 @article{richmol2021github,
-  author = {Cem Saribal, Guang Yang, Emil Zak, Yahya Saleh, Jannik Eggers, Vishnu Sanjay, Andrey Yachmenev, Jochen Küpper},
+  author = {Cem Saribal and Guang Yang and Emil Zak and Yahya Saleh Jannik Eggers and Vishnu Sanjay and Andrey Yachmenev and Jochen Küpper},
   title = {{R}ichmol: {P}ython package for variational simulations of molecular nuclear motion dynamics in fields},
   journal = {Comput. Phys. Commun.},
   year = {2021},
-  volume = {xx},
-  pages = {xx},
-  note = {Current version is available from \href{https://github.com/CFEL-CMI/richmol}{GitHub}},
+  volume = {in preparation},
+  note = {The current version of the software is available on \href{https://github.com/CFEL-CMI/richmol}{GitHub}},
 }
 ```
 
