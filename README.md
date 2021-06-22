@@ -17,7 +17,7 @@
 
 Richmol is currently being developed and maintained by the Theory team of the [CFEL Controlled Molecule Imaging group](https://www.controlled-molecule-imaging.org) at [Deutsches Elektronen-Synchrotron DESY](https://www.desy.de) and [Universität Hamburg](https://www.uni-hamburg.de). We hope to attract collaborators for a joint development by a larger community of researchers working in fields of molecular nuclear-motion dynamics, spectroscopy, and laser alignment and coherent control of molecules.
 
-Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions)
+Richmol is intended for computing molecular rotational and ro-vibrational energy levels, spectra, and field-induced dynamics. It can be interfaced with other similar variational codes, such  as, for example, [TROVE](https://github.com/Trovemaster/TROVE) and [Duo](https://github.com/Trovemaster/Duo). We welcome any feedback, feature requests, issues, questions or concerns, please report them in our [discussion forum](https://github.com/CFEL-CMI/richmol/discussions) or the [issue tracker](https://github.com/CFEL-CMI/richmol/issues).
 
 ## Overview
 
