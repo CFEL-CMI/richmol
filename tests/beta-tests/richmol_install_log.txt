@@ -1,0 +1,1660 @@
+bash-3.2$ pip install --upgrade git+https://github.com/CFEL-CMI/richmol.git
+Collecting git+https://github.com/CFEL-CMI/richmol.git
+  Cloning https://github.com/CFEL-CMI/richmol.git to /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx
+  Running command git clone -q https://github.com/CFEL-CMI/richmol.git /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx
+Requirement already satisfied: numpy>=1.19.5 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (1.21.0)
+Requirement already satisfied: scipy>=1.6 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (1.7.0)
+Collecting mendeleev>=0.7.0
+  Using cached mendeleev-0.7.0-py3-none-any.whl (175 kB)
+Collecting py3nj>=0.1.2
+  Using cached py3nj-0.1.2.tar.gz (28 kB)
+Requirement already satisfied: quadpy>=0.16.7 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (0.16.7)
+Requirement already satisfied: quaternionic>=0.3.4 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (0.3.4)
+Requirement already satisfied: spherical>=1.0.8 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (1.0.8)
+Requirement already satisfied: h5py>=2.10.0 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (2.10.0)
+Collecting jax>=0.2.13
+  Using cached jax-0.2.16-py3-none-any.whl
+Requirement already satisfied: numba>=0.53.1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from richmol==1.0rc1) (0.53.1)
+Collecting matplotlib==3.3.4
+  Using cached matplotlib-3.3.4-cp37-cp37m-macosx_10_9_x86_64.whl (8.5 MB)
+Requirement already satisfied: python-dateutil>=2.1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from matplotlib==3.3.4->richmol==1.0rc1) (2.8.0)
+Requirement already satisfied: kiwisolver>=1.0.1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from matplotlib==3.3.4->richmol==1.0rc1) (1.1.0)
+Requirement already satisfied: pyparsing!=2.0.4,!=2.1.2,!=2.1.6,>=2.0.3 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from matplotlib==3.3.4->richmol==1.0rc1) (2.4.2)
+Requirement already satisfied: pillow>=6.2.0 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from matplotlib==3.3.4->richmol==1.0rc1) (6.2.0)
+Requirement already satisfied: cycler>=0.10 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from matplotlib==3.3.4->richmol==1.0rc1) (0.10.0)
+Requirement already satisfied: six in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from cycler>=0.10->matplotlib==3.3.4->richmol==1.0rc1) (1.16.0)
+Requirement already satisfied: absl-py in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from jax>=0.2.13->richmol==1.0rc1) (0.11.0)
+Requirement already satisfied: opt-einsum in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from jax>=0.2.13->richmol==1.0rc1) (3.3.0)
+Requirement already satisfied: setuptools in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from kiwisolver>=1.0.1->matplotlib==3.3.4->richmol==1.0rc1) (41.4.0)
+Requirement already satisfied: pandas>=0.25.0 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from mendeleev>=0.7.0->richmol==1.0rc1) (0.25.1)
+Requirement already satisfied: colorama<0.5.0,>=0.4.4 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from mendeleev>=0.7.0->richmol==1.0rc1) (0.4.4)
+Requirement already satisfied: SQLAlchemy<2.0.0,>=1.3.23 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from mendeleev>=0.7.0->richmol==1.0rc1) (1.4.19)
+Requirement already satisfied: Pygments<3.0.0,>=2.8.0 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from mendeleev>=0.7.0->richmol==1.0rc1) (2.9.0)
+Requirement already satisfied: pyfiglet<0.9,>=0.8.post1 in /Users/zakemil/.local/lib/python3.7/site-packages/pyfiglet-0.8.post1-py3.7.egg (from mendeleev>=0.7.0->richmol==1.0rc1) (0.8.post1)
+Requirement already satisfied: llvmlite<0.37,>=0.36.0rc1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from numba>=0.53.1->richmol==1.0rc1) (0.36.0)
+Requirement already satisfied: pytz>=2017.2 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from pandas>=0.25.0->mendeleev>=0.7.0->richmol==1.0rc1) (2019.3)
+Requirement already satisfied: ndim in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from quadpy>=0.16.7->richmol==1.0rc1) (0.1.4)
+Requirement already satisfied: sympy in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from quadpy>=0.16.7->richmol==1.0rc1) (1.4)
+Requirement already satisfied: importlib-metadata in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from quadpy>=0.16.7->richmol==1.0rc1) (1.7.0)
+Requirement already satisfied: orthopy<0.9,>=0.8.3 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from quadpy>=0.16.7->richmol==1.0rc1) (0.8.4)
+Requirement already satisfied: black>=20.8b1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from quaternionic>=0.3.4->richmol==1.0rc1) (21.5b2)
+Requirement already satisfied: mypy-extensions>=0.4.3 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (0.4.3)
+Requirement already satisfied: appdirs in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (1.4.4)
+Requirement already satisfied: typed-ast>=1.4.2 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (1.4.3)
+Requirement already satisfied: regex>=2020.1.8 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (2021.4.4)
+Requirement already satisfied: pathspec<1,>=0.8.1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (0.8.1)
+Requirement already satisfied: toml>=0.10.1 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (0.10.2)
+Requirement already satisfied: typing-extensions>=3.7.4 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (3.7.4.3)
+Requirement already satisfied: click>=7.1.2 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from black>=20.8b1->quaternionic>=0.3.4->richmol==1.0rc1) (8.0.1)
+Requirement already satisfied: zipp>=0.5 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from importlib-metadata->quadpy>=0.16.7->richmol==1.0rc1) (0.6.0)
+Requirement already satisfied: spinsfast>=104.2020.8 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from spherical>=1.0.8->richmol==1.0rc1) (104.2021.3.22.15.7.51)
+Requirement already satisfied: greenlet!=0.4.17 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from SQLAlchemy<2.0.0,>=1.3.23->mendeleev>=0.7.0->richmol==1.0rc1) (0.4.15)
+Requirement already satisfied: more-itertools in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from zipp>=0.5->importlib-metadata->quadpy>=0.16.7->richmol==1.0rc1) (7.2.0)
+Requirement already satisfied: mpmath>=0.19 in /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages (from sympy->quadpy>=0.16.7->richmol==1.0rc1) (1.1.0)
+Building wheels for collected packages: richmol, py3nj
+  Building wheel for richmol (setup.py) ... error
+  ERROR: Command errored out with exit status 1:
+   command: /Users/zakemil/opt/anaconda3/bin/python -u -c 'import io, os, sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx/setup.py'"'"'; __file__='"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx/setup.py'"'"';f = getattr(tokenize, '"'"'open'"'"', open)(__file__) if os.path.exists(__file__) else io.StringIO('"'"'from setuptools import setup; setup()'"'"');code = f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' bdist_wheel -d /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-wheel-k3zlkeon
+       cwd: /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx/
+  Complete output (810 lines):
+  running bdist_wheel
+  running build
+  running config_cc
+  unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+  running config_fc
+  unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+  running build_src
+  build_src
+  building extension "expokit" sources
+  f2py options: []
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit/fortranobject.c' to sources.
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit' to include_dirs.
+  building extension "potentials" sources
+  f2py options: []
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/potentials/fortranobject.c' to sources.
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/potentials' to include_dirs.
+  building extension "richmol_wigner" sources
+  f2py options: []
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/wigner/fortranobject.c' to sources.
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/wigner' to include_dirs.
+    adding 'build/src.macosx-10.9-x86_64-3.7/wigner/richmol_wigner-f2pywrappers2.f90' to sources.
+  build_src: building npy-pkg config files
+  running build_py
+  creating build/lib.macosx-10.9-x86_64-3.7
+  creating build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/basis.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/field.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/json_ext.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/convert_units.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/__init__.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/h2s_legendre.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/h2s_pytorch.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/spectrum.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/moljax.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/h2s_jax.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/poten_from_tf.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/tdse.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/pyexpokit.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/h2s_Alegendre.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/h2s.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  copying richmol/quadratures.py -> build/lib.macosx-10.9-x86_64-3.7/richmol
+  creating build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/basis.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/symmetry.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/atomdata.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/labtens.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/molecule.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/J.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/solution.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/__init__.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/mol_tens.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  copying richmol/rot/mol_frames.py -> build/lib.macosx-10.9-x86_64-3.7/richmol/rot
+  running build_ext
+  customize UnixCCompiler
+  customize UnixCCompiler using build_ext
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-march=native)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-march=native'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-O3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-O3'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-Werror)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-Werror'
+  CCompilerOpt.__init__[1696] : check requested baseline
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse2'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE' with flags (-msse -msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE2' with flags (-msse -msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse3'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE3' with flags (-msse -msse2 -msse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -Werror'
+  CCompilerOpt.__init__[1705] : check requested dispatch-able features
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mssse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mssse3'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.1)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse4.1'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mpopcnt)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mpopcnt'
+  CCompilerOpt.feature_test[1463] : testing feature 'POPCNT' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSSE3' with flags (-msse -msse2 -msse3 -mssse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE41' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse4.2'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE42' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mf16c)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mf16c'
+  CCompilerOpt.feature_test[1463] : testing feature 'F16C' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx2'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX2' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mfma)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mfma'
+  CCompilerOpt.feature_test[1463] : testing feature 'FMA3' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512f)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512f'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512F' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512cd)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512cd'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512CD' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vl -mavx512bw -mavx512dq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vl -mavx512bw -mavx512dq'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_SKX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512ifma -mavx512vbmi)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512ifma -mavx512vbmi'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512er -mavx512pf'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o.d -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq) failed with exit status 1 output ->
+  clang: error: unknown argument: '-mavx5124fmaps'
+  clang: error: unknown argument: '-mavx5124vnniw'
+
+  CCompilerOpt.cc_test_flags[1012] : testing failed
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNM' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: implicit declaration of function '_mm512_4fmadd_ps' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: note: did you mean '_mm512_fmadd_ps'?
+  /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512fintrin.h:2725:1: note: '_mm512_fmadd_ps' declared here
+  _mm512_fmadd_ps(__m512 __A, __m512 __B, __m512 __C)
+  ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:7: error: assigning to '__m512' (vector of 16 'float' values) from incompatible type 'int'
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+        ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: implicit declaration of function '_mm512_4dpwssd_epi32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: note: did you mean '_mm512_dpwssd_epi32'?
+  /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512vnniintrin.h:82:1: note: '_mm512_dpwssd_epi32' declared here
+  _mm512_dpwssd_epi32(__m512i __S, __m512i __A, __m512i __B)
+  ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:7: error: assigning to '__m512i' (vector of 8 'long long' values) from incompatible type 'int'
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+        ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  6 errors generated.
+
+  CCompilerOpt.feature_test[1477] : testing failed
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vnni)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vnni'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CLX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_ICL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq -Werror'
+  CCompilerOpt.__init__[1718] : skip features (SSE2 SSE3 SSE) since its part of baseline
+  CCompilerOpt.__init__[1721] : initialize targets groups
+  CCompilerOpt.__init__[1723] : parse target group simd_test
+  CCompilerOpt._parse_target_tokens[1936] : skip targets (XOP VSX FMA4 VSX3 NEON VSX2 ASIMD) not part of baseline or dispatch-able features
+  CCompilerOpt._parse_policy_not_keepbase[2046] : skip baseline features (SSE2)
+  CCompilerOpt.generate_dispatch_header[2267] : generate CPU dispatch header: (build/src.macosx-10.9-x86_64-3.7/numpy/distutils/include/npy_cpu_dispatch_config.h)
+  CCompilerOpt.generate_dispatch_header[2278] : dispatch header dir build/src.macosx-10.9-x86_64-3.7/numpy/distutils/include does not exist, creating it
+  CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512F' (AVX512F_REDUCE)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+  CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512_SKX' (AVX512BW_MASK AVX512DQ_MASK)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: implicit declaration of function '_kor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _kor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: implicit declaration of function '_kxor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _kxor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: note: did you mean '_kor_mask64'?
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: note: '_kor_mask64' declared here
+      m64 = _kor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      m64 = _kxor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: implicit declaration of function '_cvtu64_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: implicit declaration of function '_cvtmask64_u64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+                           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  8 errors generated.
+
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmpfq4yhays/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: implicit declaration of function '_kor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _kor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: implicit declaration of function '_kxor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _kxor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: note: did you mean '_kor_mask8'?
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: note: '_kor_mask8' declared here
+      m8 = _kor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      m8 = _kxor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: implicit declaration of function '_cvtu32_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: implicit declaration of function '_cvtmask8_u32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+                         ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  8 errors generated.
+
+  CCompilerOpt.feature_extra_checks[1559] : testing failed for checks (AVX512BW_MASK AVX512DQ_MASK)
+  get_default_fcompiler: matching types: '['gnu95', 'nag', 'absoft', 'ibm', 'intel', 'gnu', 'g95', 'pg']'
+  customize Gnu95FCompiler
+  Found executable /usr/local/bin/gfortran
+  customize Gnu95FCompiler
+  customize Gnu95FCompiler using build_ext
+  building 'expokit' extension
+  compiling C sources
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  creating build/temp.macosx-10.9-x86_64-3.7/build
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit
+  compile options: '-Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3'
+  gcc: build/src.macosx-10.9-x86_64-3.7/expokit/expokitmodule.c
+  gcc: build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit/fortranobject.c
+  In file included from build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit/fortranobject.c:2:
+  In file included from build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit/fortranobject.h:13:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/arrayobject.h:4:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:12:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1969:
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:17:2: warning: "Using deprecated NumPy API, disable it with "          "#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-W#warnings]
+  #warning "Using deprecated NumPy API, disable it with " \
+   ^
+  In file included from build/src.macosx-10.9-x86_64-3.7/expokit/expokitmodule.c:16:
+  In file included from build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit/fortranobject.h:13:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/arrayobject.h:4:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/ndarrayobject.h:12:
+  In file included from /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/ndarraytypes.h:1969:
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:17:2: warning: "Using deprecated NumPy API, disable it with "          "#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-W#warnings]
+  #warning "Using deprecated NumPy API, disable it with " \
+   ^
+  build/src.macosx-10.9-x86_64-3.7/expokit/expokitmodule.c:520:52: warning: code will never be executed [-Wunreachable-code]
+          int itemsize_ = NPY_DOUBLE == NPY_STRING ? 1 : 0;
+                                                     ^
+  build/src.macosx-10.9-x86_64-3.7/expokit/expokitmodule.c:708:53: warning: code will never be executed [-Wunreachable-code]
+          int itemsize_ = NPY_CDOUBLE == NPY_STRING ? 1 : 0;
+                                                      ^
+  build/src.macosx-10.9-x86_64-3.7/expokit/expokitmodule.c:155:12: warning: unused function 'f2py_size' [-Wunused-function]
+  static int f2py_size(PyArrayObject* var, ...)
+             ^
+  1 warning generated.
+  4 warnings generated.
+  compiling Fortran sources
+  Fortran f77 compiler: /usr/local/bin/gfortran -Wall -g -ffixed-form -fno-second-underscore -arch x86_64 -fPIC -O3 -funroll-loops
+  Fortran f90 compiler: /usr/local/bin/gfortran -Wall -g -fno-second-underscore -arch x86_64 -fPIC -O3 -funroll-loops
+  Fortran fix compiler: /usr/local/bin/gfortran -Wall -g -ffixed-form -fno-second-underscore -Wall -g -fno-second-underscore -arch x86_64 -fPIC -O3 -funroll-loops
+  creating build/temp.macosx-10.9-x86_64-3.7/expokit
+  compile options: '-Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  gfortran:f77: expokit/expokit.f
+  expokit/expokit.f:298:4:
+
+    298 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:850:22:
+
+    850 |       scale =  CMPLX( t/DBLE(2**ns),0.0d0 )
+        |                      1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:1022:22:
+
+   1022 |       scale =  CMPLX( t/DBLE(2**ns),0.0d0 )
+        |                      1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:1581:15:
+
+   1580 |       do ip = 1,ndeg
+        |                                                                        2
+   1581 |          theta(ndeg+ip) = CONJG( theta(ip) )
+        |               1
+  Warning: Array reference at (1) out of bounds (8 > 7) in loop beginning at (2)
+  expokit/expokit.f:1581:15:
+
+   1580 |       do ip = 1,ndeg
+        |                                                                        2
+   1581 |          theta(ndeg+ip) = CONJG( theta(ip) )
+        |               1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1582:15:
+
+   1580 |       do ip = 1,ndeg
+        |                                                                        2
+   1581 |          theta(ndeg+ip) = CONJG( theta(ip) )
+   1582 |          alpha(ndeg+ip) = CONJG( alpha(ip) )
+        |               1
+  Warning: Array reference at (1) out of bounds (8 > 7) in loop beginning at (2)
+  expokit/expokit.f:1582:15:
+
+   1580 |       do ip = 1,ndeg
+        |                                                                        2
+   1581 |          theta(ndeg+ip) = CONJG( theta(ip) )
+   1582 |          alpha(ndeg+ip) = CONJG( alpha(ip) )
+        |               1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1592:15:
+
+   1591 |       do ip = 1,2*ndeg
+        |                                                                        2
+   1592 |          alpha(ip) = 0.5d0*alpha(ip)
+        |               1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1592:33:
+
+   1591 |       do ip = 1,2*ndeg
+        |                                                                        2
+   1592 |          alpha(ip) = 0.5d0*alpha(ip)
+        |                                 1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1599:60:
+
+   1591 |       do ip = 1,2*ndeg
+        |                                                                        2
+  ......
+   1599 |             wsp(ih+(j-1)*m+j-1) = wsp(ih+(j-1)*m+j-1)-theta(ip)
+        |                                                            1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1626:32:
+
+   1591 |       do ip = 1,2*ndeg
+        |                                                                        2
+  ......
+   1626 |             y(j) = y(j) + alpha(ip)*wsp(iy+j-1)
+        |                                1
+  Warning: Array reference at (1) out of bounds (14 > 7) in loop beginning at (2)
+  expokit/expokit.f:1906:4:
+
+   1906 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:2288:4:
+
+   2288 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:2675:4:
+
+   2675 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:2638:37:
+
+   2638 |          wsp(ih+(j-1)*mh+j) = CMPLX( hj1j )
+        |                                     1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2725:19:
+
+   2725 |       hij = CMPLX( beta )
+        |                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2770:23:
+
+   2770 |       wsp(1)  = CMPLX( step_min )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2771:23:
+
+   2771 |       wsp(2)  = CMPLX( step_max )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2772:23:
+
+   2772 |       wsp(3)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2773:23:
+
+   2773 |       wsp(4)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2774:23:
+
+   2774 |       wsp(5)  = CMPLX( x_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2775:23:
+
+   2775 |       wsp(6)  = CMPLX( s_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2776:23:
+
+   2776 |       wsp(7)  = CMPLX( tbrkdwn )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2777:23:
+
+   2777 |       wsp(8)  = CMPLX( sgn*t_now )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2778:23:
+
+   2778 |       wsp(9)  = CMPLX( hump/vnorm )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:2779:23:
+
+   2779 |       wsp(10) = CMPLX( beta/vnorm )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3065:4:
+
+   3065 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:3025:37:
+
+   3025 |          wsp(ih+(j-1)*mh+j) = CMPLX( hj1j )
+        |                                     1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3026:35:
+
+   3026 |          wsp(ih+j*mh+j-1) = CMPLX( hj1j )
+        |                                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3115:19:
+
+   3115 |       hjj = CMPLX( beta )
+        |                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3160:23:
+
+   3160 |       wsp(1)  = CMPLX( step_min )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3161:23:
+
+   3161 |       wsp(2)  = CMPLX( step_max )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3162:23:
+
+   3162 |       wsp(3)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3163:23:
+
+   3163 |       wsp(4)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3164:23:
+
+   3164 |       wsp(5)  = CMPLX( x_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3165:23:
+
+   3165 |       wsp(6)  = CMPLX( s_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3166:23:
+
+   3166 |       wsp(7)  = CMPLX( tbrkdwn )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3167:23:
+
+   3167 |       wsp(8)  = CMPLX( sgn*t_now )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3168:23:
+
+   3168 |       wsp(9)  = CMPLX( hump/vnorm )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3169:23:
+
+   3169 |       wsp(10) = CMPLX( beta/vnorm )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:3434:4:
+
+   3434 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:3796:4:
+
+   3796 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:4165:4:
+
+   4165 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:4129:37:
+
+   4129 |          wsp(ih+(j-1)*mh+j) = CMPLX( hj1j )
+        |                                     1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4213:19:
+
+   4213 |       hij = CMPLX( beta )
+        |                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4256:23:
+
+   4256 |       wsp(1)  = CMPLX( step_min )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4257:23:
+
+   4257 |       wsp(2)  = CMPLX( step_max )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4258:23:
+
+   4258 |       wsp(3)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4259:23:
+
+   4259 |       wsp(4)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4260:23:
+
+   4260 |       wsp(5)  = CMPLX( x_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4261:23:
+
+   4261 |       wsp(6)  = CMPLX( s_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4262:23:
+
+   4262 |       wsp(7)  = CMPLX( tbrkdwn )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4263:23:
+
+   4263 |       wsp(8)  = CMPLX( sgn*t_now )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4535:4:
+
+   4535 |  402  continue
+        |    1
+  Warning: Label 402 at (1) defined but not used [-Wunused-label]
+  expokit/expokit.f:4497:37:
+
+   4497 |          wsp(ih+(j-1)*mh+j) = CMPLX( hj1j )
+        |                                     1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4498:35:
+
+   4498 |          wsp(ih+j*mh+j-1) = CMPLX( hj1j )
+        |                                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4583:19:
+
+   4583 |       hjj = CMPLX( beta )
+        |                   1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4626:23:
+
+   4626 |       wsp(1)  = CMPLX( step_min )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4627:23:
+
+   4627 |       wsp(2)  = CMPLX( step_max )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4628:23:
+
+   4628 |       wsp(3)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4629:23:
+
+   4629 |       wsp(4)  = CMPLX( 0.0d0 )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4630:23:
+
+   4630 |       wsp(5)  = CMPLX( x_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4631:23:
+
+   4631 |       wsp(6)  = CMPLX( s_error )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4632:23:
+
+   4632 |       wsp(7)  = CMPLX( tbrkdwn )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:4633:23:
+
+   4633 |       wsp(8)  = CMPLX( sgn*t_now )
+        |                       1
+  Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument [-Wconversion]
+  expokit/expokit.f:295:72:
+
+    295 |          call DNCHBV(mx,sgn*t_step,wsp(ih),mh,wsp(iexph),wsp(ifree+mx))
+        |                                                                        1
+  Error: Type mismatch in argument 'wsp' at (1); passed REAL(8) to COMPLEX(8)
+  expokit/expokit.f:1903:72:
+
+   1903 |          call DNCHBV(mx,sgn*t_step,wsp(ih),mh,wsp(iexph),wsp(ifree+mx))
+        |                                                                        1
+  Error: Type mismatch in argument 'wsp' at (1); passed REAL(8) to COMPLEX(8)
+  expokit/expokit.f:2286:72:
+
+   2286 |          call DNCHBV(mx,sgn*t_step,wsp(ih),mh,wsp(iexph),wsp(ifree+mx))
+        |                                                                        1
+  Error: Type mismatch in argument 'wsp' at (1); passed REAL(8) to COMPLEX(8)
+  error: Command "/usr/local/bin/gfortran -Wall -g -ffixed-form -fno-second-underscore -arch x86_64 -fPIC -O3 -funroll-loops -Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/expokit -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c -c expokit/expokit.f -o build/temp.macosx-10.9-x86_64-3.7/expokit/expokit.o" failed with exit status 1
+
+  ########### EXT COMPILER OPTIMIZATION ###########
+  Platform      :
+    Architecture: x64
+    Compiler    : gcc
+
+  CPU baseline  :
+    Requested   : 'min'
+    Enabled     : SSE SSE2 SSE3
+    Flags       : -msse -msse2 -msse3
+    Extra checks: none
+
+  CPU dispatch  :
+    Requested   : 'max -xop -fma4'
+    Enabled     : SSSE3 SSE41 POPCNT SSE42 AVX F16C FMA3 AVX2 AVX512F AVX512CD AVX512_KNL AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL
+    Generated   : none
+  CCompilerOpt.cache_flush[804] : write cache to path -> /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-req-build-14y56ohx/build/temp.macosx-10.9-x86_64-3.7/ccompiler_opt_cache_ext.py
+  ----------------------------------------
+  ERROR: Failed building wheel for richmol
+  Running setup.py clean for richmol
+  Building wheel for py3nj (setup.py) ... error
+  ERROR: Command errored out with exit status 1:
+   command: /Users/zakemil/opt/anaconda3/bin/python -u -c 'import io, os, sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"'; __file__='"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"';f = getattr(tokenize, '"'"'open'"'"', open)(__file__) if os.path.exists(__file__) else io.StringIO('"'"'from setuptools import setup; setup()'"'"');code = f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' bdist_wheel -d /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-wheel-70rdpf5c
+       cwd: /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/
+  Complete output (386 lines):
+  running bdist_wheel
+  running build
+  running config_cc
+  unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+  running config_fc
+  unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+  running build_src
+  build_src
+  building py_modules sources
+  building extension "py3nj._wigner" sources
+  f2py options: []
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/fortranobject.c' to sources.
+    adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran' to include_dirs.
+  build_src: building npy-pkg config files
+  running build_py
+  creating build/lib.macosx-10.9-x86_64-3.7
+  creating build/lib.macosx-10.9-x86_64-3.7/py3nj
+  copying py3nj/__init__.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+  copying py3nj/wigner.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+  copying py3nj/_version.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+  running build_ext
+  customize UnixCCompiler
+  customize UnixCCompiler using build_ext
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-march=native)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils
+  creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-march=native'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-O3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-O3'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-Werror)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-Werror'
+  CCompilerOpt.__init__[1696] : check requested baseline
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse2'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE' with flags (-msse -msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE2' with flags (-msse -msse2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse3'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE3' with flags (-msse -msse2 -msse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -Werror'
+  CCompilerOpt.__init__[1705] : check requested dispatch-able features
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mssse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mssse3'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.1)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse4.1'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mpopcnt)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mpopcnt'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse4.2'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE42' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'POPCNT' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSSE3' with flags (-msse -msse2 -msse3 -mssse3)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'SSE41' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mf16c)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mf16c'
+  CCompilerOpt.feature_test[1463] : testing feature 'F16C' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx2'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX2' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2 -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mfma)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mfma'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512f)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512f'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512F' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+  CCompilerOpt.feature_test[1463] : testing feature 'FMA3' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512cd)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512cd'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512CD' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512er -mavx512pf'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vl -mavx512bw -mavx512dq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vl -mavx512bw -mavx512dq'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_SKX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vnni)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vnni'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CLX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o.d -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq) failed with exit status 1 output ->
+  clang: error: unknown argument: '-mavx5124fmaps'
+  clang: error: unknown argument: '-mavx5124vnniw'
+
+  CCompilerOpt.cc_test_flags[1012] : testing failed
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNM' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: implicit declaration of function '_mm512_4fmadd_ps' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: note: did you mean '_mm512_fmadd_ps'?
+  /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512fintrin.h:2725:1: note: '_mm512_fmadd_ps' declared here
+  _mm512_fmadd_ps(__m512 __A, __m512 __B, __m512 __C)
+  ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:7: error: assigning to '__m512' (vector of 16 'float' values) from incompatible type 'int'
+      b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+        ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: implicit declaration of function '_mm512_4dpwssd_epi32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: note: did you mean '_mm512_dpwssd_epi32'?
+  /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512vnniintrin.h:82:1: note: '_mm512_dpwssd_epi32' declared here
+  _mm512_dpwssd_epi32(__m512i __S, __m512i __A, __m512i __B)
+  ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+          ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:7: error: assigning to '__m512i' (vector of 8 'long long' values) from incompatible type 'int'
+      a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+        ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  6 errors generated.
+
+  CCompilerOpt.feature_test[1477] : testing failed
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512ifma -mavx512vbmi)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512ifma -mavx512vbmi'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi -Werror'
+  CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq'
+  CCompilerOpt.feature_test[1463] : testing feature 'AVX512_ICL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq -Werror'
+  CCompilerOpt.__init__[1718] : skip features (SSE SSE3 SSE2) since its part of baseline
+  CCompilerOpt.__init__[1721] : initialize targets groups
+  CCompilerOpt.__init__[1723] : parse target group simd_test
+  CCompilerOpt._parse_target_tokens[1936] : skip targets (XOP VSX ASIMD FMA4 NEON VSX2 VSX3) not part of baseline or dispatch-able features
+  CCompilerOpt._parse_policy_not_keepbase[2046] : skip baseline features (SSE2)
+  CCompilerOpt.generate_dispatch_header[2267] : generate CPU dispatch header: (build/src.macosx-10.9-x86_64-3.7/numpy/distutils/include/npy_cpu_dispatch_config.h)
+  CCompilerOpt.generate_dispatch_header[2278] : dispatch header dir build/src.macosx-10.9-x86_64-3.7/numpy/distutils/include does not exist, creating it
+  CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512F' (AVX512F_REDUCE)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+  CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512_SKX' (AVX512BW_MASK AVX512DQ_MASK)
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: implicit declaration of function '_kor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _kor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: implicit declaration of function '_kxor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _kxor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: note: did you mean '_kor_mask64'?
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: note: '_kor_mask64' declared here
+      m64 = _kor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      m64 = _kxor_mask64(m64, m64);
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: implicit declaration of function '_cvtu64_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+            ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: implicit declaration of function '_cvtmask64_u64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+                           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  8 errors generated.
+
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+  CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmp4n400e89/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: implicit declaration of function '_kor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _kor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: implicit declaration of function '_kxor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _kxor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: note: did you mean '_kor_mask8'?
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: note: '_kor_mask8' declared here
+      m8 = _kor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+      m8 = _kxor_mask8(m8, m8);
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: implicit declaration of function '_cvtu32_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+           ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: implicit declaration of function '_cvtmask8_u32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+                         ^
+  /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+  8 errors generated.
+
+  CCompilerOpt.feature_extra_checks[1559] : testing failed for checks (AVX512BW_MASK AVX512DQ_MASK)
+  get_default_fcompiler: matching types: '['gnu95', 'nag', 'absoft', 'ibm', 'intel', 'gnu', 'g95', 'pg']'
+  customize Gnu95FCompiler
+  Found executable /usr/local/bin/gfortran
+  customize Gnu95FCompiler
+  customize Gnu95FCompiler using build_ext
+  building 'py3nj._wigner' extension
+  compiling C sources
+  C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+  creating build/temp.macosx-10.9-x86_64-3.7/build
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+  creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran
+  compile options: '-Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+  extra options: '-fopenmp -msse -msse2 -msse3'
+  gcc: build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/fortranobject.c
+  gcc: build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.c
+  clang: error: unsupported option '-fopenmp'
+  clang: error: unsupported option '-fopenmp'
+  error: Command "gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.c -o build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.o -MMD -MF build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.o.d -fopenmp -msse -msse2 -msse3" failed with exit status 1
+
+  ########### EXT COMPILER OPTIMIZATION ###########
+  Platform      :
+    Architecture: x64
+    Compiler    : gcc
+
+  CPU baseline  :
+    Requested   : 'min'
+    Enabled     : SSE SSE2 SSE3
+    Flags       : -msse -msse2 -msse3
+    Extra checks: none
+
+  CPU dispatch  :
+    Requested   : 'max -xop -fma4'
+    Enabled     : SSSE3 SSE41 POPCNT SSE42 AVX F16C FMA3 AVX2 AVX512F AVX512CD AVX512_KNL AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL
+    Generated   : none
+  CCompilerOpt.cache_flush[804] : write cache to path -> /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/build/temp.macosx-10.9-x86_64-3.7/ccompiler_opt_cache_ext.py
+  ----------------------------------------
+  ERROR: Failed building wheel for py3nj
+  Running setup.py clean for py3nj
+Failed to build richmol py3nj
+Installing collected packages: py3nj, mendeleev, matplotlib, jax, richmol
+    Running setup.py install for py3nj ... error
+    ERROR: Command errored out with exit status 1:
+     command: /Users/zakemil/opt/anaconda3/bin/python -u -c 'import io, os, sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"'; __file__='"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"';f = getattr(tokenize, '"'"'open'"'"', open)(__file__) if os.path.exists(__file__) else io.StringIO('"'"'from setuptools import setup; setup()'"'"');code = f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-record-y_cs51b2/install-record.txt --single-version-externally-managed --compile --install-headers /Users/zakemil/opt/anaconda3/include/python3.7m/py3nj
+         cwd: /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/
+    Complete output (385 lines):
+    running install
+    running build
+    running config_cc
+    unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+    running config_fc
+    unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+    running build_src
+    build_src
+    building py_modules sources
+    building extension "py3nj._wigner" sources
+    f2py options: []
+      adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/fortranobject.c' to sources.
+      adding 'build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran' to include_dirs.
+    build_src: building npy-pkg config files
+    running build_py
+    creating build/lib.macosx-10.9-x86_64-3.7
+    creating build/lib.macosx-10.9-x86_64-3.7/py3nj
+    copying py3nj/__init__.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+    copying py3nj/wigner.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+    copying py3nj/_version.py -> build/lib.macosx-10.9-x86_64-3.7/py3nj
+    running build_ext
+    customize UnixCCompiler
+    customize UnixCCompiler using build_ext
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-march=native)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils
+    creating /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-march=native'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-O3)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-O3'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-Werror)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-Werror'
+    CCompilerOpt.__init__[1696] : check requested baseline
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-msse)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-msse2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse2'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSE2' with flags (-msse -msse2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSE' with flags (-msse -msse2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-msse3)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse3'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSE3' with flags (-msse -msse2 -msse3)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -Werror'
+    CCompilerOpt.__init__[1705] : check requested dispatch-able features
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mssse3)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mssse3'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.1)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse4.1'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mpopcnt)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mpopcnt'
+    CCompilerOpt.feature_test[1463] : testing feature 'POPCNT' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSSE3' with flags (-msse -msse2 -msse3 -mssse3)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSE41' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-msse4.2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse4.2'
+    CCompilerOpt.feature_test[1463] : testing feature 'SSE42' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mf16c)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mf16c'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mfma)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mfma'
+    CCompilerOpt.feature_test[1463] : testing feature 'FMA3' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx2'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX2' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2 -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'F16C' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512f)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512f'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512F' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512cd)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512cd'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512er -mavx512pf)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512er -mavx512pf'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512CD' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq'
+    CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/test_flags.o.d -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq) failed with exit status 1 output ->
+    clang: error: unknown argument: '-mavx5124fmaps'
+    clang: error: unknown argument: '-mavx5124vnniw'
+
+    CCompilerOpt.cc_test_flags[1012] : testing failed
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_KNM' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror'
+    CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512er -mavx512pf -Werror) failed with exit status 1 output ->
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: implicit declaration of function '_mm512_4fmadd_ps' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+            ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: note: did you mean '_mm512_fmadd_ps'?
+    /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512fintrin.h:2725:1: note: '_mm512_fmadd_ps' declared here
+    _mm512_fmadd_ps(__m512 __A, __m512 __B, __m512 __C)
+    ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+        b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+            ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:22:7: error: assigning to '__m512' (vector of 16 'float' values) from incompatible type 'int'
+        b = _mm512_4fmadd_ps(b, b, b, b, b, NULL);
+          ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: implicit declaration of function '_mm512_4dpwssd_epi32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+            ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: note: did you mean '_mm512_dpwssd_epi32'?
+    /Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/avx512vnniintrin.h:82:1: note: '_mm512_dpwssd_epi32' declared here
+    _mm512_dpwssd_epi32(__m512i __S, __m512i __A, __m512i __B)
+    ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:9: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+        a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+            ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/cpu_avx512_knm.c:24:7: error: assigning to '__m512i' (vector of 8 'long long' values) from incompatible type 'int'
+        a = _mm512_4dpwssd_epi32(a, a, a, a, a, NULL);
+          ^ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    6 errors generated.
+
+    CCompilerOpt.feature_test[1477] : testing failed
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vl -mavx512bw -mavx512dq)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512vl -mavx512bw -mavx512dq'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_SKX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512ifma -mavx512vbmi)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512ifma -mavx512vbmi'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vnni)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512vnni'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_CLX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -Werror'
+    CCompilerOpt.cc_test_flags[1008] : testing flags (-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq'
+    CCompilerOpt.feature_test[1463] : testing feature 'AVX512_ICL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512vpopcntdq -Werror'
+    CCompilerOpt.__init__[1718] : skip features (SSE SSE2 SSE3) since its part of baseline
+    CCompilerOpt.__init__[1721] : initialize targets groups
+    CCompilerOpt.__init__[1723] : parse target group simd_test
+    CCompilerOpt._parse_target_tokens[1936] : skip targets (VSX3 VSX2 FMA4 NEON VSX XOP ASIMD) not part of baseline or dispatch-able features
+    CCompilerOpt._parse_policy_not_keepbase[2046] : skip baseline features (SSE2)
+    CCompilerOpt.generate_dispatch_header[2267] : generate CPU dispatch header: (build/src.macosx-10.9-x86_64-3.7/numpy/distutils/include/npy_cpu_dispatch_config.h)
+    CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512F' (AVX512F_REDUCE)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -Werror'
+    CCompilerOpt.feature_extra_checks[1541] : Testing extra checks for feature 'AVX512_SKX' (AVX512BW_MASK AVX512DQ_MASK)
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+    CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: implicit declaration of function '_kor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m64 = _kor_mask64(m64, m64);
+              ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: implicit declaration of function '_kxor_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m64 = _kxor_mask64(m64, m64);
+              ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: note: did you mean '_kor_mask64'?
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:12:11: note: '_kor_mask64' declared here
+        m64 = _kor_mask64(m64, m64);
+              ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:13:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+        m64 = _kxor_mask64(m64, m64);
+              ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: implicit declaration of function '_cvtu64_mask64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+              ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:11: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: implicit declaration of function '_cvtmask64_u64' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m64 = _cvtu64_mask64(_cvtmask64_u64(m64));
+                             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512bw_mask.c:14:26: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    8 errors generated.
+
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    compile options: '-I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+    CCompilerOpt.dist_test[576] : CCompilerOpt._dist_test_spawn[713] : Command (gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include/python3.7m -c /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c -o /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o -MMD -MF /var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/tmphxromi47/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.o.d -msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror) failed with exit status 1 output ->
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: implicit declaration of function '_kor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m8 = _kor_mask8(m8, m8);
+             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: implicit declaration of function '_kxor_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m8 = _kxor_mask8(m8, m8);
+             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: note: did you mean '_kor_mask8'?
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:12:10: note: '_kor_mask8' declared here
+        m8 = _kor_mask8(m8, m8);
+             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:13:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+        m8 = _kxor_mask8(m8, m8);
+             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: implicit declaration of function '_cvtu32_mask8' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+             ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:10: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: implicit declaration of function '_cvtmask8_u32' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        m8 = _cvtu32_mask8(_cvtmask8_u32(m8));
+                           ^
+    /Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/distutils/checks/extra_avx512dq_mask.c:14:24: error: this function declaration is not a prototype [-Werror,-Wstrict-prototypes]
+    8 errors generated.
+
+    CCompilerOpt.feature_extra_checks[1559] : testing failed for checks (AVX512BW_MASK AVX512DQ_MASK)
+    get_default_fcompiler: matching types: '['gnu95', 'nag', 'absoft', 'ibm', 'intel', 'gnu', 'g95', 'pg']'
+    customize Gnu95FCompiler
+    Found executable /usr/local/bin/gfortran
+    customize Gnu95FCompiler
+    customize Gnu95FCompiler using build_ext
+    building 'py3nj._wigner' extension
+    compiling C sources
+    C compiler: gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64
+
+    creating build/temp.macosx-10.9-x86_64-3.7/build
+    creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+    creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran
+    creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build
+    creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7
+    creating build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran
+    compile options: '-Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c'
+    extra options: '-fopenmp -msse -msse2 -msse3'
+    gcc: build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.cgcc: build/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/fortranobject.c
+
+    clang: errorclang: : unsupported option '-fopenmp'
+    error: unsupported option '-fopenmp'
+    error: Command "gcc -Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -I/Users/zakemil/opt/anaconda3/include -arch x86_64 -Ibuild/src.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran -I/Users/zakemil/opt/anaconda3/lib/python3.7/site-packages/numpy/core/include -Ibuild/src.macosx-10.9-x86_64-3.7/numpy/distutils/include -I/Users/zakemil/opt/anaconda3/include/python3.7m -c build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.c -o build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.o -MMD -MF build/temp.macosx-10.9-x86_64-3.7/build/src.macosx-10.9-x86_64-3.7/fortran/_wignermodule.o.d -fopenmp -msse -msse2 -msse3" failed with exit status 1
+
+    ########### EXT COMPILER OPTIMIZATION ###########
+    Platform      :
+      Architecture: x64
+      Compiler    : gcc
+
+    CPU baseline  :
+      Requested   : 'min'
+      Enabled     : SSE SSE2 SSE3
+      Flags       : -msse -msse2 -msse3
+      Extra checks: none
+
+    CPU dispatch  :
+      Requested   : 'max -xop -fma4'
+      Enabled     : SSSE3 SSE41 POPCNT SSE42 AVX F16C FMA3 AVX2 AVX512F AVX512CD AVX512_KNL AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL
+      Generated   : none
+    CCompilerOpt.cache_flush[804] : write cache to path -> /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/build/temp.macosx-10.9-x86_64-3.7/ccompiler_opt_cache_ext.py
+    ----------------------------------------
+ERROR: Command errored out with exit status 1: /Users/zakemil/opt/anaconda3/bin/python -u -c 'import io, os, sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"'; __file__='"'"'/private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-install-8gkquodw/py3nj_3c9c0dadcf8449d39d591cdb53faf0b3/setup.py'"'"';f = getattr(tokenize, '"'"'open'"'"', open)(__file__) if os.path.exists(__file__) else io.StringIO('"'"'from setuptools import setup; setup()'"'"');code = f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/2g/zn2xrgbx467c7f9yv1brw4mh0000gp/T/pip-record-y_cs51b2/install-record.txt --single-version-externally-managed --compile --install-headers /Users/zakemil/opt/anaconda3/include/python3.7m/py3nj Check the logs for full command output.
