@@ -50,8 +50,9 @@ class TDSE():
                 Initializes `TDSE` object
             time_grid(grid_type='equidistant')
                 Generates time-grid to propagate on
-            init_state(
-            update(H, vecs, H0=None, matvec_lib='scipy', tol=1e-15):
+            init_state(H, **kwargs)
+                Generates initial state vectors
+            update(H, vecs, **kwargs):
                 Propagates vectors by one time-step
     """
 
@@ -127,7 +128,8 @@ class TDSE():
         # energy units
         enr_units = {
                 'invcm' : 1 / convert_units.J_to_invcm(),
-                'mhz'   : convert_units.MHz_to_invcm() / convert_units.J_to_invcm()
+                'mhz'   : convert_units.MHz_to_invcm() \
+                    / convert_units.J_to_invcm()
                 }
         if 'enr_units' in kwargs:
             assert (type(kwargs['enr_units']) == str), \
@@ -172,7 +174,7 @@ class TDSE():
         return t_c
 
 
-    def init_state(self, H, temp=None, thresh=1e-3, zpe=None):
+    def init_state(self, H, **kwargs):
         """ Generates initial state vectors
 
             Initial state vectors are eigenfunctions of Hamiltonian `H`. If
@@ -184,6 +186,8 @@ class TDSE():
         Args:
             H : :py:class:`field.CarTens`
                 Hamiltonian operator
+
+        Kwargs:
             temp : float
                 Temperature in Kelvin
             thresh : float
@@ -198,21 +202,31 @@ class TDSE():
         """
 
         # temperature
-        assert (temp is None or type(temp) in [int, float]), \
-            f"temperature `temp` has bad type: '{type(temp)}', " \
-                + f"(must be 'None', 'int', 'float')"
-        if type(temp) in [int, float]:
-            assert (temp >= 0), \
-                f"temperature `temp` has bad value: '{temp}', " \
-                    + f"(must be >= 0)"
+        if 'temp' in kwargs:
+            assert ( kwargs['temp'] is None \
+                     or type(kwargs['temp']) in [int, float] ), \
+                f"temperature `temp` has bad type: " \
+                    + f"'{type(kwargs['temp'])}', " \
+                    + f"(must be 'None', 'int', 'float')"
+            if type(kwargs['temp']) in [int, float]:
+                assert (kwargs['temp'] >= 0), \
+                    f"temperature `temp` has bad value: '{kwargs['temp']}', " \
+                        + f"(must be >= 0)"
+            temp = kwargs['temp']
+        else:
+            temp = None
 
         # partition function threshold
-        assert (type(thresh) in [int, float]), \
-            f"partition function threshold `thresh` has bad type: " \
-                + f"'{type(thresh)}', (must be 'int', 'float')"
-        assert (thresh >= 0), \
-            f"partition function threshold `thresh` has bad value: " \
-                + f"'{thresh}' (must be >= 0)"
+        if 'thresh' in kwargs:
+            assert (type(kwargs['thresh']) in [int, float]), \
+                f"partition function threshold `thresh` has bad type: " \
+                    + f"'{type(kwargs['thresh'])}', (must be 'int', 'float')"
+            assert (kwargs['thresh'] >= 0), \
+                f"partition function threshold `thresh` has bad value: " \
+                    + f"'{kwargs['thresh']}' (must be >= 0)"
+            thresh = kwargs['thresh']
+        else:
+            thresh = 1e-3
 
         # convert field-free tensor into Hamiltonian
         H_is_diag = False
@@ -236,14 +250,19 @@ class TDSE():
             vecs = np.eye(hmat.shape[0])
         else:
             enrs, vecs = np.linalg.eigh(hmat)
-
-        if zpe is None:
+        print('a')
+        # zero-point energy
+        if 'zpe' in kwargs:
+            assert (type(kwargs['zpe']) in [int, float]), \
+                f"zero-point energy `zpe` has bad type: " \
+                    + f"'{type(kwargs['zpe'])}', " \
+                    + f"(must be 'int', 'float')"
+            assert (kwargs['zpe'] <= abs(enrs[0])), \
+                f"zero-point energy `zpe` has bad value: '{kwargs['zpe']}', " \
+                    + f"(must be <= '{abs(enrs[0])}')"
+            zpe = kwargs['zpe']
+        else:
             zpe = enrs[0]
-        if enrs[0] - zpe < 0:
-            raise ValueError(
-                f"input zero-point energy '{zpe}' is greater than " \
-                    + f"lowest energy '{enrs[0]}'"
-            ) from None
 
         # Boltzmann weights
         enrs -= zpe
