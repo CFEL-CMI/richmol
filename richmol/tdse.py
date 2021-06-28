@@ -250,7 +250,7 @@ class TDSE():
             vecs = np.eye(hmat.shape[0])
         else:
             enrs, vecs = np.linalg.eigh(hmat)
-        print('a')
+
         # zero-point energy
         if 'zpe' in kwargs:
             assert (type(kwargs['zpe']) in [int, float]), \
