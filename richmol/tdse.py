@@ -314,10 +314,11 @@ class TDSE():
 
         # field-free Hamiltonian
         if 'H0' in kwargs:
-            assert (type(kwargs['H0']) is richmol.field.CarTens), \
-                f"field-free Hamiltonian `H0` has bad type: " \
+            assert ( type(kwargs['H0']) is richmol.field.CarTens or \
+                     issubclass(type(kwargs['H0']), richmol.field.CarTens) ), \
+                f"field-free Hamiltonian `H0` is of bad (sub-)class: " \
                     + f"'{type(kwargs['H0'])}', " \
-                    + f"(must be '{richmol.field.CarTens}')"
+                    + f"(must be (sub-class of) '{richmol.field.CarTens}')"
             H0 = kwargs['H0']
         else:
             H0 = None
