@@ -280,8 +280,8 @@ class TDSE():
             inds = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
             vecs = vecs[inds] * np.expand_dims(weights[inds], axis=1)
- 
-        return vecs
+
+        return vecs.astype(np.complex128)
 
 
     @update_counter
@@ -417,7 +417,7 @@ class TDSE():
         else:
             vecs2 = np.empty(vecs.shape, dtype=vecs.dtype)
             for ind, vec in enumerate(vecs):
-                vecs2[ind] = _expv_lanczos(
+                vecs2[ind] = _expmv_lanczos(
                     vec, exp_fac, lambda v : cartensvec(v), tol=tol
                 )
 
