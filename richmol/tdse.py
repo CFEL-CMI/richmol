@@ -416,10 +416,21 @@ class TDSE():
 
         else:
             vecs2 = np.empty(vecs.shape, dtype=vecs.dtype)
-            for ind, vec in enumerate(vecs):
-                vecs2[ind] = _expmv_lanczos(
-                    vec, exp_fac, lambda v : cartensvec(v), tol=tol
-                )
+            if propag == 'internal':
+                for ind, vec in enumerate(vecs):
+                    vecs2[ind] = _expmv_lanczos(
+                        vec, exp_fac, lambda v : cartensvec(v), tol=tol
+                    )
+            else:
+                for ind, vec in enumerate(vecs):
+                    vecs2[ind] = zhexpv(
+                        vec,
+                        onenormest(H.tomat(form='full')),
+                        12,
+                        exp_fac.imag,
+                        lambda v : cartensvec(v) * 1j,
+                        tol = tol
+                    )
 
         return vecs2
 
