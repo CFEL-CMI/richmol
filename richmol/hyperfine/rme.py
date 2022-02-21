@@ -70,6 +70,7 @@ def _spinMe(I_bra, I_ket, ispin, no_spins, spins, rank, oper, **kwargs):
         else:
             fac = I1_bra + I2_ket + I12_bra + rank
             assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
+            fac = int(fac)
             coef1 = (-1)**fac \
                   * np.sqrt((2*I12_bra + 1) * (2*I12_ket + 1)) \
                   * py3nj.wigner6j(int(I2_bra*2), int(I12_bra*2), int(I1_bra*2),
@@ -85,6 +86,7 @@ def _spinMe(I_bra, I_ket, ispin, no_spins, spins, rank, oper, **kwargs):
         else:
             fac = I1_bra + I2_bra + I12_ket + rank
             assert (float(fac).is_integer()), f"Non-integer power in (-1)**g: '(-1)**{fac}'"
+            fac = int(fac)
             coef1 = (-1)**fac \
                   * np.sqrt((2*I12_bra + 1) * (2*I12_ket + 1)) \
                   * py3nj.wigner6j(int(I1_bra*2), int(I12_bra*2), int(I2_bra*2),
@@ -120,7 +122,7 @@ def spinMe(quanta, spins, rank, oper, **kwargs):
             Reduced matrix elements
             me[i, k, l] = < k || O(I_i) || l >
     """
-    me = np.zeros((len(quanta), len(quanta), len(spins)), dtype=np.float64)
+    me = np.zeros((len(spins), len(quanta), len(quanta)), dtype=np.float64)
     for i, q1 in enumerate(quanta):
         for j, q2 in enumerate(quanta):
             for ispin in range(len(spins)):
@@ -158,10 +160,11 @@ def spinMe_IxI(quanta, spins, rank):
             I2 = q2[-1]
             fac = I2 + I2 + rank
             assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
+            fac = int(fac)
             fac = (-1)**fac * np.sqrt(2*rank + 1)
             n = len(quanta)
             coef[i, j, :] = fac * py3nj.wigner6j([2]*n, [2]*n, [rank*2]*n, [int(I2*2)]*n,
-                                                 [int(I1*2)]*n, [q[-1]*2 for q in quanta])
+                                                 [int(I1*2)]*n, [int(q[-1]*2) for q in quanta])
     me = np.einsum('ikl,jln,knl->ijkn', rme, rme, coef)
     return me
 
