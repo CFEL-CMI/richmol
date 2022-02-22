@@ -41,13 +41,15 @@ def nearEqualCoupling(f, spins):
     quanta = [s + [jj] for (s, jj) in itertools.product(spinQueue, j)
               if any(np.arange(np.abs(s[-1] - jj), s[-1] + jj + 1) == f)]
 
-    spinQuanta = [elem[:-1] for elem in quanta]
+    spinQuanta = [tuple(elem[:-1]) for elem in quanta]
     jQuanta = [int(elem[-1]) for elem in quanta]
     return spinQuanta, jQuanta
 
 
 
 if __name__ == '__main__':
+
+    # test for F = 30 and two spins 1/2
 
     spinQuanta, jQuanta = nearEqualCoupling(30, [1/2, 1/2])
     print(spinQuanta)

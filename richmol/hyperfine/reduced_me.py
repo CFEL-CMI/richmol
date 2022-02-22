@@ -158,7 +158,7 @@ def spinMe_IxI(quanta, spins, rank):
         I1 = q1[-1]
         for j, q2 in enumerate(quanta):
             I2 = q2[-1]
-            fac = I2 + I2 + rank
+            fac = I1 + I2 + rank
             assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
             fac = int(fac)
             fac = (-1)**fac * np.sqrt(2*rank + 1)
@@ -171,6 +171,8 @@ def spinMe_IxI(quanta, spins, rank):
 
 
 if __name__ == '__main__':
+
+    # test reduced matrix elements for two spins 1/2
 
     spins = [1/2, 1/2]
     quanta = [(1/2, 0), (1/2, 1)]
