@@ -1,6 +1,6 @@
 import numpy as np
 from reduced_me import spinMe_IxI
-from basis import nearEqualCoupling
+from basis import nearEqualCoupling, spinNearEqualCoupling
 from richmol.field import CarTens
 import py3nj
 import sys
@@ -44,10 +44,10 @@ def Hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         hamMat : matrix
             Total Hamiltonian matrix
     """
-
     # coupling of spin and J quanta
 
     spinQuanta, jQuanta = nearEqualCoupling(f, spins)
+    spinBasis = spinNearEqualCoupling(spins)
 
     if any(j not in h0.Jlist1 for j in jQuanta):
         raise ValueError(
@@ -70,18 +70,20 @@ def Hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         allowedSym2[key] = [sym for sym in h0.symlist2[j] if symmetryRules(spin, sym)]
         print(spin, " %3i"%j, "  ", allowedSym1[key], "  ", allowedSym2[key])
 
-    # spin-spin coupling
+    # spin-spin intermediates
 
     if ss is not None:
 
         if any(n < 0 or n > len(spins) for n12 in ss.keys() for n in n12):
             raise ValueError(
-                f"Bad spin indices in keys of 'ss' parameter = {list(ss.keys())}, " + \
+                f"Bad spin indices in the keys of 'ss' parameter = {list(ss.keys())}, " + \
                 f"these must be positive integers not exceeding total number of " + \
                 f"spins = {len(spins)}") from None
 
         if any(n[0] == n[1] for n in ss.keys()):
-            raise ValueError(f"Same-center spin-spin coupling is not allowed") from None
+            raise ValueError(
+                f"Same-center spin-spin coupling is not allowed, " + \
+                f"check keys of 'ss' parameter") from None
 
         # rank of spin-spin tensor
         ss_rank = 2
@@ -90,15 +92,15 @@ def Hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         coef = np.zeros((len(jQuanta), len(jQuanta)), dtype=np.float64)
         for i, (spin1, j1) in enumerate(zip(spinQuanta, jQuanta)):
             for j, (spin2, j2) in enumerate(zip(spinQuanta, jQuanta)):
-                fac = spin2[-1] + j1 + j2 + f + ss_rank # NOTE: not sure about ss_rank here
+                fac = spin2[-1] + j1 + j2 + f + ss_rank
                 assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
                 fac = int(fac)
-                coef[i, j] = (-1)**fac * np.sqrt((2 * j1 + 1) * (2 * j2 + 1)) \
+                coef[i, j] = (-1)**fac * np.sqrt((2*j1+1) * (2*j2+1)) \
                            * py3nj.wigner6j(int(spin1[-1]*2), int(j1*2), int(f*2),
                                             int(j2*2), int(spin2[-1]*2), ss_rank*2)
 
         # nuclear spin reduced matrix elements x 6j coefficient
-        rme_ss = spinMe_IxI(spinQuanta, spins, ss_rank) * coef
+        rme_ss = spinMe_IxI(spinQuanta, spinQuanta, spinBasis, spins, ss_rank) * coef
 
 
     # build Hamiltonian matrix
@@ -137,13 +139,11 @@ def Hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
                     if ss is not None:
                         for (n1, n2) in ss.keys():
                             try:
-                                kmat = ss[(n1, n2)].kmat[(j1, j2)][(sym1, sym2)][ss_rank]
-                                x = kmat.shape
+                                kmat = ss[(n1, n2)].kmat[(j1, j2)][(sym1, sym2)][ss_rank].toarray()
                             except (AttributeError, KeyError):
                                 continue
-                            mat += kmat.toarray() * rme_ss[n1, n2, i, j]
-
-                    hamMat_.append(mat + mat0)
+                            mat += kmat * rme_ss[n1, n2, i, j]
+                    hamMat_.append(mat)
 
             hamMat0.append(hamMat0_)
             hamMat.append(hamMat_)
@@ -208,17 +208,14 @@ if __name__ == '__main__':
              + (spin[-1] == 1) * (rovibSym.lower() in ('b2')) \
 
 
+    kHz_to_invcm = MHz_to_invcm(1/1000)[0]
+
     f = 10.0
     spins = [1/2, 1/2]
     richmolFile = "/gpfs/cfel/group/cmi/data/Theory_H2O_hyperfine/H2O-16/basis_p48/richmol_database_rovib/h2o_p48_j40_rovib.h5"
     h0 = CarTens(richmolFile, name='h0')
     ss = CarTens(richmolFile, name='spin-spin H1-H2')
 
-    kHz_to_invcm = MHz_to_invcm(1/1000)[0]
-    ss = ss * kHz_to_invcm
-    print(kHz_to_invcm)
-
     ham, ham0 = Hamiltonian(f, spins, h0, ss={(0, 1): ss}, symmetryRules=c2vOrthoParaB1Rules)
-    enr, _ = np.linalg.eigh(ham)
+    enr, _ = np.linalg.eigh(ham0.real + ham * kHz_to_invcm)
     print([(e, (e-e0)/kHz_to_invcm) for e, e0 in zip(enr, np.sort(np.diag(ham0.real)))])
-    print(len(enr))

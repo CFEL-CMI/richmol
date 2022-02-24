@@ -53,7 +53,7 @@ def _qmom(I_bra, I_ket, tol=1e-8, **kwargs):
 
 
 def _spinMe(I_bra, I_ket, ispin, no_spins, spins, rank, oper, **kwargs):
-    """Reduced matrix element of a single-spin operator in coupled spin basis"""
+    """Reduced matrix element of a single-spin operator in coupled-spin basis"""
 
     I1_bra = I_bra[no_spins-1]
     I1_ket = I_ket[no_spins-1]
@@ -96,16 +96,18 @@ def _spinMe(I_bra, I_ket, ispin, no_spins, spins, rank, oper, **kwargs):
     return coef1 * coef2
 
 
-def spinMe(quanta, spins, rank, oper, **kwargs):
+def spinMe(bra, ket, spins, rank, oper, **kwargs):
     """Reduced matrix elements of a single-spin operator O(I_i)
-    in coupled spin basis
+    in coupled-spin basis
 
     Args:
-        quanta : list
-            List of spin quanta in coupled spin basis,
+        bra : list
+            List of spin quanta in a coupled-spin basis referring to a 'bra' state,
             e.g., [(I_1, I_12, ..., I_1N), (I_1, I_12, ..., I_1N), ...],
             where I_1, I_12, I_1N are quantum numbers of spin operators
             I_1, I_1+I_2, I_1+I_2+..I_N, respectively
+        ket : list
+            List of spin quanta in a coupled-spin basis referring to a 'ket' state
         spins : list
             List of spin quanta, e.g., [I_1, I_2, ... I_N]
         rank : int
@@ -118,54 +120,63 @@ def spinMe(quanta, spins, rank, oper, **kwargs):
                 Value of nuclear quadrupole constant (if oper == 'qmom')
 
     Returns:
-        me : array (len(spins), len(quanta), len(quanta))
+        me : array (len(spins), len(bra), len(ket))
             Reduced matrix elements
             me[i, k, l] = < k || O(I_i) || l >
     """
-    me = np.zeros((len(spins), len(quanta), len(quanta)), dtype=np.float64)
-    for i, q1 in enumerate(quanta):
-        for j, q2 in enumerate(quanta):
+    me = np.zeros((len(spins), len(bra), len(ket)), dtype=np.float64)
+    for i, q1 in enumerate(bra):
+        for j, q2 in enumerate(ket):
             for ispin in range(len(spins)):
                 n = len(spins) - 1
                 me[ispin, i, j]  = _spinMe(q1, q2, ispin, n, spins, rank, oper, **kwargs)
     return me
 
 
-def spinMe_IxI(quanta, spins, rank):
+def spinMe_IxI(bra, ket, basis, spins, rank):
     """Reduced matrix element of tensor product [I_i^(1) x I_j^(1)]^(rank)
-    in coupled spin basis
+    in coupled-spin basis
 
     Args:
-        quanta : list
-            List of spin quanta in coupled spin basis,
+        bra : list
+            List of spin quanta in a coupled-spin basis referring to a 'bra' state,
             e.g., [(I_1, I_12, ..., I_1N), (I_1, I_12, ..., I_1N), ...],
             where I_1, I_12, I_1N are quantum numbers of spin operators
             I_1, I_1+I_2, I_1+I_2+..I_N, respectively
+        ket : list
+            List of spin quanta in a coupled-spin basis referring to a 'ket' state
+        basis : list
+            Complete list of spin quanta in a coupled-spin basis
         spins : list
             List of spin quanta, e.g., [I_1, I_2, ... I_N]
         rank : int
             Rank of [I^(1) x I^(1)] tensor product, can be 0, 1, or 2
 
     Returns:
-        me : array (len(spins), len(spins), len(quanta), len(quanta))
+        me : array (len(spins), len(spins), len(bra), len(ket))
             Reduced matrix elements
             me[i, j, k, l] = < k || [I_i^(1) x I_j^(1)]^(rank) || l >
     """
     assert (rank in (0, 1, 2)), f"Illegal value of tensor product rank: '{rank}'"
-    rme = spinMe(quanta, spins, 1, 'spin')
-    coef = np.zeros((len(quanta), len(quanta), len(quanta)), dtype=np.float64)
-    for i, q1 in enumerate(quanta):
+    assert (all(elem in basis for elem in bra)), \
+        f"Not all 'bra' spin states = {bra} are spanned by basis = {basis}"
+    assert (all(elem in basis for elem in ket)), \
+        f"Not all 'ket' spin states = {ket} are spanned by basis = {basis}"
+    rme1 = spinMe(bra, basis, spins, 1, 'spin')
+    rme2 = spinMe(basis, ket, spins, 1, 'spin')
+    coef = np.zeros((len(bra), len(ket), len(basis)), dtype=np.float64)
+    for i, q1 in enumerate(bra):
         I1 = q1[-1]
-        for j, q2 in enumerate(quanta):
+        for j, q2 in enumerate(ket):
             I2 = q2[-1]
             fac = I1 + I2 + rank
             assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
             fac = int(fac)
             fac = (-1)**fac * np.sqrt(2*rank + 1)
-            n = len(quanta)
+            n = len(basis)
             coef[i, j, :] = fac * py3nj.wigner6j([2]*n, [2]*n, [rank*2]*n, [int(I2*2)]*n,
-                                                 [int(I1*2)]*n, [int(q[-1]*2) for q in quanta])
-    me = np.einsum('ikl,jln,knl->ijkn', rme, rme, coef)
+                                                 [int(I1*2)]*n, [int(q[-1]*2) for q in basis])
+    me = np.einsum('ikl,jln,knl->ijkn', rme1, rme2, coef)
     return me
 
 
@@ -175,20 +186,22 @@ if __name__ == '__main__':
     # test reduced matrix elements for two spins 1/2
 
     spins = [1/2, 1/2]
-    quanta = [(1/2, 0), (1/2, 1)]
+    basis = [(1/2, 0), (1/2, 1)]
+    bra = [(1/2, 0), (1/2, 1)]
+    ket = [(1/2, 0), (1/2, 1)]
 
     print("matrix elements < || I_i || >")
-    me = spinMe(quanta, spins, 1, 'spin')
-    for k, q1 in enumerate(quanta):
-        for l, q2 in enumerate(quanta):
+    me = spinMe(bra, ket, spins, 1, 'spin')
+    for k, q1 in enumerate(bra):
+        for l, q2 in enumerate(ket):
             for i in range(len(spins)):
                 print(q1, q2, i, me[i, k, l])
 
 
     print("matrix elements < || [I_i^(1) x I_j^(1)]^(2) || >")
-    me = spinMe_IxI(quanta, spins, 2)
-    for k, q1 in enumerate(quanta):
-        for l, q2 in enumerate(quanta):
+    me = spinMe_IxI(bra, ket, basis, spins, 2)
+    for k, q1 in enumerate(bra):
+        for l, q2 in enumerate(ket):
             for i in range(len(spins)):
                 for j in range(len(spins)):
                     print(q1, q2, i, j, me[i, j, k, l])
