@@ -166,6 +166,20 @@ class CarTens():
             M-tensor matrix elements contracted with field. Produced after
             multiplication of tensor with a vector of X, Y, and Z field values
             (see :py:func:`field`). Has the same structure as :py:attr:`kmat`.
+        eigvec : nested dict
+            Eigenvectors (in dense matrix format) for different J quanta
+            and different symmetries.
+
+            NOTE: state selection filters (:py:func:`filter`) are not implemented,
+            and thus have no effect, for `eigvec` attribute.
+
+            Example:
+
+            .. code-block:: python
+
+                for J in eigvec.items():
+                    for sym in eigvec[J].items():
+                        print(type(eigvec[J][sym]))
     """
 
     def __init__(self, filename=None, matelem=None, name=None, **kwargs):
@@ -1352,7 +1366,7 @@ class CarTens():
 
             # store attributes
 
-            exclude = ["mmat", "kmat", "molecule", "basis"]
+            exclude = ["mmat", "kmat", "molecule", "basis", "eigvec"]
             try:
                 exclude = exclude + [elem for elem in self.store_exclude]
             except AttributeError:
@@ -1371,6 +1385,24 @@ class CarTens():
 
             if hasattr(self, "basis"):
                 group.attrs["basis__json"] = json.dumps(dict(self.basis))
+
+            # store eigenvectors
+
+            if hasattr(self, "eigvec"):
+                for J1 in self.eigvec.keys():
+                    for sym1 in self.eigvec[J1].keys():
+                        v = self.eigvec[J1][sym1]
+                        try:
+                            group_j = group[J_group_key(J1, J1)]
+                        except:
+                            group_j = group.create_group(J_group_key(J1, J1))
+                        try:
+                            group_sym = group_j[sym_group_key(sym1, sym1)]
+                        except:
+                            group_sym = group_j.create_group(sym_group_key(sym1, sym1))
+                        if "eigvec" in group_sym:
+                            del group_sym["eigvec"]
+                        group_sym.create_dataset("eigvec", data=v)
 
             # store M and K tensors
 
@@ -1559,10 +1591,12 @@ class CarTens():
             self.__dict__.update(attrs)
 
             # read M and K tensors
+            # read eigenvectors
 
             mydict = lambda: defaultdict(mydict)
             self.kmat = mydict()
             self.mmat = mydict()
+            self.eigvec = mydict()
 
             # apply state selection filters
             self.filter(**kwargs)
@@ -1599,6 +1633,15 @@ class CarTens():
                             ik2 = self.ind_k2[J2][sym2]
                             im1 = self.ind_m1[J1][sym1]
                             im2 = self.ind_m2[J2][sym2]
+
+                            # read eigenvectors
+
+                            if J1 == J2 and sym1 == sym2:
+                                try:
+                                    data = group_sym['eigvec']
+                                    self.eigvec[J1][sym1] = np.take(np.take(data, ik1, axis=0), ik2, axis=1)
+                                except KeyError:
+                                    pass
 
                             # read K-matrix
 
