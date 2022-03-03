@@ -1,10 +1,11 @@
 import numpy as np
 from scipy.sparse import csr_matrix
-from reduced_me import spinMe_IxI, spinMe
-from basis import nearEqualCoupling, spinNearEqualCoupling
+from richmol.hyperfine.reduced_me import spinMe_IxI, spinMe
+from richmol.hyperfine.basis import nearEqualCoupling, spinNearEqualCoupling
 from richmol.field import CarTens
 import py3nj
 from collections import defaultdict
+from richmol.hyperfine.labtens import LabTensor as HyperLabTensor
 
 
 def defaultSymmetryRules(spin, rovibSym):
@@ -51,15 +52,20 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         hamMat0 : matrix
             Rovibrational Hamiltonian matrix
         quanta : list
-            List of spin-rovibrational quanta. Each element of `quanta` is a tuple
-            (spin, j, sym, k), where `spin` contains list of spin quanta in coupled
-            basis set (spin[-1] is the total spin quantum number), `j` is rotational
-            quantum number, `sym` is symmetry of rovibrational wave function,
-            and `k=h0.quanta_k1[j][sym]` consists of list of rovibrational quantum
-            numbers (sometimes including rovibrational energy)
+            List of spin-rovibrational quanta for total spin-rovibraitonal basis set.
+            Each element of `quanta` is a tuple (spin, j, sym, k), where `spin`
+            contains list of spin quanta in coupled basis set (spin[-1] is the
+            total spin quantum number), `j` is rotational quantum number, `sym`
+            is symmetry of rovibrational wave function, and `k=h0.quanta_k1[j][sym]`
+            consists of list of rovibrational quantum numbers (sometimes including
+            rovibrational energy)
+        quantaSpinJSym : list
+            List of spin-rovibrational quanta, containing (spin, J, sym, dim)
+            tuples, where `dim` is dimension of the corresponding rovibrational
+            basis component
     """
     if verbose:
-        print(f"Build hyperfine Hamiltonian for F = {f}")
+        print(f"\nBuild hyperfine Hamiltonian for F = {f}")
         model = " + ".join(selem for selem, elem in zip(("H0", "quadrupole", "spin-rotation", "spin-spin"),
                            (h0, quad, sr, ss)) if elem)
         print(f"model: {model}")
@@ -253,6 +259,41 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
 
 
 class Hyperfine(CarTens):
+    """Spin-rovibrational (hyperfine) solutions in form of laboratory-frame
+    Cartesian tensor operator
+
+    This is a subclass of :py:class:`richmol.field.CarTens` class.
+
+    Args:
+        fmin : float
+            Minimal value of quantum number of the total angular momentum operator,
+            F = I + J, spanned by basis
+        fmax : float
+            Maximal value of quantum number of the total angular momentum operator,
+            F = I + J, spanned by basis
+        spins : list
+            List of nuclear spin values
+        h0 : :py:class:`richmol.field.CarTens` class
+            Rovibrational Hamiltonian
+        quad : dictionary with elements :py:class:`richmol.field.CarTens` class
+            Nuclear quadrupole tensor operator quad[i] for each i-th spin
+            center in `spins`
+        sr : dictionary with elements :py:class:`richmol.field.CarTens` class
+            Nuclear spin-rotation tensor operator sr[i] for each i-th spin
+            center in `spins`
+        ss : dictionary with elements :py:class:`richmol.field.CarTens` class
+            Nuclear spin-spin tensor operator ss[(i, j)] for different pairs
+            of spin centers in `spins`
+        eQ : list
+            List of nuclear quadrupole constants for each spin center
+            in `spin` parameter
+        symmetryRules : function(**kw)
+            State filter function, take as parameters full spin state description
+            `spinState` (total value of nuclear spin is `spinState[-1]`) and
+            rovibrational symmetry label `symmetry` and returns total spin-rovibrational
+            symmetry label. It may return `None` or empty string if certain
+            symmetries need to be excluded from calculation.
+    """
 
     def __init__(self, fmin, fmax, spins, h0, quad=None, sr=None, ss=None, eQ=None,
                  symmetryRules=defaultSymmetryRules):
@@ -284,7 +325,7 @@ class Hyperfine(CarTens):
         self.quanta_m2 = mydict()
         self.kmat = mydict()
         self.mmat = mydict()
-        self.vec = mydict()
+        self.eigvec = mydict()
 
         for f in fList:
             spinQuanta, jQuanta = nearEqualCoupling(f, spins)
@@ -304,18 +345,23 @@ class Hyperfine(CarTens):
                 self.dim2[f][sym] = self.dim_k2[f][sym] * self.dim_m2[f][sym]
                 self.quanta_k1[f][sym] = [(q, e) for q, e in zip(quanta, enr)]
                 self.quanta_k2[f][sym] = [(q, e) for q, e in zip(quanta, enr)]
-                self.quanta_m1[f][sym] = [m for m in np.arange(-f, f+1)]
-                self.quanta_m2[f][sym] = [m for m in np.arange(-f, f+1)]
+                self.quanta_m1[f][sym] = [m for m in np.arange(-f, f+1, dtype=np.float64)]
+                self.quanta_m2[f][sym] = [m for m in np.arange(-f, f+1, dtype=np.float64)]
                 self.kmat[(f, f)][(sym, sym)] = {0 : csr_matrix(np.diag(enr))}
-                self.mmat[(f, f)][(sym, sym)] = {0 {'0' : csr_matrix(np.eye(int(2 * f) + 1))}}
+                self.mmat[(f, f)][(sym, sym)] = {0 : {'0' : csr_matrix(np.eye(int(2 * f) + 1))}}
 
-                self.vec[f][sym] = vec
+                self.eigvec[f][sym] = vec
                 self.quantaSpinJSym[f][sym] = quantaSpinJSym
 
             if len(symList) > 0:
                 self.symlist1[f] = symList
                 self.symlist2[f] = symList
 
+
+    def class_name(self):
+        """Generates string containing name of the parent class"""
+        base = list(self.__class__.__bases__)[0]
+        return base.__module__ + "." + base.__name__
 
 
 if __name__ == '__main__':
@@ -419,6 +465,7 @@ if __name__ == '__main__':
 
     richmolFile = "/gpfs/cfel/group/cmi/data/Theory_H2O_hyperfine/H2O-16/basis_p48/richmol_database_rovib/h2o_p48_j40_rovib.h5"
     h0 = CarTens(richmolFile, name='h0')
+    dip = CarTens(richmolFile, name='dipole')
     ss = CarTens(richmolFile, name='spin-spin H1-H2')
     sr1 = CarTens(richmolFile, name='spin-rot H1')
     sr2 = CarTens(richmolFile, name='spin-rot H2')
@@ -427,6 +474,8 @@ if __name__ == '__main__':
     sr1 *= -kHz_to_invcm
     sr2 *= -kHz_to_invcm
 
-    hyper = Hyperfine(0, 10, spins, h0, ss={(0, 1): ss}, sr={0: sr1, 1: sr2},
+    hyper = Hyperfine(0, 2, spins, h0, ss={(0, 1): ss}, sr={0: sr1, 1: sr2},
                       symmetryRules=c2vOrthoParaRules)
+
+    hyper_dip = HyperLabTensor(hyper, dip)
 
