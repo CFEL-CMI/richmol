@@ -296,7 +296,7 @@ class Hyperfine(CarTens):
     """
 
     def __init__(self, fmin, fmax, spins, h0, quad=None, sr=None, ss=None, eQ=None,
-                 symmetryRules=defaultSymmetryRules):
+                 symmetryRules=defaultSymmetryRules, verbose=True):
 
         assert (round(float(fmin), 1) <= round(float(fmax), 1)), \
             f"fmax = {fmax} < fmin = {fmin}"
@@ -334,9 +334,10 @@ class Hyperfine(CarTens):
             symList = list(set(sym for sym in symList if sym))
             for sym in symList:
                 hmat, hmat0, quanta, quantaSpinJSym = \
-                    hamiltonian(f, spins, h0, quad, sr, ss, eQ, sym,
-                                symmetryRules, verbose=True)
+                    hamiltonian(f, spins, h0, quad, sr, ss, eQ, sym, symmetryRules, verbose=verbose)
                 enr, vec = np.linalg.eigh(hmat + hmat0)
+                ind = np.argmax(np.array(abs(vec)), axis=0)
+                quanta = [quanta[i] for i in ind]
 
                 self.dim_k1[f][sym], self.dim_k2[f][sym] = hmat.shape
                 self.dim_m1[f][sym] = int(2 * f) + 1
