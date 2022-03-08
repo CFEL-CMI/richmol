@@ -37,7 +37,7 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         eQ : list
             List of nuclear quadrupole constants for each spin center
             in `spin` parameter
-        sym : str
+        totSym : str
             Total spin-rovibrational symmetry
         symmetryRules : function(**kw)
             State filter function, take as parameters full spin state description
@@ -65,30 +65,23 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
             basis component
     """
     if verbose:
-        print(f"\nBuild hyperfine Hamiltonian for F = {f}")
-        model = " + ".join(selem for selem, elem in zip(("H0", "quadrupole", "spin-rotation", "spin-spin"),
-                           (h0, quad, sr, ss)) if elem)
-        print(f"model: {model}")
+        print(f"build hyperfine Hamiltonian for F = {f} and symmetry {totSym}")
 
     # coupling of spin and J quanta
 
     spinQuanta, jQuanta = nearEqualCoupling(f, spins)
     spinBasis = spinNearEqualCoupling(spins)
 
-    if any(j not in h0.Jlist1 for j in jQuanta):
-        raise ValueError(
-            f"Some of J quanta necessary for F = {f}, J = {jQuanta}, " + \
-            f"are not spanned by the bra-component of the basis, J = {Jlist1}") from None
-
-    if any(j not in h0.Jlist2 for j in jQuanta):
-        raise ValueError(
-            f"Some of J quanta necessary for F = {f}, J = {jQuanta}, " + \
-            f"are not spanned by the ket-component of the basis, J = {Jlist2}") from None
+    for jlist, lab in zip((h0.Jlist1, h0.Jlist2), ('bra', 'ket')):
+        if any(j not in jlist for j in jQuanta):
+            raise ValueError(
+                f"Some of J quanta necessary for F = {f}, J = {jQuanta}, " + \
+                f"are not spanned by the {lab}-component of the basis, J = {jlist}"
+            ) from None
 
     # dictionary of allowed rovibrational symmetries for different spin states
 
     if verbose:
-        print(f"total spin-rovibrational symmetry: {totSym}")
         print("spin quanta  |  J  |  allowed rovibrational symmetry for bra and ket states")
     allowedSym1 = dict()
     allowedSym2 = dict()
@@ -97,6 +90,12 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
         allowedSym1[key] = [sym for sym in h0.symlist1[j] if symmetryRules(spin, sym).lower() == totSym.lower()]
         allowedSym2[key] = [sym for sym in h0.symlist2[j] if symmetryRules(spin, sym).lower() == totSym.lower()]
         print(spin, " %3i"%j, "  ", allowedSym1[key], "  ", allowedSym2[key])
+
+    for sym, lab in zip((allowedSym1, allowedSym2), ('bra', 'ket')):
+        if len(list(sym.values())) == 0:
+            raise ValueError(
+                f"None of spin-rovibrational {lab} states is allowed by symmetry " + \
+                f"rules (check 'symmetryRules' parameter)") from None
 
     # spin-rotation intermediates
 
@@ -138,7 +137,7 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
                     threej = py3nj.wigner3j(int(j1*2), 2, int(j1*2), -int(j1*2), 0, int(j1*2))
                     if abs(threej) < tol:
                         raise ValueError(f"can't divide by 3j-symbol (J' 1 J')(-J' 0 J') = {threej}") from None
-                    coef2[i, j, :] = prefac * j1 / threej * Nl1 \
+                    coef2[i, j, :] = prefac * j1 / threej * Nl2 \
                                    * py3nj.wigner6j([2]*3, [l*2 for l in range(3)], [2]*3,
                                                     [int(j2*2)]*3, [int(j1*2)]*3, [int(j1*2)]*3)
 
@@ -296,11 +295,23 @@ class Hyperfine(CarTens):
     """
 
     def __init__(self, fmin, fmax, spins, h0, quad=None, sr=None, ss=None, eQ=None,
-                 symmetryRules=defaultSymmetryRules, verbose=True):
+                 symmetryRules=defaultSymmetryRules, verbose=True, zeroTol=1e-14):
+
+        if verbose:
+            print(f"solve hyperfine problem for F = {fmin} .. {fmax}, " + \
+                  f"nuclear spins = {spins}")
+            model = " + ".join(selem for selem, elem in zip(
+                ("H0", "quadrupole", "spin-rotation", "spin-spin"),
+                (h0, quad, sr, ss)
+                ) if elem)
+            print(f"model: {model}")
 
         assert (round(float(fmin), 1) <= round(float(fmax), 1)), \
             f"fmax = {fmax} < fmin = {fmin}"
         fList = [round(elem, 1) for elem in np.arange(fmin, fmax + 1)]
+
+        assert (h0.cart[0] == '0'), \
+            f"Parameter 'h0' is not a zero-order Hamiltonian (h0.cart = {h0.cart})"
 
         mydict = lambda: defaultdict(mydict)
 
@@ -327,14 +338,33 @@ class Hyperfine(CarTens):
         self.mmat = mydict()
         self.eigvec = mydict()
 
+        if verbose:
+            print(f"list of F quanta: {fList}")
+
         for f in fList:
+
             spinQuanta, jQuanta = nearEqualCoupling(f, spins)
+
             symList = [symmetryRules(spin, sym) for spin, j in zip(spinQuanta, jQuanta)
                        for sym in h0.symlist1[j] + h0.symlist2[j]]
             symList = list(set(sym for sym in symList if sym))
+
+            if verbose:
+                print(f"list of symmetries for F = {f}: {symList}")
+
             for sym in symList:
+
                 hmat, hmat0, quanta, quantaSpinJSym = \
-                    hamiltonian(f, spins, h0, quad, sr, ss, eQ, sym, symmetryRules, verbose=verbose)
+                    hamiltonian(f, spins, h0, quad, sr, ss, eQ, sym, symmetryRules,
+                                verbose=verbose)
+
+                asymmetry = [np.max(np.abs(elem - elem.conj().T)) for elem in (hmat, hmat0)]
+                for asym, lab in zip(asymmetry, ('Hyperfine-interaction', 'Zero-order')):
+                    assert (asym <= zeroTol), \
+                        f"{lab} Hamiltonian matrix is not symmetric, i.e., " + \
+                        f" max(abs(mat - mat.conj().T)) = {asym} > {zeroTol}, " + \
+                        f"for F = {f} and symmetry = {sym}"
+
                 enr, vec = np.linalg.eigh(hmat + hmat0)
                 ind = np.argmax(np.array(abs(vec)), axis=0)
                 quanta = [quanta[i] for i in ind]
@@ -363,120 +393,4 @@ class Hyperfine(CarTens):
         """Generates string containing name of the parent class"""
         base = list(self.__class__.__bases__)[0]
         return base.__module__ + "." + base.__name__
-
-
-if __name__ == '__main__':
-    from richmol.convert_units import MHz_to_invcm
-
-
-    def c2vOrthoParaRules(spin, rovibSym):
-        """Example of selection rules for water molecule
-        where all ortho and all para states are included
-        """
-        assert (rovibSym.lower() in ('a1', 'a2', 'b1', 'b2')), \
-                f"unknown symmetry: '{rovibSym}'"
-        sym = { (0.0, 'a1') : 'b2',
-                (0.0, 'a2') : 'b1',
-                (1.0, 'b1') : 'b1',
-                (1.0, 'b2') : 'b2'
-              }
-        I = round(float(spin[-1]), 1)
-        key = (I, rovibSym.lower())
-        try:
-            return sym[key]
-        except KeyError:
-            return ""
-
-
-    def c2vOrthoRules(spin, rovibSym):
-        """Example of selection rules for water molecule
-        where only all ortho states are included
-        """
-        assert (rovibSym.lower() in ('a1', 'a2', 'b1', 'b2')), \
-                f"unknown symmetry: '{rovibSym}'"
-        sym = { (1.0, 'b1') : 'b1',
-                (1.0, 'b2') : 'b2'
-              }
-        I = round(float(spin[-1]), 1)
-        key = (I, rovibSym.lower())
-        try:
-            return sym[key]
-        except KeyError:
-            return None
-
-
-    def c2vParaRules(spin, rovibSym):
-        """Example of selection rules for water molecule
-        where only all para states are included
-        """
-        assert (rovibSym.lower() in ('a1', 'a2', 'b1', 'b2')), \
-                f"unknown symmetry: '{rovibSym}'"
-        sym = { (0.0, 'a1') : 'b2',
-                (0.0, 'a2') : 'b1',
-              }
-        I = round(float(spin[-1]), 1)
-        key = (I, rovibSym.lower())
-        try:
-            return sym[key]
-        except KeyError:
-            return None
-
-
-    def c2vOrthoParaB1Rules(spin, rovibSym):
-        """Example of selection rules for water molecule
-        where ortho and para states are included that
-        belong to the total symmetry B1
-        """
-        assert (rovibSym.lower() in ('a1', 'a2', 'b1', 'b2')), \
-                f"unknown symmetry: '{rovibSym}'"
-        sym = {
-                (0.0, 'a2') : 'b1',
-                (1.0, 'b1') : 'b1',
-              }
-        I = round(float(spin[-1]), 1)
-        key = (I, rovibSym.lower())
-        try:
-            return sym[key]
-        except KeyError:
-            return None
-
-
-    def c2vOrthoParaB2Rules(spin, rovibSym):
-        """Example of selection rules for water molecule
-        where ortho and para states are included that
-        belong to the total symmetry B2
-        """
-        assert (rovibSym.lower() in ('a1', 'a2', 'b1', 'b2')), \
-                f"unknown symmetry: '{rovibSym}'"
-        sym = {
-                (0.0, 'a1') : 'b2',
-                (1.0, 'b2') : 'b2'
-              }
-        I = round(float(spin[-1]), 1)
-        key = (I, rovibSym.lower())
-        try:
-            return sym[key]
-        except KeyError:
-            return ""
-
-
-    kHz_to_invcm = MHz_to_invcm(1/1000)[0]
-
-    spins = [1/2, 1/2]
-
-    richmolFile = "/gpfs/cfel/group/cmi/data/Theory_H2O_hyperfine/H2O-16/basis_p48/richmol_database_rovib/h2o_p48_j40_rovib.h5"
-    h0 = CarTens(richmolFile, name='h0')
-    dip = CarTens(richmolFile, name='dipole')
-    ss = CarTens(richmolFile, name='spin-spin H1-H2')
-    sr1 = CarTens(richmolFile, name='spin-rot H1')
-    sr2 = CarTens(richmolFile, name='spin-rot H2')
-
-    ss *= kHz_to_invcm
-    sr1 *= -kHz_to_invcm
-    sr2 *= -kHz_to_invcm
-
-    hyper = Hyperfine(0, 2, spins, h0, ss={(0, 1): ss}, sr={0: sr1, 1: sr2},
-                      symmetryRules=c2vOrthoParaRules)
-
-    hyper_dip = HyperLabTensor(hyper, dip)
 
