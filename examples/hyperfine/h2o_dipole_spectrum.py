@@ -10,6 +10,8 @@ from richmol.field import CarTens, filter
 from richmol.hyperfine import Hyperfine
 from richmol.hyperfine import LabTensor as HyperLabTensor
 from scipy import constants
+from richmol import zenodo
+import os
 
 
 kHz_to_invcm = MHz_to_invcm(1/1000)[0] # conversion factor from kHz to cm^-1
@@ -189,10 +191,9 @@ def stateFilter(**kwargs):
     return passE * passJ
 
 
-
 if __name__ == '__main__':
 
-    """Compute hyperfine energies and spectrum of water (H2^16O)"""
+    """Compute hyperfine energies and dipole spectrum of water (H2^16O)"""
 
     spins = [1/2, 1/2]  # nuclear spins I(H1) and I(H2)
     fmin = 0   # min value of F = I + J
@@ -208,11 +209,14 @@ if __name__ == '__main__':
     statesFile = "h2o_exomol.states"  # name of the output ExoMol states file
     transFile = "h2o_exomol.trans"  # name of the output ExoMol transitions file
 
-    # richmol database file with rovibrational solutions and matrix elements
+    # download richmol database file with rovibrational solutions and matrix elements
     # of various Cartesian tensor operators for water molecule
-    richmolFile = "/gpfs/cfel/group/cmi/data/Theory_H2O_hyperfine/H2O-16/basis_p48/richmol_database_rovib/h2o_p48_j40_rovib.h5"
+    richmolFile = "h2o_p48_j40_rovib.h5"
+    if not os.path.exists(richmolFile):
+        zenodo.downloadFile('6340526', richmolFile, richmolFile)
+        # for description of the dataset, see https://doi.org/10.5281/zenodo.6340526
 
-    # richmol database file with hyperfine solutions and matrix elements
+    # name of richmol database file to store hyperfine solutions and matrix elements
     # of Cartesian tensor operators for water molecule
     richmolHyperFile = "h2o_p48_j40_hyper.h5"
 
