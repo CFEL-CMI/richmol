@@ -72,15 +72,16 @@ def c2vOrthoParaB2Rules(spin, rovibSym):
         return ""
 
 
-def dipoleSpectrum(h0, dipole, temp=296, partFunc=None, zpe=None, filt=lambda **kw: True):
+def dipoleSpectrum(h0, dipole, gns={}, temp=296, partFunc=None, zpe=None, filt=lambda **kw: True):
     """Computes Einstein A-coefficients and absorption coefficients
     for rovibrational transitions between states in `h0`,
     using dipole matrix elements in `dipole`.
     It is assumed that dipole matrix elements in `dipole` are in units of Debye
     and state energies in `h0` are in units of cm^-1.
     Function `filt` can be specified to filter out unwanted states in `h0`.
-    Parameters `temp`, `partFunc`, and `zpe` specify temperature in Kelvin,
-    partition sum, and zero-point energy in cm^-1.
+    Parameters `gns`, `temp`, `partFunc`, and `zpe` specify nuclear spin statistical
+    weights for different symmetries, temperature in Kelvin, partition sum,
+    and zero-point energy in cm^-1, respectively.
     """
     acoef_fac = np.pi**4 / (3 * constants.h * 1e7) * 64.0e-36
     abs_fac = 8 * np.pi**3 / (3 * constants.h * constants.c * 1e9) * 64.0e-36
@@ -156,13 +157,23 @@ def dipoleSpectrum(h0, dipole, temp=296, partFunc=None, zpe=None, filt=lambda **
             # ls = k2 * m2 / (2*j1+1) / (2*j2+1)
             ls = k2 # the term `m2 / (2*j1+1) / (2*j2+1)` must be equal to 1
             nnz_ind = np.array(ls.nonzero())
+
             id1 = id_num[(j1, sym1)][nnz_ind[0]]
             id2 = id_num[(j2, sym2)][nnz_ind[1]]
             nu = np.abs([states[i][0] - states[j][0] for i, j in zip(id1, id2)])
             elow = np.array([min([states[i][0], states[j][0]]) for i, j in zip(id1, id2)])
+            try:
+                g1 = gns[sym1.lower()]
+                g2 = gns[sym2.lower()]
+            except KeyError:
+                raise KeyError(f"Please specify nuclear spin statistical weight " + \
+                        f"for symmetries {sym1} and {sym2}") from None
+            g = np.array([g1 if states[i][0] < states[j][0] else g2 for i, j in zip(id1, id2)])
+            deg_fac = (2*j1+1) * (2*j2+1) * g
+
             acoef = ls.data * acoef_fac * nu**3
-            intens = ls.data * abs_fac * nu * np.exp(-boltz_fac * elow) \
-                   * (1 - np.exp(-boltz_fac * nu)) / partFunc
+            intens = ls.data * abs_fac * nu * np.exp(-boltz_fac * (elow - zpe)) / partFunc \
+                   * (1 - np.exp(-boltz_fac * nu)) * deg_fac
             trans += [(i, j, a1, a2, n) for i, j, a1, a2, n in zip(id1, id2, acoef, intens, nu)]
 
     return states, trans
@@ -186,6 +197,7 @@ if __name__ == '__main__':
     spins = [1/2, 1/2]  # nuclear spins I(H1) and I(H2)
     fmin = 0   # min value of F = I + J
     fmax = 10  # max value of F
+    gns = {"b1": 1, "b2": 1}  # nuclear spin statistical weights
 
     partFunc = 174.5813  # partition sum for water at T = 296 K  (taken from https://www.exomol.com/db//H2O/1H2-16O/POKAZATEL/1H2-16O__POKAZATEL.pf)
 
@@ -260,7 +272,7 @@ if __name__ == '__main__':
         mu = CarTens(richmolHyperFile, name='dipole')
 
         # compute states and transitions data in ExoMol format
-        states, trans = dipoleSpectrum(h0, mu, partFunc=partFunc, filt=stateFilter)
+        states, trans = dipoleSpectrum(h0, mu, gns=gns, partFunc=partFunc, filt=stateFilter)
 
         # store states data in `statesFile` and transitions data in `transFile`
         with open(statesFile, 'w') as fl:
