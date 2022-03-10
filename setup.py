@@ -32,6 +32,7 @@ potentials = Extension(name = 'potentials',
                        extra_compile_args = ["-O3"] 
                       )
 
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname), "rt", encoding="utf-8").read()
 
@@ -78,4 +79,6 @@ if __name__ == "__main__":
         include_package_data=True,
         ext_modules=[expokit, potentials, wigner],
         install_requires=install_requires,
+        use_scm_version=True,
+        setup_requires=['setuptools_scm'],
 )
