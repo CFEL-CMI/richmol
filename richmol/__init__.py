@@ -2,7 +2,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 try:
     distr = get_distribution(__name__)
-    __descr__ = {key : getattr(distr, key) for key in (
+    __descr__ = {key : "".join(getattr(distr, key)) for key in (
         "version", "location", "project_name", "extras", "py_version", "platform"
         )}
     __version__ = __descr__["version"]

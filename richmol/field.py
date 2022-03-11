@@ -182,7 +182,7 @@ class CarTens():
                         print(type(eigvec[J][sym]))
     """
 
-    def __init__(self, filename=None, matelem=None, name=None, **kwargs):
+    def __init__(self, filename=None, matelem=None, coefs=None, name=None, **kwargs):
 
         if filename is None:
             pass
@@ -197,7 +197,7 @@ class CarTens():
                 self.read(filename, name=name, **kwargs)
             else:
                 # read old-format richmol files
-                self.read_states(filename, **kwargs)
+                self.read_states(filename, coef_file=coefs, **kwargs)
                 if matelem is not None:
                     self.read_trans(matelem, **kwargs)
 
@@ -1739,13 +1739,17 @@ class CarTens():
             self.filter(thresh=thresh, **kwargs)
 
 
-    def read_states(self, filename, **kwargs):
+    def read_states(self, filename, coef_file=None, **kwargs):
         """ Reads stationary basis states information from the old-format
                 richmol states file produced,for example, by TROVE program
 
         Args:
             filename : str
                 Name of richmol states file.
+            coef_file : str
+                Name of richmol coefficients file (produced by TROVE).
+                This file is used to compute rotational probability
+                density functions.
 
         Kwargs:
             bra : function(**kw)
@@ -1884,6 +1888,47 @@ class CarTens():
 
         # apply state selection filters
         self.filter(**kwargs)
+
+        # read richmol coefficients file
+        if coef_file is not None:
+            self.rotdens = mydict()
+            with open(coef_file, 'r') as fl:
+                for line in fl:
+                    w = line.split()
+                    j = int(w[0])
+                    id = int(w[1])
+                    sym = w[2]
+                    ideg = int(w[3])
+                    enr = float(w[4])
+                    nelem = int(w[5])
+                    c = []
+                    v = []
+                    k = []
+                    for ielem in range(nelem):
+                        coef = float(w[6+ielem*4])
+                        im = int(w[7+ielem*4])
+                        c.append(coef*{0:1,1:1j}[im])
+                        v.append(int(w[8+ielem*4]))
+                        k.append(int(w[9+ielem*4]))
+                    istate, sym_ = self.map_k_ind[(j, id, ideg)]
+                    assert (sym == sym_), \
+                        f"state symmetry {sym} in file '{coef_file}' " + \
+                        f"does not match {sym_} in file '{filename}', " + \
+                        f"for state (J, id, ideg) = {(j, id, ideg)}"
+                    try:
+                        state_ind = self.ind_k1[j][sym].index(istate)
+                    except (ValueError, KeyError):
+                        continue
+                    assert (abs(self.kmat[(j, j)][(sym, sym)][0].diagonal()[state_ind] \
+                            - enr) < 1e-12), \
+                        f"state energy {enr} in file '{coef_file}' " + \
+                        f"does not match {enr_} in file '{filename}', " + \
+                        f"for state (J,id, ideg) = {(j, id, ideg)}"
+                    if len(self.rotdens[j][sym]) == 0:
+                        self.rotdens[j][sym] = [() for _ in range(self.dim_k1[j][sym])]
+                    self.rotdens[j][sym][state_ind] = (
+                            np.array(c), np.array(v), np.array(k)
+                            )
 
 
     def read_trans(self, filename, thresh=None, **kwargs):
