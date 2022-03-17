@@ -3,6 +3,8 @@ of water molecule, using rovibrational states and rovibrational matrix
 elements of spin-spin, spin-rotation, and dipole moment operators
 computed in TROVE (https://github.com/Trovemaster/TROVE)
 and stored in a richmol database file.
+
+See manuscript at https://arxiv.org/abs/2203.07945 for details
 """
 import numpy as np
 from richmol.convert_units import MHz_to_invcm
