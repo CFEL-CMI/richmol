@@ -1298,8 +1298,8 @@ class CarTens():
     __rsub__ = __sub__
 
 
-    def store(self, filename, name=None, comment=None, replace=False, replace_k=False, replace_m=False,
-              store_k=True, store_m=True, thresh=None):
+    def store(self, filename, name=None, comment=None, replace=False, replace_k=False,
+              replace_m=False, store_k=True, store_m=True, thresh=None):
         """ Stores object into HDF5 file
     
         Args:
@@ -1366,7 +1366,8 @@ class CarTens():
 
             # store attributes
 
-            exclude = ["mmat", "kmat", "molecule", "basis", "eigvec"]
+            exclude = ["mmat", "kmat", "molecule", "basis", "eigvec",
+                       "rotdens", "rotdens_kv"]
             try:
                 exclude = exclude + [elem for elem in self.store_exclude]
             except AttributeError:
@@ -1403,6 +1404,31 @@ class CarTens():
                         if "eigvec" in group_sym:
                             del group_sym["eigvec"]
                         group_sym.create_dataset("eigvec", data=v)
+
+            # store coefficients for computing rotational density
+
+            if hasattr(self, "rotdens"):
+                for J1 in self.rotdens.keys():
+                    for sym1 in self.rotdens[J1].keys():
+                        try:
+                            group_j = group[J_group_key(J1, J1)]
+                        except:
+                            group_j = group.create_group(J_group_key(J1, J1))
+                        try:
+                            group_sym = group_j[sym_group_key(sym1, sym1)]
+                        except:
+                            group_sym = group_j.create_group(sym_group_key(sym1, sym1))
+                        for key in ("rotdens_data", "rotdens_indices", "rotdens_indptr",
+                                    "rotdens_shape", "rotdens_kv"):
+                            try:
+                                del group_sym[key]
+                            except KeyError:
+                                pass
+                        group_sym.create_dataset("rotdens_data", data=self.rotdens[J1][sym1].data)
+                        group_sym.create_dataset("rotdens_indices", data=self.rotdens[J1][sym1].indices)
+                        group_sym.create_dataset("rotdens_indptr", data=self.rotdens[J1][sym1].indptr)
+                        group_sym.create_dataset("rotdens_shape", data=self.rotdens[J1][sym1].shape)
+                        group_sym.create_dataset("rotdens_kv", data=self.rotdens_kv[J1][sym1])
 
             # store M and K tensors
 
@@ -1597,6 +1623,8 @@ class CarTens():
             self.kmat = mydict()
             self.mmat = mydict()
             self.eigvec = mydict()
+            self.rotdens = mydict()
+            self.rotdens_kv = mydict()
 
             # apply state selection filters
             self.filter(**kwargs)
@@ -1640,6 +1668,22 @@ class CarTens():
                                 try:
                                     data = group_sym['eigvec']
                                     self.eigvec[J1][sym1] = np.take(np.take(data, ik1, axis=0), ik2, axis=1)
+                                except KeyError:
+                                    pass
+
+                            # read coefficients for rotational density estimations
+
+                            if J1 == J2 and sym1 == sym2:
+                                try:
+                                    data = group_sym['rotdens_data']
+                                    inds = group_sym['rotdens_indices']
+                                    ptrs = group_sym['rotdens_indptr']
+                                    sh = group_sym['rotdens_shape']
+                                    kv = group_sym['rotdens_kv'][:, :]
+                                    self.rotdens[J1][sym1] = csr_matrix(
+                                        (data, inds, ptrs), shape=sh
+                                        ).tocsc()[:, ik1].tocsr()
+                                    self.rotdens_kv[J1][sym1] = kv
                                 except KeyError:
                                     pass
 
@@ -1889,9 +1933,11 @@ class CarTens():
         # apply state selection filters
         self.filter(**kwargs)
 
-        # read richmol coefficients file
+        # read richmol coefficients file, which is used only for approximating
+        # rotational probability density function
         if coef_file is not None:
-            self.rotdens = mydict()
+            # create set of unique k and v quanta
+            kv = mydict()
             with open(coef_file, 'r') as fl:
                 for line in fl:
                     w = line.split()
@@ -1900,35 +1946,74 @@ class CarTens():
                     sym = w[2]
                     ideg = int(w[3])
                     enr = float(w[4])
-                    nelem = int(w[5])
-                    c = []
-                    v = []
-                    k = []
-                    for ielem in range(nelem):
-                        coef = float(w[6+ielem*4])
-                        im = int(w[7+ielem*4])
-                        c.append(coef*{0:1,1:1j}[im])
-                        v.append(int(w[8+ielem*4]))
-                        k.append(int(w[9+ielem*4]))
+                    if j not in self.Jlist1:
+                        continue
                     istate, sym_ = self.map_k_ind[(j, id, ideg)]
                     assert (sym == sym_), \
-                        f"state symmetry {sym} in file '{coef_file}' " + \
-                        f"does not match {sym_} in file '{filename}', " + \
-                        f"for state (J, id, ideg) = {(j, id, ideg)}"
+                            f"state symmetry {sym} in file '{coef_file}' " + \
+                            f"does not match {sym_} in file '{filename}', " + \
+                            f"for state (J, id, ideg) = {(j, id, ideg)}"
                     try:
                         state_ind = self.ind_k1[j][sym].index(istate)
                     except (ValueError, KeyError):
                         continue
                     assert (abs(self.kmat[(j, j)][(sym, sym)][0].diagonal()[state_ind] \
                             - enr) < 1e-12), \
-                        f"state energy {enr} in file '{coef_file}' " + \
-                        f"does not match {enr_} in file '{filename}', " + \
-                        f"for state (J,id, ideg) = {(j, id, ideg)}"
-                    if len(self.rotdens[j][sym]) == 0:
-                        self.rotdens[j][sym] = [() for _ in range(self.dim_k1[j][sym])]
-                    self.rotdens[j][sym][state_ind] = (
-                            np.array(c), np.array(v), np.array(k)
-                            )
+                            f"state energy {enr} in file '{coef_file}' " + \
+                            f"does not match {enr_} in file '{filename}', " + \
+                            f"for state (J, id, ideg) = {(j, id, ideg)}"
+                    nelem = int(w[5])
+                    if len(kv[j][sym]) == 0:
+                        kv[j][sym] = []
+                    for ielem in range(nelem):
+                        v = int(w[8+ielem*4])
+                        k = int(w[9+ielem*4])
+                        kv[j][sym].append((k, v))
+            # set of unique (k, v) quanta
+            kv = {j : {sym : np.array(list(set(kv[j][sym])))
+                       for sym in kv[j].keys()}
+                  for j in kv.keys()}
+            # map (k, v) to index
+            kv_ind = {j : {sym : {(k, v) : i
+                                  for i, (k, v) in enumerate(kv[j][sym])}
+                           for sym in kv[j].keys()}
+                      for j in kv.keys()}
+            # read coefficients
+            rotdens = mydict()
+            with open(coef_file, 'r') as fl:
+                for line in fl:
+                    w = line.split()
+                    j = int(w[0])
+                    id = int(w[1])
+                    sym = w[2]
+                    ideg = int(w[3])
+                    enr = float(w[4])
+                    if j not in self.Jlist1:
+                        continue
+                    istate, sym_ = self.map_k_ind[(j, id, ideg)]
+                    try:
+                        state_ind = self.ind_k1[j][sym].index(istate)
+                    except (ValueError, KeyError):
+                        continue
+                    if len(rotdens[j][sym]) == 0:
+                        rotdens[j][sym] = np.zeros((len(kv[j][sym]), self.dim_k1[j][sym]),
+                                                   dtype=np.complex128)
+                    nelem = int(w[5])
+                    for ielem in range(nelem):
+                        coef = float(w[6+ielem*4])
+                        im = int(w[7+ielem*4])
+                        c = coef*{0:1,1:1j}[im]
+                        v = int(w[8+ielem*4])
+                        k = int(w[9+ielem*4])
+                        kvind = kv_ind[j][sym][(k, v)]
+                        rotdens[j][sym][kvind, state_ind] = c
+            # keep data in sparse format
+            self.rotdens = mydict()
+            self.rotdens_kv = mydict()
+            for j in rotdens.keys():
+                for sym in rotdens[j].keys():
+                    self.rotdens[j][sym] = csr_matrix(rotdens[j][sym])
+                    self.rotdens_kv[j][sym] = kv[j][sym]
 
 
     def read_trans(self, filename, thresh=None, **kwargs):
