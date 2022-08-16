@@ -1739,7 +1739,8 @@ class CarTens():
                                 nind = group_sym.attrs['mmat_nind']
                                 nptr = group_sym.attrs['mmat_nptr']
                                 shape = group_sym.attrs['mmat_shape']
-                                irrep_cart = group_sym.attrs['mmat_irrep_cart']
+                                irrep_cart = [(int(el1), el2.decode('utf-8'))
+                                              for (el1, el2) in group_sym.attrs['mmat_irrep_cart']]
                                 data = np.split(
                                     group_sym['mmat_data'], np.cumsum(nnz)
                                 )[:-1]
