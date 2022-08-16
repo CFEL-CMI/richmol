@@ -1556,7 +1556,7 @@ class CarTens():
                             group_sym.attrs["mmat_nnz"] = [len(dat) for dat in data]
                             group_sym.attrs["mmat_nind"] = [len(ind) for ind in indices]
                             group_sym.attrs["mmat_nptr"] = [len(ind) for ind in indptr]
-                            group_sym.attrs["mmat_irrep_cart"] = np.encode(np.array(irrep_cart, type='U'), encoding='utf8')
+                            group_sym.attrs["mmat_irrep_cart"] = np.array(irrep_cart, dtype='S')
                             group_sym.attrs["mmat_shape"] = shape
 
 
