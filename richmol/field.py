@@ -1556,7 +1556,7 @@ class CarTens():
                             group_sym.attrs["mmat_nnz"] = [len(dat) for dat in data]
                             group_sym.attrs["mmat_nind"] = [len(ind) for ind in indices]
                             group_sym.attrs["mmat_nptr"] = [len(ind) for ind in indptr]
-                            group_sym.attrs["mmat_irrep_cart"] = irrep_cart
+                            group_sym.attrs["mmat_irrep_cart"] = np.array(irrep_cart, dtype='S')
                             group_sym.attrs["mmat_shape"] = shape
 
 
@@ -1581,8 +1581,8 @@ class CarTens():
                 State filter for ket basis sets (see `ket` in kwargs of
                 :py:class:`CarTens`).
         """
-        J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
-        sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+        J_key_re = re.sub(r'1.0', '\\\d+\.\\\d+', J_group_key(1, 1))
+        sym_key_re = re.sub(r'A', '\\\w+', sym_group_key('A', 'A'))
 
         # name of HDF5 data group
         if name is None:

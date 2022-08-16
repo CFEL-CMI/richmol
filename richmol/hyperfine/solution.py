@@ -6,6 +6,8 @@ from richmol.field import CarTens
 import py3nj
 from collections import defaultdict
 from richmol.hyperfine.labtens import LabTensor as HyperLabTensor
+from richmol.rotdens import _stateEulerGrid
+import copy
 
 
 def defaultSymmetryRules(spin, rovibSym):
@@ -53,12 +55,12 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
             Rovibrational Hamiltonian matrix
         quanta : list
             List of spin-rovibrational quanta for total spin-rovibraitonal basis set.
-            Each element of `quanta` is a tuple (spin, j, sym, k), where `spin`
-            contains list of spin quanta in coupled basis set (spin[-1] is the
-            total spin quantum number), `j` is rotational quantum number, `sym`
-            is symmetry of rovibrational wave function, and `k=h0.quanta_k1[j][sym]`
+            Each element of `quanta` is a tuple (spin, j, sym, k, rvInd), where
+            `spin` contains list of spin quanta in coupled basis set (spin[-1]
+            is the total spin quantum number), `j` is rotational quantum number,
+            `sym` is symmetry of rovibrational wave function, `k=h0.quanta_k1[j][sym]`
             consists of list of rovibrational quantum numbers (sometimes including
-            rovibrational energy)
+            rovibrational energy), and `rvInd` is the rovibrational state index.
         quantaSpinJSym : list
             List of spin-rovibrational quanta, containing (spin, J, sym, dim)
             tuples, where `dim` is dimension of the corresponding rovibrational
@@ -197,7 +199,8 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
 
             dim1 = h0.dim_k1[j1][sym1]
 
-            quanta += [(spin1, j1, sym1, k) for k in h0.quanta_k1[j1][sym1]]
+            quanta += [(spin1, j1, sym1, k, rvInd)
+                       for rvInd, k in enumerate(h0.quanta_k1[j1][sym1])]
             quantaSpinJSym.append((spin1, j1, sym1, dim1))
 
             hamMat_ = []
@@ -387,6 +390,59 @@ class Hyperfine(CarTens):
             if len(symList) > 0:
                 self.symlist1[f] = symList
                 self.symlist2[f] = symList
+
+        if hasattr(h0, 'rotdens'):
+            self.rotdens = copy.copy(h0.rotdens)
+
+
+    def spinDensity(self, f1, mf1, sym1, ind1, f2, mf2, sym2, ind2, grid, c2_thresh=1e-6):
+
+        vec1 = self.eigvec[f1][sym1][:, ind1]
+        vec2 = self.eigvec[f2][sym2][:, ind2]
+        nz_ind1 = np.where(abs(vec1)**2 >= c2_thresh)
+        nz_ind2 = np.where(abs(vec2)**2 >= c2_thresh)
+
+        states1 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k1]
+        states2 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k2]
+
+        def state_filter1(**kw):
+            j = int(kw['J'])
+            sym = kw['sym'].lower()
+            ind = int(kw['ind'])
+            return (j, sym, ind) in states1
+
+        def state_filter2(**kw):
+            j = int(kw['J'])
+            sym = kw['sym'].lower()
+            ind = int(kw['ind'])
+            return (j, sym, ind) in states2
+
+        psi1 = _stateEulerGrid(self, grid, state_filter=state_filter1)
+        psi2 = _stateEulerGrid(self, grid, state_filter=state_filter2)
+
+        # for i in nz_ind1:
+        #     (spin, j, sym, k, rvInd), enr = self.quanta_k1[i]
+        #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
+        #     mj = [int(m*2) for m in np.arange(-j, j+1)]
+        #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
+        #     n = len(mij)
+        #     threej = py3nj.wigner3j([int(f1*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
+        #                             [-int(mf1*2)]*n, mij[:, 0], mj[:, 1])
+
+        # spin, j, sym, k = self.quanta_k1[f1][sym1][ind1][0]
+
+        # for i, (spin, j, rvSym, dim) in enumerate(self.quantaSpinJSym[f1][sym1]):
+        #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
+        #     mj = [int(m*2) for m in np.arange(-j, j+1)]
+        #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
+        #     n = len(mij)
+        #     threej = py3nj.wigner3j([int(f*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
+        #                             [-int(mF*2)]*n, mij[:, 0], mj[:, 1])
+        #     threej = threej.reshape(len(mi), len(mj))
+        #     func = np.array([elem[1] for elem in psi[j][rvSym]]) # (l, v, mj, rg)
+        #     np.einsum('ij,lvjg->ilvg', threej, func) # (mi, mj) * (l, v, mj, rg)
+        #     threej, psi[j][rvSym][irv][1][v, m, g]
+
 
 
     def class_name(self):
