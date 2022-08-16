@@ -14,15 +14,13 @@ def _stateEulerGrid(h, grid, m_val=None, state_filter=lambda **kw: True):
     if not hasattr(h, 'rotdens'):
         raise AttributeError(f"Parameter 'h' has no attribute 'rotdens'") from None
 
-    # filter out unnecessary states
-    h_ = filter(h, state_filter, state_filter)
-
     # evaluate set of spherical-top functions on grid
 
-    jlist = [int(j) for j in set( list(set(h_.Jlist1)) + list(set(h_.Jlist2)) )]
-    klist = list(set([ int(k) for j in h_.rotdens.keys()
-                              for sym in h_.rotdens[j].keys()
-                              for elem in h_.rotdens[j][sym]
+    jlist = [int(j) for j in h.rotdens.keys() if state_filter(J=j)]
+    klist = list(set([ int(k) for j in jlist
+                              for sym in h.rotdens[j].keys()
+                              for ielem, elem in enumerate(h.rotdens[j][sym])
+                              if state_filter(J=j, sym=sym, ind=ielem)
                               for k in elem[2] ]))
     if m_val is None:
         mlist = [m for m in range(-max(jlist), max(jlist)+1)]
@@ -41,18 +39,19 @@ def _stateEulerGrid(h, grid, m_val=None, state_filter=lambda **kw: True):
     mydict = lambda: defaultdict(mydict)
     psi = mydict()
 
-    for j, psi_j in h_.rotdens.items():
+    for j, psi_j in h.rotdens.items():
         for sym, psi_sym in psi_j.items():
-            if len(psi[j][sym]) == 0:
-                psi[j][sym] = [() for _ in range(len(psi_sym))]
             for istate, (c, v, k) in enumerate(psi_sym):
-                k_ind = [klist.index(k_) for k_ in k]
-                func = jkm[j][k_ind, :, :] * c[:, np.newaxis, np.newaxis]
-                vlist = list(set(v))
-                v_ind = [np.where(v==v_) for v_ in vlist]
-                psi[j][sym][istate] = (
-                        vlist, np.array([np.sum(func[i], axis=0) for i in v_ind])
-                        ) # (v, m=-Jmax:Jmax, ipoint=0:npoints)
+                if state_filter(J=j, sym=sym, ind=istate):  # apply state filters
+                    if len(psi[j][sym]) == 0:
+                        psi[j][sym] = []
+                    k_ind = [klist.index(k_) for k_ in k]
+                    func = jkm[j][k_ind, :, :] * c[:, np.newaxis, np.newaxis]
+                    vlist = list(set(v))
+                    v_ind = [np.where(v==v_) for v_ in vlist]
+                    psi[j][sym].append( (
+                            istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind])
+                            ) )  # (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 
@@ -110,10 +109,10 @@ def densityEulerGrid(h, grid, m_val, diag=False, state_filter=lambda **kw: True)
 
                     if diag and sym1 != sym2: continue
 
-                    for istate, (v1, psi1) in enumerate(psi_sym1):
-                        for jstate, (v2, psi2) in enumerate(psi_sym2):
+                    for (ind1, v1, psi1) in psi_sym1:
+                        for (ind2, v2, psi2) in psi_sym2:
 
-                            if diag and istate != jstate: continue
+                            if diag and ind1 != ind2: continue
 
                             vboth = list(set(v2) & set(v1))
                             vind1 = [v1.index(v) for v in vboth]
@@ -121,5 +120,5 @@ def densityEulerGrid(h, grid, m_val, diag=False, state_filter=lambda **kw: True)
                             d = np.einsum('vg,vg,g->g', np.conj(psi1[vind1, im, :]),
                                           psi2[vind2, im, :], np.sin(grid[:, 1]))
 
-                            dens[(j1, j2)][(sym1, sym2)][(istate, jstate)] = d
+                            dens[(j1, j2)][(sym1, sym2)][(ind1, ind2)] = d
     return dens

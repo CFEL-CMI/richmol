@@ -1581,8 +1581,8 @@ class CarTens():
                 State filter for ket basis sets (see `ket` in kwargs of
                 :py:class:`CarTens`).
         """
-        J_key_re = re.sub(r'1.0', '\d+\.\d+', J_group_key(1, 1))
-        sym_key_re = re.sub(r'A', '\w+', sym_group_key('A', 'A'))
+        J_key_re = re.sub(r'1.0', '\\\d+\.\\\d+', J_group_key(1, 1))
+        sym_key_re = re.sub(r'A', '\\\w+', sym_group_key('A', 'A'))
 
         # name of HDF5 data group
         if name is None:
