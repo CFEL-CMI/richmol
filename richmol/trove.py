@@ -42,6 +42,12 @@ class CarTensTrove(CarTens):
         if matelem is not None:
             self.read_trans(matelem, **kwargs)
 
+        # apply state filters, note that state selection was already done
+        #   before, in read_states, here we call it again to delete some small
+        #   elements in mmat and kmat (thresh parameter) as well as reset state
+        #   indexes in ind_m1, ind_m2, ind_k1, and ind_k2
+        self.filter(**kwargs)
+
 
     def read_states(self, filename, coef_file=None, **kwargs):
         """ Reads states file (rovibrational state information)
@@ -608,9 +614,3 @@ class CarTensTrove(CarTens):
         del self.map_m_ind
         del self.dim_m
         del self.dim_k
-
-        # apply state filters, note that state selection was already done
-        #   before, in read_states, here we call it again to delete some small
-        #   elements in mmat and kmat (thresh parameter) as well as reset state
-        #   indexes in ind_m1, ind_m2, ind_k1, and ind_k2
-        self.filter(thresh=thresh, **kwargs)
