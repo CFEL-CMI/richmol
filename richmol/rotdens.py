@@ -1,5 +1,4 @@
 import numpy as np
-from richmol.field import filter
 import spherical
 import quaternionic
 from collections import defaultdict
@@ -8,20 +7,16 @@ from collections import defaultdict
 def _stateEulerGrid(h, grid, m_val=None, state_filter=lambda **kw: True):
     """Computes wave functions on a 3D grid of Euler angles
     """
-    # TODO: this will only work with Hamiltonian initialized from TROVE output
-    #       need to adapt it for richmol.rot module
-
     if not hasattr(h, 'rotdens'):
         raise AttributeError(f"Parameter 'h' has no attribute 'rotdens'") from None
 
     # evaluate set of spherical-top functions on grid
+    # for all k quanta appering in h.rotdens_kv[j][sym][(k, v)]
 
     jlist = [int(j) for j in h.rotdens.keys() if state_filter(J=j)]
     klist = list(set([ int(k) for j in jlist
-                              for sym in h.rotdens[j].keys()
-                              for ielem, elem in enumerate(h.rotdens[j][sym])
-                              if state_filter(J=j, sym=sym, ind=ielem)
-                              for k in elem[2] ]))
+                              for sym in h.rotdens_kv[j].keys()
+                              for (k, v) in h.rotdens_kv[j][sym] ]))
     if m_val is None:
         mlist = [m for m in range(-max(jlist), max(jlist)+1)]
     else:
@@ -39,19 +34,28 @@ def _stateEulerGrid(h, grid, m_val=None, state_filter=lambda **kw: True):
     mydict = lambda: defaultdict(mydict)
     psi = mydict()
 
-    for j, psi_j in h.rotdens.items():
-        for sym, psi_sym in psi_j.items():
-            for istate, (c, v, k) in enumerate(psi_sym):
+    for j in h.rotdens.keys():
+        for sym in h.rotdens[j].keys():
+
+            kv = h.rotdens_kv[j][sym]
+            coefs = h.rotdens[j][sym]
+
+            k_ind = [klist.index(k) for (k, v) in kv]
+            sym_top = jkm[j][k_ind, :, :]
+
+            vlist = list(set([v for (k, v) in kv]))
+            k_, v_ = np.array(kv).T
+            v_ind = [np.where(v_==v) for v in vlist]
+
+            for istate in range(coefs.shape[-1]):
                 if state_filter(J=j, sym=sym, ind=istate):  # apply state filters
                     if len(psi[j][sym]) == 0:
                         psi[j][sym] = []
-                    k_ind = [klist.index(k_) for k_ in k]
-                    func = jkm[j][k_ind, :, :] * c[:, np.newaxis, np.newaxis]
-                    vlist = list(set(v))
-                    v_ind = [np.where(v==v_) for v_ in vlist]
-                    psi[j][sym].append( (
-                            istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind])
-                            ) )  # (v, m=-Jmax:Jmax, ipoint=0:npoints)
+                    c = np.array(coefs[:, istate].todense())[:, 0]
+                    func = sym_top[:, :, :] * c[:, None, None]
+                    psi[j][sym].append(
+                        (istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind]))
+                    )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 

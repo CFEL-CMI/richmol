@@ -89,7 +89,7 @@ class CarTensTrove(CarTens):
                     sym = w[2]
                     ndeg = int(w[3])
                     enr = float(w[4])
-                    qstr = ' '.join([w[i] for i in range(5,len(w))])
+                    qstr = " ".join([w[i] for i in range(5,len(w))])
                 except (IndexError, ValueError):
                     raise ValueError(
                         f"error while reading file '{filename}'"
@@ -614,3 +614,9 @@ class CarTensTrove(CarTens):
         del self.map_m_ind
         del self.dim_m
         del self.dim_k
+
+
+    def class_name(self):
+        """Generates string containing name of the parent class"""
+        base = list(self.__class__.__bases__)[0]
+        return base.__module__ + "." + base.__name__
