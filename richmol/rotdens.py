@@ -4,8 +4,68 @@ import quaternionic
 from collections import defaultdict
 
 
-def _stateEulerGrid(h, grid, m_val=None, state_filter=lambda **kw: True):
-    """Computes wave functions on a 3D grid of Euler angles
+def _stateEulerGrid_basis(h, grid, m_val=None, state_filter=lambda **kw: True):
+    """Computes wave functions on a 3D grid of Euler angles.
+    Uses `h.basis[J][sym]` dictionary containing as values rotational solutions
+    `richmol.rot.basis.PsiTableMK`, with keys representing different
+    J quanta and symmetries.
+    """
+    if not hasattr(h, 'basis'):
+        raise AttributeError(f"Parameter 'h' has no attribute 'basis'") from None
+
+    bas = h.basis
+
+    # evaluate set of spherical-top functions on grid
+
+    jlist = [int(j) for j in bas.keys() if state_filter(J=j)]
+    klist = list(set([ int(k) for j in jlist
+                              for sym in bas[j].keys()
+                              for (_, k) in bas[j][sym].k.table['prim'] ]))
+    if m_val is None:
+        mlist = [m for m in range(-max(jlist), max(jlist)+1)]
+    else:
+        mlist = [m_val]
+
+    wigner = spherical.Wigner(max(jlist))
+    R = quaternionic.array.from_euler_angles(grid)
+    wigD = wigner.D(R)
+    jkm = {j : np.array([[np.sqrt((2*j+1) / (8*np.pi**2)) \
+                          * np.conj(wigD[:, wigner.Dindex(j, m, k)])
+                          for m in mlist] for k in klist]) for j in jlist}
+
+    # evaluate states on grid
+
+    mydict = lambda: defaultdict(mydict)
+    psi = mydict()
+
+    for j in bas.keys():
+        for sym in bas[j].keys():
+
+            k_val = bas[j][sym].k.table['prim'].T[0]
+            coefs = bas[j][sym].k.table['c']
+
+            k_ind = [klist.index(k) for k in k_val]
+            sym_top = jkm[j][k_ind, :, :]
+
+            for istate in range(coefs.shape[-1]):
+                if state_filter(J=j, sym=sym, ind=istate):  # apply state filters
+                    if len(psi[j][sym]) == 0:
+                        psi[j][sym] = []
+                    c = coefs[:, istate]
+                    func = np.sum(sym_top[:, :, :] * c[:, None, None], axis=0)
+                    psi[j][sym].append(
+                        (istate, [0], np.array([func]))
+                    )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
+
+    return psi
+
+
+def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter=lambda **kw: True):
+    """Computes wave functions on a 3D grid of Euler angles.
+    Uses `h.rotdens[j][sym]` and `h.rotdens_kv[j][sym] dictionaries containing
+    as values state eigenvector coefficients and sets of (k, v) quanta
+    (k - rotational and v - vibrational), respectively,
+    with keys representing different J quanta and symmetries.
     """
     if not hasattr(h, 'rotdens'):
         raise AttributeError(f"Parameter 'h' has no attribute 'rotdens'") from None
@@ -94,11 +154,17 @@ def densityEulerGrid(h, grid, m_val, diag=False, state_filter=lambda **kw: True)
                             for (phi, theta, chi), d in zip(grid, den):
                                 print(phi, theta, chi, d)
     """
-    psi = _stateEulerGrid(h, grid, m_val=m_val, state_filter=state_filter) # NOTE: in principle can run for m_val=None, i.e. m=[-J..J], it will not cause much overhead
+    # NOTE: in principle can run for m_val=None, i.e. m=[-J..J], it will not cause much overhead
+    if hasattr(h, 'rotdens') and len(list(h.rotdens.keys())) > 0: # rotdens attribute is always initialised as empty dict when reading tensors from file, hence here check it length
+        psi = _stateEulerGrid_rotdens(h, grid, m_val=m_val, state_filter=state_filter) 
+    elif hasattr(h, 'basis'):
+        psi = _stateEulerGrid_basis(h, grid, m_val=m_val, state_filter=state_filter)
+    else:
+        raise AttributeError(f"input parameter 'h' has neither 'rotdens' nor 'basis' attributes which are necessary to compute rotational density")
 
     # jmax = max(list(psi.keys()))
-    # im = [m for m in range(-jmax, jmax+1)].index(m)  # only for m_val=None in _stateEulerGrid
-    im = 0  # only for m_val=m_val in _stateEulerGrid
+    # im = [m for m in range(-jmax, jmax+1)].index(m)  # only for m_val=None in _stateEulerGrid_...
+    im = 0  # only for m_val=m_val in _stateEulerGrid_...
 
     mydict = lambda: defaultdict(mydict)
     dens = mydict()
@@ -126,3 +192,4 @@ def densityEulerGrid(h, grid, m_val, diag=False, state_filter=lambda **kw: True)
 
                             dens[(j1, j2)][(sym1, sym2)][(ind1, ind2)] = d
     return dens
+
