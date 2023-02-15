@@ -41,7 +41,7 @@ def _stateEulerGrid_basis(h, grid, m_val=None, state_filter=lambda **kw: True):
     for j in bas.keys():
         for sym in bas[j].keys():
 
-            k_val = bas[j][sym].k.table['prim'].T[0]
+            k_val = bas[j][sym].k.table['prim'].T[1]
             coefs = bas[j][sym].k.table['c']
 
             k_ind = [klist.index(k) for k in k_val]
