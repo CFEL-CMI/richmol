@@ -6,7 +6,7 @@ from richmol.field import CarTens
 import py3nj
 from collections import defaultdict
 from richmol.hyperfine.labtens import LabTensor as HyperLabTensor
-from richmol.rotdens import _stateEulerGrid
+from richmol.rotdens import _stateEulerGrid_basis, _stateEulerGrid_rotdens
 import copy
 
 
