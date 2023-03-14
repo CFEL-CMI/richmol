@@ -7,9 +7,9 @@ from richmol.rot.molecule import Molecule, mol_frames
 from richmol.rot.solution import hamiltonian
 import collections
 import inspect
-import os
 import py3nj
-import quadpy
+# import quadpy
+from richmol_quad import lebedev, lebedev_npoints
 import quaternionic
 import spherical
 
@@ -75,9 +75,12 @@ class LabTensor(CarTens):
         wig_jmax : int
             Maximal value of J quantum number used in the expansion of input user-defined function
             of spherical coordinates in terms of Wigner D-functions (used when `arg` is function).
-        leb_deg : int
+        leb_deg : int (deprecated, use `leb_ind`)
             Degree of angular Lebedev quadrature used for computing the Wigner expansion coefficients
             (used when `arg` is function)
+        leb_ind : int
+            Index (0..32) of the angular Lebedev quadrature used for computing the
+            Wigner expansion coefficients (used when `arg` is a function)
     """
     # transformation matrix from Cartesian to spherical-tensor representation
     # for tensors of different ranks (dict keys)
@@ -257,12 +260,14 @@ class LabTensor(CarTens):
         self.Ux[np.abs(self.Ux) < thresh_] = 0
 
 
-    def init_tens_from_func(self, func, wig_jmax=100, leb_deg=131, thresh=None, **kwargs):
+    def init_tens_from_func(self, func, wig_jmax=100, leb_deg=131, leb_ind=32,
+                            thresh=None, **kwargs):
         """Initializes components of lab-frame tensor from arbitrary function `func`(theta, phi)
         of spherical angles
 
         Expands function in terms of spherical-top functions |J,k=0,m> with J=0..`wig_jmax` and m=-J..J,
-        computes expansion coefficients <func|J,k=0,m> using Lebedev quadrature of degree `leb_deg`,
+        computes expansion coefficients <func|J,k=0,m> using Lebedev quadrature
+        defined by its index `leb_ind`=0..32 (formerly by degree `leb_deg`),
         expansion coefficients smaller than `thresh` are neglected
         """
         if thresh is None:
@@ -275,14 +280,20 @@ class LabTensor(CarTens):
         self.tens_flat = np.array([1], dtype=np.float64)
 
         # init Lebedev quadrature
-        quad_name = "lebedev_" + str(leb_deg).zfill(3)
-        try:
-            leb = quadpy.u3.schemes[quad_name]
-        except KeyError:
-            raise KeyError(f"quadrature '{quad_name}' not found, available schemes: " + \
-                f"{[key for key in quadpy.u3.schemes.keys() if key.startswith('lebedev')]}") from None
-        theta, phi = leb().theta_phi
-        weights = leb().weights
+
+        ##### Using quadpy (which sadly is not free anymore)
+        # quad_name = "lebedev_" + str(leb_deg).zfill(3)
+        # try:
+        #     leb = quadpy.u3.schemes[quad_name]
+        # except KeyError:
+        #     raise KeyError(f"quadrature '{quad_name}' not found, available schemes: " + \
+        #         f"{[key for key in quadpy.u3.schemes.keys() if key.startswith('lebedev')]}") from None
+        # theta, phi = leb().theta_phi
+        # weights = leb().weights
+
+        ##### Using fortran implementation
+        leb_npoints = lebedev_npoints(leb_ind)
+        (theta, phi), weights = lebedev(leb_npoints)
 
         # compute function on quadrature grid, multiply by quadrature weights
         f = func(theta, phi) * weights
