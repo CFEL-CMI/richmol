@@ -1,0 +1,20 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module richmol_quad ! in 
+    interface  ! in :richmol_quad
+        subroutine lebedev_npoints(order,npoints) ! in :richmol_quad:lebedev.f90
+            integer(kind=4) intent(in) :: order
+            integer(kind=4) intent(out) :: npoints
+        end subroutine lebedev_npoints
+        subroutine lebedev(npoints,grid,weight) ! in :richmol_quad:lebedev.f90
+            integer(kind=4) intent(in) :: npoints
+            real(kind=8) dimension(2,npoints),intent(out),depend(npoints) :: grid
+            real(kind=8) dimension(npoints),intent(out),depend(npoints) :: weight
+        end subroutine lebedev
+    end interface 
+end python module richmol_quad
+
+! This file was auto-generated with f2py (version:1.22.4).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e

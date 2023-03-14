@@ -2,6 +2,15 @@ import os
 import setuptools
 from numpy.distutils.core import Extension
 
+# quad
+quad = Extension(name = 'richmol_quad',
+                 sources = ['quad/richmol_quad.pyf',
+                            'quad/lebedev.f90',
+                            'quad/sphere_lebedev_rule.f90'
+                            ],
+                 extra_compile_args= ['-O3']
+                 )
+
 # expokit
 expokit = Extension(name = 'expokit',
                     sources = ['expokit/expokit.pyf',
@@ -77,7 +86,7 @@ if __name__ == "__main__":
         download_url = 'https://pypi.python.org/pypi/richmol',
         packages=setuptools.find_packages(),
         include_package_data=True,
-        ext_modules=[expokit, potentials, wigner],
+        ext_modules=[expokit, potentials, wigner, quad],
         install_requires=install_requires,
         use_scm_version=True,
         setup_requires=['setuptools_scm'],
