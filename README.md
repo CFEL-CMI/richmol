@@ -36,10 +36,10 @@ We plan to include following new features in the next release:
 
 ## Quick install
 
-```
-> pip install --upgrade pip
-> pip install --upgrade richmol
-```
+#```
+#> pip install --upgrade pip
+#> pip install --upgrade richmol
+#```
 
 Latest version
 
