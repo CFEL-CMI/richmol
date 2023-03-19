@@ -30,7 +30,7 @@ Richmol can be used for predicting:
 * **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics of diatomic molecules including non-adiabatic and spin-orbit coupling effects
 
 We plan to include following new features in the next release:
-* **Hyperfine effects** (`richmol.hype`): spectra and dynamics on hyperfine states, including nuclear quadrupole, spin-spin, and spin-rotation interactions
+* **Hyperfine effects** (`richmol.hyperfine`): spectra and dynamics on hyperfine states, including nuclear quadrupole, spin-spin, and spin-rotation interactions
 * **VMI observables** (`richmol.vmi`): time-evolutions of 2D projections of probability density functions for selected molecular groups (in axial-recoil approximation)
 
 
