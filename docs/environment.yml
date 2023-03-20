@@ -2,7 +2,7 @@ name: readthedocs
 channels:
   - conda-forge
 dependencies:
-  - python=3.9
+  - python=3.8
   - conda==4.10.3
   - pip
   - scipy
@@ -10,4 +10,6 @@ dependencies:
   - flax
   - jax
   - mendeleev
+  - cmake
+  - compilers
 prefix: /opt/homebrew/Caskroom/miniforge/base
