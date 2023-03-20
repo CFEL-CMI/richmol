@@ -17,4 +17,3 @@ python:
 # By default readthedocs does not checkout git submodules
 submodules:                                                                                                                          
     include: all
-view raw
