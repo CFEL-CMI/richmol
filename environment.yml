@@ -1,0 +1,17 @@
+name: base
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - conda==4.10.3
+  - pip
+  - scipy
+  - numpy
+  - flax
+  - graphviz
+  - jax
+  - tensorflow
+  - pandas
+  - mendeleev
+  - matplotlib
+prefix: /opt/homebrew/Caskroom/miniforge/base
