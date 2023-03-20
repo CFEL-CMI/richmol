@@ -6,14 +6,16 @@ conda:
 build:
    image: latest
 
-# This part is necessary otherwise the project is not built
 python:
-   version: 3.8
-   install:
-      - method: pip
-      - requirements: docs/requirements.txt
-        path: .
-        
-# By default readthedocs does not checkout git submodules
+  install:
+    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+    - method: pip
+      path: .
+  system_packages: true
+
 submodules:                                                                                                                          
     include: all
