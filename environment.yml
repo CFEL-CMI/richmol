@@ -8,10 +8,7 @@ dependencies:
   - scipy
   - numpy
   - flax
-  - graphviz
   - jax
-  - tensorflow
-  - pandas
   - mendeleev
-  - matplotlib
+  - spinsfast
 prefix: /opt/homebrew/Caskroom/miniforge/base
