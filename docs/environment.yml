@@ -1,4 +1,4 @@
-name: base
+name: readthedocs
 channels:
   - conda-forge
 dependencies:
@@ -10,5 +10,4 @@ dependencies:
   - flax
   - jax
   - mendeleev
-  - spinsfast
 prefix: /opt/homebrew/Caskroom/miniforge/base
