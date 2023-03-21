@@ -59,9 +59,12 @@ install_requires = [
     "matplotlib==3.3.4",
     ]
 
+ext_modules = []
+
 if not os.getenv('READTHEDOCS'):
     install_requires.append("py3nj>=0.1.2")
     install_requires.append("spherical>=1.0.8")
+    ext_modules = [expokit, potentials, wigner, quad]
 
 if __name__ == "__main__":
     from numpy.distutils.core import setup
@@ -88,7 +91,7 @@ if __name__ == "__main__":
         download_url = 'https://pypi.python.org/pypi/richmol',
         packages=setuptools.find_packages(),
         include_package_data=True,
-        ext_modules=[expokit, potentials, wigner, quad],
+        ext_modules=ext_modules,
         install_requires=install_requires,
         use_scm_version=True,
         setup_requires=['setuptools_scm'],
