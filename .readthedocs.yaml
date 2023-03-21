@@ -4,15 +4,7 @@ build:
    image: latest
 
 python:
+  pip_install: false
+  version: 3
   install:
     - requirements: docs/requirements.txt
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs
-    - method: pip
-      path: .
-  system_packages: true
-
-submodules:                                                                                                                          
-    include: all
