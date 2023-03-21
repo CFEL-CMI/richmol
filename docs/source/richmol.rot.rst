@@ -1,20 +1,18 @@
 richmol.rot package
 *******************
 
-.. currentmodule:: richmol.rot
-
 .. autosummary::
 
-   Molecule
-   solve
-   Solution
-   mol_tensor
-   LabTensor
+   richmol.rot.Molecule
+   richmol.rot.solve
+   richmol.rot.Solution
+   richmol.rot.mol_tensor
+   richmol.rot.LabTensor
 
 Rigid molecule description
 --------------------------
 
-.. autoclass:: Molecule
+.. autoclass:: richmol.rot.Molecule
 
     .. automethod:: XYZ
     .. automethod:: frame
@@ -34,8 +32,8 @@ Rigid molecule description
 Rotational solutions
 --------------------
 
-.. autofunction:: solve
-.. autoclass:: Solution
+.. autofunction:: richmol.rot.solve
+.. autoclass:: richmol.rot.Solution
 
     .. automethod:: store
     .. automethod:: read
@@ -43,5 +41,5 @@ Rotational solutions
 Matrix elements
 ---------------
 
-.. autoclass:: LabTensor
+.. autoclass:: richmol.rot.LabTensor
 
