@@ -53,7 +53,6 @@ install_requires = [
     "scipy>=1.6",
     "mendeleev>=0.7.0",
     "quaternionic>=0.3.4",
-    "spherical>=1.0.8",
     "h5py>=2.10.0",
     "jax>=0.2.13",
     "numba>=0.53.1",
@@ -62,6 +61,7 @@ install_requires = [
 
 if not os.getenv('READTHEDOCS'):
     install_requires.append("py3nj>=0.1.2")
+    install_requires.append("spherical>=1.0.8")
 
 if __name__ == "__main__":
     from numpy.distutils.core import setup
