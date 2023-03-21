@@ -65,9 +65,9 @@ TROVE bindings (:code:`trove`)
 
 .. autosummary::
 
-   richmol.field.trove
+   richmol.trove
 
-.. autoclass:: richmol.field.trove
+.. autoclass:: richmol.trove
 
     .. automethod:: read_states
     .. automethod:: read_trans
