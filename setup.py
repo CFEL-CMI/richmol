@@ -57,6 +57,7 @@ install_requires = [
     "jax>=0.2.13",
     "numba>=0.53.1",
     "matplotlib==3.3.4",
+    "regex"
     ]
 
 ext_modules = []
