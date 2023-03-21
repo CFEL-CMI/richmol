@@ -55,10 +55,22 @@ Molecule-field interaction potential (:code:`field`)
     .. automethod:: __sub__
     .. automethod:: store
     .. automethod:: read
-    .. automethod:: read_states
-    .. automethod:: read_trans
+
 
 .. autofunction:: richmol.field.filter
+
+
+TROVE bindings (:code:`trove`)
+------------------------------
+
+.. autosummary::
+
+   richmol.field.trove
+
+.. autoclass:: richmol.field.trove
+
+    .. automethod:: read_states
+    .. automethod:: read_trans
 
 
 Time-dependent solutions (:code:`tdse`)
