@@ -16,7 +16,8 @@ expokit = Extension(name = 'expokit',
                     sources = ['expokit/expokit.pyf',
                                'expokit/expokit.f'
                               ],
-                    extra_link_args = ["-llapack", "-lblas"]
+                    extra_link_args = ["-llapack", "-lblas"],
+                    extra_compile_args = ["-O3", "-fallow-argument-mismatch"]
                    )
 
 # computes Wigner and symmetric-top functions
