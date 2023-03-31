@@ -368,7 +368,8 @@ class Hyperfine(CarTens):
                         f" max(abs(mat - mat.conj().T)) = {asym} > {zeroTol}, " + \
                         f"for F = {f} and symmetry = {sym}"
 
-                enr, vec = np.linalg.eigh(hmat + hmat0)
+                # enr, vec = np.linalg.eigh(hmat + hmat0)
+                enr, vec = np.linalg.eigh(hmat.real + hmat0.real)
                 ind = np.argmax(np.array(abs(vec)), axis=0)
                 quanta = [quanta[i] for i in ind]
 
