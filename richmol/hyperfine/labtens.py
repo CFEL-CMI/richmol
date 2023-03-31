@@ -87,7 +87,7 @@ class LabTensor(CarTens):
                 q1 = h0.quantaSpinJSym[f1][sym1]
                 v1 = h0.eigvec[f1][sym1]
                 for f2 in h0.Jlist2:
-                    for sym2 in h0.symlist1[f2]:
+                    for sym2 in h0.symlist2[f2]:
                         q2 = h0.quantaSpinJSym[f2][sym2]
                         v2 = h0.eigvec[f2][sym2]
                         for omega in set([o for (o, s) in self.os]):
@@ -103,7 +103,7 @@ class LabTensor(CarTens):
             for sym1 in h0.symlist1[f1]:
                 q1 = h0.quanta_m1[f1][sym1]
                 for f2 in h0.Jlist2:
-                    for sym2 in h0.symlist1[f2]:
+                    for sym2 in h0.symlist2[f2]:
                         q2 = h0.quanta_m2[f2][sym2]
                         for omega in set([o for (o, s) in self.os]):
                             me = self._mPrim(f1, f2, q1, q2, omega)
