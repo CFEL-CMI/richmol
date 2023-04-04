@@ -133,9 +133,7 @@ class LabTensor(CarTens):
                 mat = np.zeros((dim1, dim2), dtype=np.complex128)
                 if all(s1 == s2 for s1, s2 in zip(spin1, spin2)):
                     I2 = spin2[-1]
-                    fac = f1 + I2
-                    assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
-                    fac = int(fac)
+                    fac = round(I1, 1)
                     coef = (-1)**fac * np.sqrt((2*j1+1) * (2*j2+1)) \
                          * py3nj.wigner6j(int(j1*2), int(f1*2), int(I2*2),
                                           int(f2*2), int(j2*2), int(omega*2))
@@ -157,9 +155,7 @@ class LabTensor(CarTens):
         Ux = np.take(self.Ux, sigma_ind, axis=1)
         me = np.zeros((len(quanta_m1), len(quanta_m2), Ux.shape[0]), dtype=np.complex128)
         for i, m1 in enumerate(quanta_m1):
-            fac = f1 - m1
-            assert (float(fac).is_integer()), f"Non-integer power in (-1)**f: '(-1)**{fac}'"
-            fac = int(fac)
+            fac = round(-m1, 1)
             coef = (-1)**fac * np.sqrt((2*f1+1) * (2*f2+1))
             for j, m2 in enumerate(quanta_m2):
                 threej = py3nj.wigner3j([int(f1*2)]*ns, [int(omega*2)]*ns, [int(f2*2)]*ns,
