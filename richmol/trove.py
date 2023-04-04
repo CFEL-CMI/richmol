@@ -3,6 +3,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from collections import defaultdict
 import re
+import sys
 import os
 
 
@@ -403,7 +404,7 @@ class CarTensTrove(CarTens):
                             except (IndexError, ValueError):
                                 raise ValueError(
                                     f"error while reading file " \
-                                        + f"'{filename}', line = {iline}"
+                                        + f"'{fname}', line = {iline}"
                                 ) from None
                             if tens_nirrep is not None \
                                 and tens_nirrep != nirrep:
@@ -451,7 +452,18 @@ class CarTensTrove(CarTens):
                             iline += 1
                             continue
 
-                        if strline == "K-tensor":
+                        if "K-tensor" in strline:
+                            w = strline.split()
+                            if len(w) > 1:
+                                icmplx = int(w[1]) + 1
+                                cmplx_fac_k = (1j, 1)[icmplx]
+                                old_format = False
+                            else:
+                                cmplx_fac_k = 1
+                                print("warning, reading files from older TROVE format " +\
+                                      "where K-tensor and M-tensor are not individually " +\
+                                      "hermitian, only their product is Hermitian")
+                                old_format = True
                             read_m = False
                             read_k = True
                             iline += 1
@@ -465,10 +477,10 @@ class CarTensTrove(CarTens):
                             except (IndexError, ValueError):
                                 raise ValueError(
                                     f"error while reading file " \
-                                        + f"'{filename}', line = '{iline}'"
+                                        + f"'{fname}', line = '{iline}'"
                                 ) from None
                             self.cart = list(set(self.cart + [cart]))
-                            cmplx_fac = (1j, 1)[icmplx + 1]
+                            cmplx_fac_m = (1j, 1)[icmplx + 1]
                             iline += 1
                             continue
 
@@ -477,12 +489,12 @@ class CarTensTrove(CarTens):
                             try:
                                 m1 = round(float(w[0]), 1)
                                 m2 = round(float(w[1]), 1)
-                                mval = [ float(val) * cmplx_fac
+                                mval = [ float(val) * cmplx_fac_m
                                          for val in w[2:] ]
                             except (IndexError, ValueError):
                                 raise ValueError(
                                     f"error while reading file " \
-                                        + f"'{filename}', line = '{iline}'"
+                                        + f"'{fname}', line = '{iline}'"
                                 ) from None
                             im1 = self.map_m_ind[(J1, m1)]
                             im2 = self.map_m_ind[(J2, m2)]
@@ -506,11 +518,11 @@ class CarTensTrove(CarTens):
                                 id2 = int(w[1])
                                 ideg1 = int(w[2])
                                 ideg2 = int(w[3])
-                                kval = [float(val) for val in w[4:]]
+                                kval = [float(val) * cmplx_fac_k for val in w[4:]]
                             except (IndexError, ValueError):
                                 raise ValueError(
                                     f"error while reading file " \
-                                        + f"'{filename}', line = '{iline}'"
+                                        + f"'{fname}', line = '{iline}'"
                                 ) from None
                             istate1, sym1 = self.map_k_ind[(J1, id1, ideg1)]
                             istate2, sym2 = self.map_k_ind[(J2, id2, ideg2)]
@@ -561,7 +573,7 @@ class CarTensTrove(CarTens):
                     # in the old-format, J1 / F1 and J2 / F2 denote ket and bra
                     #   states, respectively, while here J1 / F1 and J2 / F2
                     #   denote the opposite, bra and ket states, to account for
-                    #   this, we need to do additional complex conjugate this
+                    #   this, we need to do additional complex conjugate which
                     #   cancels out conjugation, when `transp` = True, and adds
                     #   it, when `transp` = False
 
