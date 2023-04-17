@@ -5,8 +5,6 @@ from richmol.hyperfine.basis import nearEqualCoupling, spinNearEqualCoupling
 from richmol.field import CarTens
 import py3nj
 from collections import defaultdict
-from richmol.hyperfine.labtens import LabTensor as HyperLabTensor
-from richmol.rotdens import _stateEulerGrid_basis, _stateEulerGrid_rotdens
 import copy
 
 
@@ -324,6 +322,7 @@ class Hyperfine(CarTens):
         self.Jlist1 = fList
         self.Jlist2 = fList
         self.quantaSpinJSym = mydict()
+        self.quantaRovib = mydict()
 
         self.symlist1 = mydict()
         self.symlist2 = mydict()
@@ -370,9 +369,13 @@ class Hyperfine(CarTens):
 
                 # enr, vec = np.linalg.eigh(hmat + hmat0)
                 enr, vec = np.linalg.eigh(hmat.real + hmat0.real)
+
+                self.eigvec[f][sym] = vec
+                self.quantaRovib[f][sym] = quanta
+                self.quantaSpinJSym[f][sym] = quantaSpinJSym
+
                 ind = np.argmax(np.array(abs(vec)), axis=0)
                 quanta = [quanta[i] for i in ind]
-
                 self.dim_k1[f][sym], self.dim_k2[f][sym] = hmat.shape
                 self.dim_m1[f][sym] = int(2 * f) + 1
                 self.dim_m2[f][sym] = int(2 * f) + 1
@@ -385,65 +388,12 @@ class Hyperfine(CarTens):
                 self.kmat[(f, f)][(sym, sym)] = {0 : csr_matrix(np.diag(enr))}
                 self.mmat[(f, f)][(sym, sym)] = {0 : {'0' : csr_matrix(np.eye(int(2 * f) + 1))}}
 
-                self.eigvec[f][sym] = vec
-                self.quantaSpinJSym[f][sym] = quantaSpinJSym
-
             if len(symList) > 0:
                 self.symlist1[f] = symList
                 self.symlist2[f] = symList
 
         if hasattr(h0, 'rotdens'):
             self.rotdens = copy.copy(h0.rotdens)
-
-
-    def spinDensity(self, f1, mf1, sym1, ind1, f2, mf2, sym2, ind2, grid, c2_thresh=1e-6):
-
-        vec1 = self.eigvec[f1][sym1][:, ind1]
-        vec2 = self.eigvec[f2][sym2][:, ind2]
-        nz_ind1 = np.where(abs(vec1)**2 >= c2_thresh)
-        nz_ind2 = np.where(abs(vec2)**2 >= c2_thresh)
-
-        states1 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k1]
-        states2 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k2]
-
-        def state_filter1(**kw):
-            j = int(kw['J'])
-            sym = kw['sym'].lower()
-            ind = int(kw['ind'])
-            return (j, sym, ind) in states1
-
-        def state_filter2(**kw):
-            j = int(kw['J'])
-            sym = kw['sym'].lower()
-            ind = int(kw['ind'])
-            return (j, sym, ind) in states2
-
-        psi1 = _stateEulerGrid(self, grid, state_filter=state_filter1)
-        psi2 = _stateEulerGrid(self, grid, state_filter=state_filter2)
-
-        # for i in nz_ind1:
-        #     (spin, j, sym, k, rvInd), enr = self.quanta_k1[i]
-        #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
-        #     mj = [int(m*2) for m in np.arange(-j, j+1)]
-        #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
-        #     n = len(mij)
-        #     threej = py3nj.wigner3j([int(f1*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
-        #                             [-int(mf1*2)]*n, mij[:, 0], mj[:, 1])
-
-        # spin, j, sym, k = self.quanta_k1[f1][sym1][ind1][0]
-
-        # for i, (spin, j, rvSym, dim) in enumerate(self.quantaSpinJSym[f1][sym1]):
-        #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
-        #     mj = [int(m*2) for m in np.arange(-j, j+1)]
-        #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
-        #     n = len(mij)
-        #     threej = py3nj.wigner3j([int(f*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
-        #                             [-int(mF*2)]*n, mij[:, 0], mj[:, 1])
-        #     threej = threej.reshape(len(mi), len(mj))
-        #     func = np.array([elem[1] for elem in psi[j][rvSym]]) # (l, v, mj, rg)
-        #     np.einsum('ij,lvjg->ilvg', threej, func) # (mi, mj) * (l, v, mj, rg)
-        #     threej, psi[j][rvSym][irv][1][v, m, g]
-
 
 
     def class_name(self):
