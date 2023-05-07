@@ -2,9 +2,10 @@ import numpy as np
 import spherical
 import quaternionic
 from collections import defaultdict
+from typing import Callable
 
 
-def _stateEulerGrid_basis(h, grid, m_val=None, state_filter=lambda **kw: True):
+def _stateEulerGrid_basis(h, grid, m_val=None, state_filter: Callable = lambda **kw: True):
     """Computes wave functions on a 3D grid of Euler angles.
     Uses `h.basis[J][sym]` dictionary containing as values rotational solutions
     `richmol.rot.basis.PsiTableMK`, with keys representing different
@@ -17,50 +18,54 @@ def _stateEulerGrid_basis(h, grid, m_val=None, state_filter=lambda **kw: True):
 
     # evaluate set of spherical-top functions on grid
 
-    jlist = [int(j) for j in bas.keys() if state_filter(J=j)]
-    klist = list(set([ int(k) for j in jlist
-                              for sym in bas[j].keys()
-                              for (_, k) in bas[j][sym].k.table['prim'] ]))
+    state_list = [(int(j), sym, istate)
+                    for j in bas.keys()
+                    for sym in bas[j].keys()
+                    for istate in range(bas[j][sym].k.table['c'].shape[-1])
+                    if state_filter(J=j, sym=sym, ind=istate)]
+
+    j_sym_list = list(set([(j, sym) for (j, sym, _) in state_list]))
+    j_list = list(set([j for (j, _, _) in state_list]))
+
+    k_list = list(set([ int(k) for (j, sym) in j_sym_list
+                               for (_, k) in bas[j][sym].k.table['prim'] ]))
     if m_val is None:
-        mlist = [m for m in range(-max(jlist), max(jlist)+1)]
+        mlist = [m for m in range(-max(j_list), max(j_list)+1)]
     else:
         mlist = [m_val]
 
-    wigner = spherical.Wigner(max(jlist))
+    wigner = spherical.Wigner(max(j_list))
     R = quaternionic.array.from_euler_angles(grid)
     wigD = wigner.D(R)
     jkm = {j : np.array([[np.sqrt((2*j+1) / (8*np.pi**2)) \
                           * np.conj(wigD[:, wigner.Dindex(j, m, k)])
-                          for m in mlist] for k in klist]) for j in jlist}
+                          for m in mlist] for k in k_list]) for j in j_list}
 
     # evaluate states on grid
 
     mydict = lambda: defaultdict(mydict)
     psi = mydict()
 
-    for j in bas.keys():
-        for sym in bas[j].keys():
+    for (j, sym, istate) in state_list:
 
-            k_val = bas[j][sym].k.table['prim'].T[1]
-            coefs = bas[j][sym].k.table['c']
+        k_val = bas[j][sym].k.table['prim'].T[1]
+        coefs = bas[j][sym].k.table['c']
 
-            k_ind = [klist.index(k) for k in k_val]
-            sym_top = jkm[j][k_ind, :, :]
+        k_ind = [k_list.index(k) for k in k_val]
+        sym_top = jkm[j][k_ind, :, :]
 
-            for istate in range(coefs.shape[-1]):
-                if state_filter(J=j, sym=sym, ind=istate):  # apply state filters
-                    if len(psi[j][sym]) == 0:
-                        psi[j][sym] = []
-                    c = coefs[:, istate]
-                    func = np.sum(sym_top[:, :, :] * c[:, None, None], axis=0)
-                    psi[j][sym].append(
-                        (istate, [0], np.array([func]))
-                    )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
+        if len(psi[j][sym]) == 0:
+            psi[j][sym] = []
+        c = coefs[:, istate]
+        func = np.sum(sym_top[:, :, :] * c[:, None, None], axis=0)
+        psi[j][sym].append(
+            (istate, [0], np.array([func]))
+        )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 
 
-def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter=lambda **kw: True):
+def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter: Callable = lambda **kw: True):
     """Computes wave functions on a 3D grid of Euler angles.
     Uses `h.rotdens[j][sym]` and `h.rotdens_kv[j][sym] dictionaries containing
     as values state eigenvector coefficients and sets of (k, v) quanta
@@ -73,49 +78,54 @@ def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter=lambda **kw: True)
     # evaluate set of spherical-top functions on grid
     # for all k quanta appering in h.rotdens_kv[j][sym][(k, v)]
 
-    jlist = [int(j) for j in h.rotdens.keys() if state_filter(J=j)]
-    klist = list(set([ int(k) for j in jlist
-                              for sym in h.rotdens_kv[j].keys()
-                              for (k, v) in h.rotdens_kv[j][sym] ]))
+    state_list = [(int(j), sym, istate)
+                    for j in h.rotdens.keys()
+                    for sym in h.rotdens_kv[j].keys()
+                    for istate in range(h.rotdens[j][sym].shape[-1])
+                    if state_filter(J=j, sym=sym, ind=istate)]
+
+    j_sym_list = list(set([(j, sym) for (j, sym, _) in state_list]))
+    j_list = list(set([j for (j, _, _) in state_list]))
+
+    k_list = list(set([ int(k) for (j, sym) in j_sym_list
+                               for (k, v) in h.rotdens_kv[j][sym] ]))
+
     if m_val is None:
-        mlist = [m for m in range(-max(jlist), max(jlist)+1)]
+        mlist = [m for m in range(-max(j_list), max(j_list)+1)]
     else:
         mlist = [m_val]
 
-    wigner = spherical.Wigner(max(jlist))
+    wigner = spherical.Wigner(max(j_list))
     R = quaternionic.array.from_euler_angles(grid)
     wigD = wigner.D(R)
     jkm = {j : np.array([[np.sqrt((2*j+1) / (8*np.pi**2)) \
                           * np.conj(wigD[:, wigner.Dindex(j, m, k)])
-                          for m in mlist] for k in klist]) for j in jlist}
+                          for m in mlist] for k in k_list]) for j in j_list}
 
     # evaluate states on grid
 
     mydict = lambda: defaultdict(mydict)
     psi = mydict()
 
-    for j in h.rotdens.keys():
-        for sym in h.rotdens[j].keys():
+    for (j, sym, istate) in state_list:
 
-            kv = h.rotdens_kv[j][sym]
-            coefs = h.rotdens[j][sym]
+        kv = h.rotdens_kv[j][sym]
+        coefs = h.rotdens[j][sym]
 
-            k_ind = [klist.index(k) for (k, v) in kv]
-            sym_top = jkm[j][k_ind, :, :]
+        k_ind = [k_list.index(k) for (k, v) in kv]
+        sym_top = jkm[j][k_ind, :, :]
 
-            vlist = list(set([v for (k, v) in kv]))
-            k_, v_ = np.array(kv).T
-            v_ind = [np.where(v_==v) for v in vlist]
+        vlist = list(set([v for (k, v) in kv]))
+        k_, v_ = np.array(kv).T
+        v_ind = [np.where(v_==v) for v in vlist]
 
-            for istate in range(coefs.shape[-1]):
-                if state_filter(J=j, sym=sym, ind=istate):  # apply state filters
-                    if len(psi[j][sym]) == 0:
-                        psi[j][sym] = []
-                    c = np.array(coefs[:, istate].todense())[:, 0]
-                    func = sym_top[:, :, :] * c[:, None, None]
-                    psi[j][sym].append(
-                        (istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind]))
-                    )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
+        if len(psi[j][sym]) == 0:
+            psi[j][sym] = []
+        c = np.array(coefs[:, istate].todense())[:, 0]
+        func = sym_top[:, :, :] * c[:, None, None]
+        psi[j][sym].append(
+            (istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind]))
+        )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 
