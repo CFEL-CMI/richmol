@@ -255,6 +255,10 @@ def hamiltonian(f, spins, h0, quad=None, sr=None, ss=None, eQ=None,
     if verbose:
         print(f"matrix dimensions: {hamMat.shape}")
 
+    # bmat returns matrix objext, convert to ndarray
+    hamMat = np.array(hamMat)
+    hamMat0 = np.array(hamMat0)
+
     return hamMat, hamMat0, quanta, quantaSpinJSym
 
 
@@ -367,8 +371,8 @@ class Hyperfine(CarTens):
                         f" max(abs(mat - mat.conj().T)) = {asym} > {zeroTol}, " + \
                         f"for F = {f} and symmetry = {sym}"
 
-                # enr, vec = np.linalg.eigh(hmat + hmat0)
-                enr, vec = np.linalg.eigh(hmat.real + hmat0.real)
+                enr, vec = np.linalg.eigh(hmat + hmat0)
+                # enr, vec = np.linalg.eigh(hmat.real + hmat0.real)
 
                 self.eigvec[f][sym] = vec
                 self.quantaRovib[f][sym] = quanta
@@ -394,6 +398,7 @@ class Hyperfine(CarTens):
 
         if hasattr(h0, 'rotdens'):
             self.rotdens = copy.copy(h0.rotdens)
+            self.rotdens_kv = copy.copy(h0.rotdens_kv)
 
 
     def class_name(self):
