@@ -30,16 +30,16 @@ def _stateEulerGrid_basis(h, grid, m_val=None, state_filter: Callable = lambda *
     k_list = list(set([ int(k) for (j, sym) in j_sym_list
                                for (_, k) in bas[j][sym].k.table['prim'] ]))
     if m_val is None:
-        mlist = [m for m in range(-max(j_list), max(j_list)+1)]
+        m_list = [m for m in range(-max(j_list), max(j_list)+1)]
     else:
-        mlist = [m_val]
+        m_list = [m_val]
 
     wigner = spherical.Wigner(max(j_list))
     R = quaternionic.array.from_euler_angles(grid)
     wigD = wigner.D(R)
     jkm = {j : np.array([[np.sqrt((2*j+1) / (8*np.pi**2)) \
                           * np.conj(wigD[:, wigner.Dindex(j, m, k)])
-                          for m in mlist] for k in k_list]) for j in j_list}
+                          for m in m_list] for k in k_list]) for j in j_list}
 
     # evaluate states on grid
 
@@ -91,16 +91,16 @@ def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter: Callable = lambda
                                for (k, v) in h.rotdens_kv[j][sym] ]))
 
     if m_val is None:
-        mlist = [m for m in range(-max(j_list), max(j_list)+1)]
+        m_list = [m for m in range(-max(j_list), max(j_list)+1)]
     else:
-        mlist = [m_val]
+        m_list = [m_val]
 
     wigner = spherical.Wigner(max(j_list))
     R = quaternionic.array.from_euler_angles(grid)
     wigD = wigner.D(R)
     jkm = {j : np.array([[np.sqrt((2*j+1) / (8*np.pi**2)) \
                           * np.conj(wigD[:, wigner.Dindex(j, m, k)])
-                          for m in mlist] for k in k_list]) for j in j_list}
+                          for m in m_list] for k in k_list]) for j in j_list}
 
     # evaluate states on grid
 
