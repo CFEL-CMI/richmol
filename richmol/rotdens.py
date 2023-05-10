@@ -54,13 +54,11 @@ def _stateEulerGrid_basis(h, grid, m_val=None, state_filter: Callable = lambda *
         k_ind = [k_list.index(k) for k in k_val]
         sym_top = jkm[j][k_ind, :, :]
 
-        if len(psi[j][sym]) == 0:
-            psi[j][sym] = []
+        if len(psi[j][sym][istate]) == 0:
+            psi[j][sym][istate] = []
         c = coefs[:, istate]
         func = np.sum(sym_top[:, :, :] * c[:, None, None], axis=0)
-        psi[j][sym].append(
-            (istate, [0], np.array([func]))
-        )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
+        psi[j][sym][istate] = ([0], np.array([func])) # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 
@@ -119,13 +117,11 @@ def _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter: Callable = lambda
         k_, v_ = np.array(kv).T
         v_ind = [np.where(v_==v) for v in vlist]
 
-        if len(psi[j][sym]) == 0:
-            psi[j][sym] = []
+        if len(psi[j][sym][istate]) == 0:
+            psi[j][sym][istate] = []
         c = np.array(coefs[:, istate].todense())[:, 0]
         func = sym_top[:, :, :] * c[:, None, None]
-        psi[j][sym].append(
-            (istate, vlist, np.array([np.sum(func[i], axis=0) for i in v_ind]))
-        )  # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
+        psi[j][sym][istate] = (vlist, np.array([np.sum(func[i], axis=0) for i in v_ind])) # shape = (v, m=-Jmax:Jmax, ipoint=0:npoints)
 
     return psi
 
@@ -189,8 +185,8 @@ def densityEulerGrid(h, grid, m_val, diag=False, state_filter=lambda **kw: True)
 
                     if diag and sym1 != sym2: continue
 
-                    for (ind1, v1, psi1) in psi_sym1:
-                        for (ind2, v2, psi2) in psi_sym2:
+                    for ind1, (v1, psi1) in psi_sym1.items():
+                        for ind2, (v2, psi2) in psi_sym2.items():
 
                             if diag and ind1 != ind2: continue
 
