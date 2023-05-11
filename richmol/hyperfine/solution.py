@@ -320,6 +320,8 @@ class Hyperfine(CarTens):
 
         mydict = lambda: defaultdict(mydict)
 
+        self.spins = spins
+
         self.cart = ['0']
         self.os = [(0, 0)]
         self.rank = 0

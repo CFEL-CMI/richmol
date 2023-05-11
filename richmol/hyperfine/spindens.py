@@ -1,10 +1,20 @@
 from richmol.rotdens import _stateEulerGrid_basis, _stateEulerGrid_rotdens
 from richmol.hyperfine import Hyperfine
+from richmol.hyperfine.reduced_me import spinMe
 import numpy as np
 from typing import Callable
 from numpy.typing import NDArray
 import py3nj
 import sys
+
+
+# Cartesian-to-spherical rank-1 tensor transformation: (x, y, z) -> (-1, 0, 1)
+Us = np.array([[np.sqrt(2)/2, -np.sqrt(2)*1j/2, 0],
+               [0, 0, 1],
+               [-np.sqrt(2)/2, -np.sqrt(2)*1j/2, 0]], dtype=np.complex128),
+
+# spherical-to-Cartesian rank-1 tensor transformation: (-1, 0, 1) -> (x, y z)
+Ux = np.linalg.pinv(Us)
 
 
 def spinDensity(h: Hyperfine,
@@ -15,6 +25,9 @@ def spinDensity(h: Hyperfine,
                 c2_thresh: float = 1e-08):
 
     # contracts rovibrational functions with three-j symbol
+    # (-1)^(F + m_F) \sum_{m_J}  (   F    I    J)  |J,k,v>(chi, theta, phi)
+    #                            (-m_F  m_I  m_J)
+
     def psi_threej(rv_quanta, spin_quanta, F):
         filter = lambda **kw: (int(kw['J']), kw['sym'], int(kw['ind'])) in rv_quanta
 
@@ -43,6 +56,22 @@ def spinDensity(h: Hyperfine,
 
         return psi_3j
 
+    # computes spin matrix elements <I', m_I' | I_a(n) | I,m_I>, a = x, y, z
+
+    def spin_me(I1, I2):
+        spins = h.spins
+        me = np.zeros((3, len(spins), 2*I1+1, 2*I2+1), dtype=np.complex128)
+        reduced_me = spinMe([I1], [I2], spins, 1, 'spin')
+        for im1, m1 in enumerate(np.linspace(-I1, I1+1, 2*I1+1)):
+            for im2, m2 in enumerate(np.linspace(-I2, I2+1, 2*I2+1)):
+                pow = I1 - m1
+                ipow = int(pow)
+                assert (pow - ipow < 1e-6), f"I1 - m1 = {I1} - {m1} is non-integer"
+                threej = py3nj.wigner3j([int(I1*2)]*3, [2]*3, [int(I2*2)]*3,
+                                        [-int(m1*2)]*3, [-2, 0, 2], [int(m2*3)]*3)
+                me[:, :, im1, im2] = (-1)**ipow * np.dot(Ux, threej)[:, None] * reduced_me[:, 0, 0]
+        return me
+
 
     for f, vec_f in h.eigvec.items():
         for sym, vec_sym in vec_f.items():
@@ -56,66 +85,3 @@ def spinDensity(h: Hyperfine,
                     psi_3j = psi_threej(rv_quanta, spin_quanta, f)
 
 
-    # --------------------------- CONTINUE FROM HERE --------------------------
-    # # h.quantaSpinJSym = (spin, j, sym, dim)
-    # # h.quanta = (enr, (spin, j, sum, k, rvInd))
-    #
-    # # jmax = max(list(psi.keys()))
-    # # im = [m for m in range(-jmax, jmax+1)].index(m)  # only for m_val=None in _stateEulerGrid_...
-    #
-    # for j1, psi_j1 in psi.items():
-    #         for sym1, psi_sym1 in psi_j1.items():
-    #                 for (ind1, v1, psi1) in psi_sym1:
-    #
-    #                         # vboth = list(set(v2) & set(v1))
-    #                         # vind1 = [v1.index(v) for v in vboth]
-    #                         # vind2 = [v2.index(v) for v in vboth]
-    #                         # d = np.einsum('vg,vg,g->g', np.conj(psi1[vind1, im, :]),
-    #                         #               psi2[vind2, im, :], np.sin(grid[:, 1]))
-    #
-    # vec1 = self.eigvec[f1][sym1][:, ind1]
-    # vec2 = self.eigvec[f2][sym2][:, ind2]
-    # nz_ind1 = np.where(abs(vec1)**2 >= c2_thresh)
-    # nz_ind2 = np.where(abs(vec2)**2 >= c2_thresh)
-    #
-    # states1 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k1]
-    # states2 = [(j, sym, rvInd) for (spin, j, sym, k, rvInd), enr in self.quanta_k2]
-    #
-    # def state_filter1(**kw):
-    #     j = int(kw['J'])
-    #     sym = kw['sym'].lower()
-    #     ind = int(kw['ind'])
-    #     return (j, sym, ind) in states1
-    #
-    # def state_filter2(**kw):
-    #     j = int(kw['J'])
-    #     sym = kw['sym'].lower()
-    #     ind = int(kw['ind'])
-    #     return (j, sym, ind) in states2
-    #
-    # psi1 = _stateEulerGrid(self, grid, state_filter=state_filter1)
-    # psi2 = _stateEulerGrid(self, grid, state_filter=state_filter2)
-    #
-    # # for i in nz_ind1:
-    # #     (spin, j, sym, k, rvInd), enr = self.quanta_k1[i]
-    # #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
-    # #     mj = [int(m*2) for m in np.arange(-j, j+1)]
-    # #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
-    # #     n = len(mij)
-    # #     threej = py3nj.wigner3j([int(f1*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
-    # #                             [-int(mf1*2)]*n, mij[:, 0], mj[:, 1])
-    #
-    # # spin, j, sym, k = self.quanta_k1[f1][sym1][ind1][0]
-    #
-    # # for i, (spin, j, rvSym, dim) in enumerate(self.quantaSpinJSym[f1][sym1]):
-    # #     mi = [int(m*2) for m in np.arange(-spin[-1], spin[-1]+1)]
-    # #     mj = [int(m*2) for m in np.arange(-j, j+1)]
-    # #     mij = np.array([(m1, m2) for m1 in mi for m2 in mj])
-    # #     n = len(mij)
-    # #     threej = py3nj.wigner3j([int(f*2)]*n, [int(spin[-1]*2)]*n, [int(j*2)]*n,
-    # #                             [-int(mF*2)]*n, mij[:, 0], mj[:, 1])
-    # #     threej = threej.reshape(len(mi), len(mj))
-    # #     func = np.array([elem[1] for elem in psi[j][rvSym]]) # (l, v, mj, rg)
-    # #     np.einsum('ij,lvjg->ilvg', threej, func) # (mi, mj) * (l, v, mj, rg)
-    # #     threej, psi[j][rvSym][irv][1][v, m, g]
-    #
