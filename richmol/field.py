@@ -1346,7 +1346,7 @@ class CarTens():
             # store attributes
 
             exclude = ["mmat", "kmat", "molecule", "basis", "eigvec",
-                       "rotdens", "rotdens_kv"]
+                       "rotdens", "rotdens_kv", "rotdens_", "rotdens_kv_"]
             try:
                 exclude = exclude + [elem for elem in self.store_exclude]
             except AttributeError:
@@ -1669,7 +1669,6 @@ class CarTens():
                                         self.rotdens[J1][sym1] = dens.tocsr()
                                     else:
                                         self.rotdens[J1][sym1] = dens[:, ik1].tocsr()
-                                    print(self.rotdens[J1][sym1].shape, len(ik1))
                                     self.rotdens_kv[J1][sym1] = kv
                                 except KeyError:
                                     pass
