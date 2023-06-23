@@ -1661,12 +1661,11 @@ class CarTens():
                                     kv = group_sym['rotdens_kv'][:, :]
                                     dens = csr_matrix((data, inds, ptrs), shape=sh)
                                     if dens.shape[-1] != len(ik1):
-                                        print(f"Warning: read rotational density from file {filename} " + \
-                                              f"for J = {J1} and sym = {sym1}, " + \
-                                              f"the size of the basis for density = {dens.shape[-1]}, " + \
-                                              f"which is different from that for the tensor = {len(ik1)}. " + \
-                                              f"This is OK if tensor corresponds to hypefine solutions.")
-                                        self.rotdens[J1][sym1] = dens.tocsr()
+                                        raise ValueError(
+                                            f"Error: read rotational density from file {filename} " + \
+                                            f"for J = {J1} and sym = {sym1}, " + \
+                                            f"the size of the basis for density = {dens.shape[-1]} " + \
+                                            f"is different from that for the tensor = {len(ik1)}") from None
                                     else:
                                         self.rotdens[J1][sym1] = dens[:, ik1].tocsr()
                                     self.rotdens_kv[J1][sym1] = kv
