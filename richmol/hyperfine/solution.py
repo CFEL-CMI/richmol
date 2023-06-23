@@ -2,14 +2,9 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from richmol.hyperfine.reduced_me import spinMe_IxI, spinMe
 from richmol.hyperfine.basis import nearEqualCoupling, spinNearEqualCoupling
-from richmol.field import CarTens, J_group_key, sym_group_key
+from richmol.field import CarTens
 import py3nj
 from collections import defaultdict
-import copy
-import h5py
-import datetime
-import time
-import re
 
 
 def defaultSymmetryRules(spin, rovibSym):
@@ -409,11 +404,3 @@ class Hyperfine(CarTens):
         base = list(self.__class__.__bases__)[0]
         return base.__module__ + "." + base.__name__
 
-
-def retrieve_name(var):
-    """ Gets the name of var. Does it from the out most frame inner-wards """
-    for fi in reversed(inspect.stack()):
-        names = [ var_name for var_name, var_val in fi.frame.f_locals.items() \
-                  if var_val is var ]
-        if len(names) > 0:
-            return names[0]
