@@ -1346,7 +1346,7 @@ class CarTens():
             # store attributes
 
             exclude = ["mmat", "kmat", "molecule", "basis", "eigvec",
-                       "rotdens", "rotdens_kv", "rotdens_", "rotdens_kv_"]
+                       "rotdens", "rotdens_kv"]
             try:
                 exclude = exclude + [elem for elem in self.store_exclude]
             except AttributeError:
