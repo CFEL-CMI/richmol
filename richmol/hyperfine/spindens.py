@@ -1,12 +1,12 @@
 from richmol.rotdens import _stateEulerGrid_basis, _stateEulerGrid_rotdens
 from richmol.hyperfine import Hyperfine
 from richmol.hyperfine.reduced_me import spinMe
+from richmol.field import CarTens
 from collections import defaultdict
 import numpy as np
-from typing import Callable
+from typing import Callable, Union
 from numpy.typing import NDArray
 import py3nj
-import sys
 
 
 # Cartesian-to-spherical rank-1 tensor transformation: (x, y, z) -> (-1, 0, 1)
@@ -18,18 +18,27 @@ Us = np.array([[np.sqrt(2)/2, -np.sqrt(2)*1j/2, 0],
 Ux = np.linalg.pinv(Us)
 
 
-def spinDensity(h: Hyperfine,
+def spinDensity(h: Union[Hyperfine, CarTens],
+                h_rv: CarTens,
                 grid: NDArray[np.float_],
                 mF: float,
                 diag: bool = False,
                 state_filter: Callable = lambda **_: True,
-                c2_thresh: float = 1e-08):
+                c2_thresh: float = 1e-08,
+                verbose: bool = False):
     """Computes vibrationally-averaged spin probability density matrix
     on a 3D grid of Euler angles
 
     Args:
         h : :py:class:`richmol.hyperfine.Hyperfine`
             Hyperfine (spin-rovibrational or spin-rotational) Hamiltonian
+        h_rv : :py:class:`richmol.field.CarTens`
+            Rotational or rovibrational solutions, containing rotational
+            wavefunction coefficients or the data necessary to compute rotational
+            probability density function (e.g. `h0.rotdens`).
+            Note, same `h0` data (including same `bra` and `ket` filter functions)
+            must be used here as the `h0` data used for the corresponding hyperfine
+            calculations
         grid : array (:, 3)
             Grid of Euler angle values (in radians), phi, theta, chi = grid(i, :)
         mF : int
@@ -45,6 +54,8 @@ def spinDensity(h: Hyperfine,
             Threshold for to select only those spin-rovibrational
             contributions to a hyperfine state that have the corresponding
             coefficient c_i such that |c_i|^2 > `c2_thresh`
+        verbose : bool
+            Change to True to print out some intermediate steps
 
     Returns:
         dens : nested dict
@@ -73,10 +84,10 @@ def spinDensity(h: Hyperfine,
         # rovibrational density
         rv_quanta = [(J, sym, ind) for (In, J, sym, ind) in quanta]
         filter = lambda **kw: (int(kw['J']), kw['sym'], int(kw['ind'])) in rv_quanta
-        if hasattr(h, 'rotdens') and len(list(h.rotdens.keys())) > 0:
-            rv_psi = _stateEulerGrid_rotdens(h, grid, m_val=None, state_filter=filter) 
-        elif hasattr(h, 'basis'):
-            rv_psi = _stateEulerGrid_basis(h, grid, m_val=None, state_filter=filter)
+        if hasattr(h_rv, 'rotdens') and len(list(h_rv.rotdens.keys())) > 0:
+            rv_psi = _stateEulerGrid_rotdens(h_rv, grid, m_val=None, state_filter=filter) 
+        elif hasattr(h_rv, 'basis'):
+            rv_psi = _stateEulerGrid_basis(h_rv, grid, m_val=None, state_filter=filter)
         else:
             raise AttributeError(f"input parameter 'h' has neither 'rotdens' nor 'basis' " +\
                                  f"attributes which are necessary to compute rotational density")
@@ -122,20 +133,29 @@ def spinDensity(h: Hyperfine,
     # compute contractions of spin-rovibrational basis functions with three-j symbols
     # for selected hyperfine states
     psi_3j = []
+    if verbose:
+        print("precompute psi * three-j")
     for F, vec_f in h.eigvec.items():
         for sym, vec_sym in vec_f.items():
             for istate in range(vec_sym.shape[-1]):
                 if state_filter(F=F, sym=sym, ind=istate):
+                    if verbose:
+                        print(f"F = {F}, sym = {sym}, istate = {istate}")
                     ind = np.where(abs(vec_sym[:, istate])**2 >= c2_thresh)
                     coefs = vec_sym[ind, istate]
                     q = [h.quantaRovib[F][sym][i] for i in ind[0]]
                     quanta = [(In, J, rv_sym, rv_ind) for (In, J, rv_sym, k, rv_ind) in q]
+                    if verbose:
+                        print(f"   number of rovib quanta = {len(quanta)}, with coefs**2 > {c2_thresh}")
                     psi = psi_threej(F, quanta, coefs)
                     psi_3j.append((psi, F, sym, istate))
 
 
     mydict = lambda: defaultdict(mydict)
     dens = mydict()
+
+    if verbose:
+        print("build spin-density")
 
     for i, (psi1, F1, sym1, istate1) in enumerate(psi_3j):
         for j, (psi2, F2, sym2, istate2) in enumerate(psi_3j):
