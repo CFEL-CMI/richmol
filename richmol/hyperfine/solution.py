@@ -9,6 +9,7 @@ import copy
 import h5py
 import datetime
 import time
+import re
 
 
 def defaultSymmetryRules(spin, rovibSym):
@@ -400,63 +401,6 @@ class Hyperfine(CarTens):
             if len(symList) > 0:
                 self.symlist1[f] = symList
                 self.symlist2[f] = symList
-
-        if hasattr(h0, 'rotdens'):
-            # keep rotational density, store it later using a special method (see `store` function below)
-            # In order not to interfere with standard I/O for `rotdens` and `rotdens_kv`
-            # attributes of Cartesian tensor in `field.CarTens.store`,
-            # name them as `rotdens_` and `rotdens_kv_`
-            self.rotdens_ = copy.copy(h0.rotdens)
-            self.rotdens_kv_ = copy.copy(h0.rotdens_kv)
-
-
-    def store(self, filename, **kwargs):
-        """ Stores object into HDF5 file
-
-        See :py:func:`~richmol.field.CarTens.store`
-        """
-        CarTens.store(self, filename, **kwargs)
-
-        # store rotational density outside of hyperfine Cartesian tensor
-        # since it belongs to a rovibrational and not a hyperfine basis
-    
-        name = "rotdens"
-        doc = "rovibrational density (TROVE format)"
-
-        with h5py.File(filename, 'a') as fl:
-            group = fl.create_group(name)
-
-            class_name = self.class_name()
-            group.attrs["__class_name__"] = class_name
-
-            date = datetime.datetime.fromtimestamp(
-                time.time()
-            ).strftime('%Y-%m-%d %H:%M:%S')
-            doc += ", store date: " + date.replace('\n','')
-            group.attrs["__doc__"] = doc
-
-            for J in self.rotdens_.keys():
-                for sym in self.rotdens_[J].keys():
-                    try:
-                        group_j = group[J_group_key(J, J)]
-                    except:
-                        group_j = group.create_group(J_group_key(J, J))
-                    try:
-                        group_sym = group_j[sym_group_key(sym, sym)]
-                    except:
-                        group_sym = group_j.create_group(sym_group_key(sym, sym))
-
-                    for key in ("rotdens_data", "rotdens_indices", "rotdens_indptr",
-                                "rotdens_shape", "rotdens_kv"):
-                        try:
-                            del group_sym[key]
-                        except KeyError:
-                            pass
-                    group_sym.create_dataset("rotdens_data", data=self.rotdens_[J][sym].data)
-                    group_sym.create_dataset("rotdens_indices", data=self.rotdens_[J][sym].indices)
-                    group_sym.create_dataset("rotdens_indptr", data=self.rotdens_[J][sym].indptr)
-                    group_sym.create_dataset("rotdens_shape", data=self.rotdens_[J][sym].shape)
-                    group_sym.create_dataset("rotdens_kv", data=self.rotdens_kv_[J][sym])
 
 
 
