@@ -279,7 +279,8 @@ class TDSE():
             weights /= np.sum(weights)
             inds = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
-            vecs = vecs[inds] * np.expand_dims(weights[inds], axis=1)
+            # vecs = vecs[inds] * np.expand_dims(weights[inds], axis=1)
+            vecs = vecs[inds] * np.expand_dims(np.sqrt(weights[inds]), axis=1)
 
         return vecs.astype(np.complex128)
 
