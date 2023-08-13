@@ -336,6 +336,28 @@ class CarTens():
             for J in self.Jlist2
         }
 
+
+        # truncate symmetric-top basis
+        if hasattr(self, "symtop_basis"):
+            bas = self.symtop_basis
+            for J in bas.keys():
+                if J not in self.Jlist1:
+                    del bas[J]
+                    continue
+                for sym in bas[J].keys():
+                    if sym not in self.symlist1[J]:
+                        del bas[J][sym]
+                        continue
+                    im1 = self.ind_m1[J][sym]
+                    ik1 = self.ind_k1[J][sym]
+                    bm = bas[J][sym]['m']
+                    bk = bas[J][sym]['k']
+                    bm['c'] = bm['c'][:, im1]
+                    bm['stat'] = bm['stat'][im1]
+                    bk['c'] = bk['c'][:, ik1]
+                    bk['stat'] = bk['stat'][ik1]
+
+
         # truncate M and K tensors
 
         Jpairs = list(set(self.mmat.keys()) & set(self.kmat.keys()))
