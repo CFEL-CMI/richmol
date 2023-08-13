@@ -151,7 +151,23 @@ class LabTensor(CarTens):
         # for tensor representation of field-free Hamiltonian, make basis an attribute
 
         if isinstance(arg, Molecule):
-            self.basis = basis
+            self.basis = basis # can be deprecated, replaced by `symtop_basis`
+            self.symtop_basis = {
+                J: {
+                    sym: {
+                        'm': {
+                            name: basis[J][sym].m.table[name]
+                            for name in basis[J][sym].m.table.dtype.names
+                        },
+                        'k': {
+                            name: basis[J][sym].k.table[name]
+                            for name in basis[J][sym].k.table.dtype.names
+                        }
+                    }
+                    for sym in basis[J].keys()
+                }
+                for J in basis.keys()
+            }
 
         # for pure Cartesian tensor, keep in the attributes only basis set dimensions and quanta
 

@@ -1363,8 +1363,34 @@ class CarTens():
 
             # store basis functions (dict(Solution()))
 
+            # can be deprecated, replaced by `symtop_basis`
             if hasattr(self, "basis"):
                 group.attrs["basis__json"] = json.dumps(dict(self.basis))
+
+            # store symmetric-top basis
+            #   `self.symtop_basis` contains the same information as `self.basis`
+            #   but is more general as it's also used to store the TROVE
+            #   wavefunctions in symmetric-top representation.
+
+            if hasattr(self, 'symtop_basis'):
+                for J1 in self.symtop_basis.keys():
+                    for sym1 in self.symtop_basis[J1].keys():
+                        try:
+                            group_j = group[J_group_key(J1, J1)]
+                        except:
+                            group_j = group.create_group(J_group_key(J1, J1))
+                        try:
+                            group_sym = group_j[sym_group_key(sym1, sym1)]
+                        except:
+                            group_sym = group_j.create_group(sym_group_key(sym1, sym1))
+                        if 'symtop_basis' in group_sym:
+                            del group_sym['symtop_basis']
+                        group_symtop_basis = group_sym.create_group('symtop_basis')
+                        for key, val in self.symtop_basis[J1][sym1].items():
+                            group_ = group_symtop_basis.create_group(key)
+                            group_.create_dataset('c', data=np.array(val['c']))
+                            group_.attrs['prim'] = val['prim'].tolist()
+                            group_.attrs['stat'] = val['stat'].tolist()
 
             # store eigenvectors
 
@@ -1596,11 +1622,12 @@ class CarTens():
             self.__dict__.update(attrs)
 
             # read M and K tensors
-            # read eigenvectors
+            # read eigenvectors and basis set
 
             mydict = lambda: defaultdict(mydict)
             self.kmat = mydict()
             self.mmat = mydict()
+            self.symtop_basis = mydict()
             self.eigvec = mydict()
             self.rotdens = mydict()
             self.rotdens_kv = mydict()
@@ -1640,6 +1667,17 @@ class CarTens():
                             ik2 = self.ind_k2[J2][sym2]
                             im1 = self.ind_m1[J1][sym1]
                             im2 = self.ind_m2[J2][sym2]
+
+                            # read symmetric-top basis
+
+                            if J1 == J2 and sym1 == sym2:
+                                try:
+                                    for key, val in group_sym['symtop_basis'].items():
+                                        self.symtop_basis[J1][sym1][key]['c'] = np.array(val['c'])
+                                        self.symtop_basis[J1][sym1][key]['prim'] = val.attrs['prim']
+                                        self.symtop_basis[J1][sym1][key]['stat'] = val.attrs['stat']
+                                except KeyError:
+                                    pass
 
                             # read eigenvectors
 
