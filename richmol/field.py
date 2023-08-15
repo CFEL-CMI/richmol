@@ -1695,9 +1695,16 @@ class CarTens():
                             if J1 == J2 and sym1 == sym2:
                                 try:
                                     for key, val in group_sym['symtop_basis'].items():
-                                        self.symtop_basis[J1][sym1][key]['c'] = np.array(val['c'])
+                                        if key == 'm':
+                                            ind1 = im1
+                                        elif key == 'k':
+                                            ind1 = ik1
+                                        else:
+                                            raise ValueError(f"unknown key {key} when reading 'symtop_basis' group " + \
+                                                             f"for J = {J1} and symmetry = {sym1}")
+                                        self.symtop_basis[J1][sym1][key]['c'] = np.array(val['c'][:, ind1])
                                         self.symtop_basis[J1][sym1][key]['prim'] = val.attrs['prim']
-                                        self.symtop_basis[J1][sym1][key]['stat'] = val.attrs['stat']
+                                        self.symtop_basis[J1][sym1][key]['stat'] = val.attrs['stat'][ind1]
                                 except KeyError:
                                     pass
 
