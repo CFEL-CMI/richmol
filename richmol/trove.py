@@ -212,42 +212,42 @@ class CarTensTrove(CarTens):
             with open(coef_file, 'r') as fl:
                 for line in fl:
                     w = line.split()
-                    j = int(w[0])
+                    J = round(float(w[0]),1)
                     id = int(w[1])
                     sym = w[2]
                     ideg = int(w[3])
                     enr = float(w[4])
-                    if j not in self.Jlist1:
+                    if J not in self.Jlist1:
                         continue
-                    istate, sym_ = self.map_k_ind[(j, id, ideg)]
+                    istate, sym_ = self.map_k_ind[(J, id, ideg)]
                     assert (sym == sym_), \
                             f"state symmetry {sym} in file '{coef_file}' " + \
                             f"does not match {sym_} in file '{filename}', " + \
-                            f"for state (J, id, ideg) = {(j, id, ideg)}"
+                            f"for state (J, id, ideg) = {(J, id, ideg)}"
                     try:
-                        state_ind = self.ind_k1[j][sym].index(istate)
+                        state_ind = self.ind_k1[J][sym].index(istate)
                     except (ValueError, KeyError):
                         continue
-                    enr_ = self.kmat[(j, j)][(sym, sym)][0].diagonal()[state_ind]
+                    enr_ = self.kmat[(J, J)][(sym, sym)][0].diagonal()[state_ind]
                     assert (abs(enr_ - enr) < 1e-12), \
                             f"state energy {enr} in file '{coef_file}' " + \
                             f"does not match {enr_} in file '{filename}', " + \
-                            f"for state (J, id, ideg) = {(j, id, ideg)}"
+                            f"for state (J, id, ideg) = {(J, id, ideg)}"
                     nelem = int(w[5])
-                    if len(kv[j][sym]) == 0:
-                        kv[j][sym] = []
+                    if len(kv[J][sym]) == 0:
+                        kv[J][sym] = []
                     for ielem in range(nelem):
                         v = int(w[8+ielem*4])
                         k = int(w[9+ielem*4])
-                        kv[j][sym].append((j, k, v))
+                        kv[J][sym].append((J, k, v))
 
             # set of unique (k, v) quanta
-            kv = {j: {sym: np.array(list(set(kv[j][sym]))) for sym in kv[j].keys()}
-                for j in kv.keys()}
+            kv = {J: {sym: np.array(list(set(kv[J][sym]))) for sym in kv[J].keys()}
+                for J in kv.keys()}
             # map (k, v) to index
-            kv_ind = {j: {sym: {(j, k, v): i for i, (j, k, v) in enumerate(kv[j][sym])}
-                for sym in kv[j].keys()}
-                for j in kv.keys()}
+            kv_ind = {J: {sym: {(J, k, v): i for i, (J, k, v) in enumerate(kv[J][sym])}
+                for sym in kv[J].keys()}
+                for J in kv.keys()}
 
             # read coefficients
             coo_ind = mydict()
@@ -256,16 +256,16 @@ class CarTensTrove(CarTens):
             with open(coef_file, 'r') as fl:
                 for line in fl:
                     w = line.split()
-                    j = int(w[0])
+                    J = round(float(w[0]),1)
                     id = int(w[1])
                     sym = w[2]
                     ideg = int(w[3])
                     enr = float(w[4])
-                    if j not in self.Jlist1:
+                    if J not in self.Jlist1:
                         continue
-                    istate, sym_ = self.map_k_ind[(j, id, ideg)]
+                    istate, sym_ = self.map_k_ind[(J, id, ideg)]
                     try:
-                        state_ind = self.ind_k1[j][sym].index(istate)
+                        state_ind = self.ind_k1[J][sym].index(istate)
                     except (ValueError, KeyError):
                         continue
                     nelem = int(w[5])
@@ -273,53 +273,53 @@ class CarTensTrove(CarTens):
                     kv_vec = [(int(w[9+i*4]), int(w[8+i*4])) for i in range(nelem)]
                     c_vec = [float(w[6+i*4])*{0:1, 1:1j}[int(w[7+i*4])] for i in range(nelem)]
 
-                    if len(coo_ind[j][sym]) == 0:
-                        coo_ind[j][sym] = []
-                        coo_data[j][sym] = []
-                    coo_ind[j][sym] += [(kv_ind[j][sym][(j, k, v)], state_ind) for (k, v) in kv_vec]
-                    coo_data[j][sym] += c_vec
+                    if len(coo_ind[J][sym]) == 0:
+                        coo_ind[J][sym] = []
+                        coo_data[J][sym] = []
+                    coo_ind[J][sym] += [(kv_ind[J][sym][(J, k, v)], state_ind) for (k, v) in kv_vec]
+                    coo_data[J][sym] += c_vec
 
                     # state assignment
                     nassign_max = 4
                     nassign = min([nassign_max, len(c_vec)])
-                    if len(stat[j][sym]) == 0:
-                        stat[j][sym] = np.zeros((self.dim_k1[j][sym], nassign_max*4), dtype='U10')
+                    if len(stat[J][sym]) == 0:
+                        stat[J][sym] = np.zeros((self.dim_k1[J][sym], nassign_max*4), dtype='U10')
                     c2_vec = np.abs(c_vec)**2
                     ind = np.argpartition(c2_vec, -nassign)[-nassign:]
                     ind = ind[c2_vec[ind].argsort()[::-1]]
                     k, v = np.array(kv_vec)[ind].T
                     c2 = c2_vec[ind]
-                    st = [[j, k_, v_, "%6.4f"%c_] for k_, v_, c_ in zip(k, v, c2)]
-                    stat[j][sym][state_ind, :nassign*4] = [el for elem in st for el in elem]
+                    st = [[J, k_, v_, "%6.4f"%c_] for k_, v_, c_ in zip(k, v, c2)]
+                    stat[J][sym][state_ind, :nassign*4] = [el for elem in st for el in elem]
 
             coef_data = mydict()
-            for j in coo_data.keys():
-                for sym in coo_data[j].keys():
-                    if len(coo_data[j][sym]) == 0:
-                        del coo_data[j][sym]
-                        del coo_ind[j][sym]
-                        del stat[j][sym]
-                    coef_data[j][sym] = coo_matrix((coo_data[j][sym], np.array(coo_ind[j][sym]).T),
-                                                    shape=(len(kv[j][sym]), self.dim_k1[j][sym])).tocsr()
+            for J in coo_data.keys():
+                for sym in coo_data[J].keys():
+                    if len(coo_data[J][sym]) == 0:
+                        del coo_data[J][sym]
+                        del coo_ind[J][sym]
+                        del stat[J][sym]
+                    coef_data[J][sym] = coo_matrix((coo_data[J][sym], np.array(coo_ind[J][sym]).T),
+                                                    shape=(len(kv[J][sym]), self.dim_k1[J][sym])).tocsr()
 
             self.symtop_basis = {
-                round(float(j), 1): {
+                J: {
                     sym: {
                         'm': {
-                            'prim': [(round(float(j), 1), m) for m in range(-j, j+1)],
-                            'stat': np.array([(round(float(j), 1), m) for m in self.quanta_m1[j][sym]]),
+                            'prim': np.array([(J, round(float(m), 1)) for m in np.linspace(-J, J, int(2*J)+1)]),
+                            'stat': np.array([(J, m) for m in self.quanta_m1[J][sym]], dtype='U10'),
                             'c': csr_matrix(np.array([[1.0 if m1 == m2 else 0.0
-                                                         for m2 in self.quanta_m1[j][sym]]
-                                                         for m1 in range(-j, j+1)]))
+                                                         for m2 in self.quanta_m1[J][sym]]
+                                                         for m1 in np.linspace(-J, J, int(2*J)+1)]))
                         },
                         'k': {
-                            'prim': kv[j][sym],
-                            'stat': stat[j][sym],
-                            'c': coef_data[j][sym]
+                            'prim': np.array(kv[J][sym]),
+                            'stat': stat[J][sym],
+                            'c': coef_data[J][sym]
                         }
                     }
-                    for sym in coef_data[j].keys()
-                } for j in coef_data.keys()
+                    for sym in coef_data[J].keys()
+                } for J in coef_data.keys()
             }
 
 

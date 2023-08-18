@@ -6,6 +6,7 @@ from richmol.field import CarTens
 from richmol.rot.molecule import Molecule, mol_frames
 from richmol.rot.solution import hamiltonian
 import collections
+from collections.abc import Callable
 import inspect
 import py3nj
 # import quadpy
@@ -128,7 +129,7 @@ class LabTensor(CarTens):
         elif isinstance(arg, (np.ndarray,np.generic)):
             tens = arg
         # if arg is function of spherical coordinates
-        elif isinstance(arg, collections.Callable):
+        elif isinstance(arg, Callable):
             func = arg
         elif isinstance(arg, str):
             tens_str = arg
@@ -151,17 +152,22 @@ class LabTensor(CarTens):
         # for tensor representation of field-free Hamiltonian, make basis an attribute
 
         if isinstance(arg, Molecule):
-            self.basis = basis # can be deprecated, replaced by `symtop_basis`
+
+            # self.basis = basis # can be deprecated, replaced by `symtop_basis`
+
+            csr_mat = lambda m, thr: csr_matrix(np.where(np.abs(m) > thr, m, 0))
             self.symtop_basis = {
                 round(float(J), 1): {
                     sym: {
                         'm': {
-                            name: basis[J][sym].m.table[name]
-                            for name in basis[J][sym].m.table.dtype.names
+                            'prim': basis[J][sym].m.table['prim'],
+                            'stat': basis[J][sym].m.table['stat'],
+                            'c': csr_mat(basis[J][sym].m.table['c'], thresh)
                         },
                         'k': {
-                            name: basis[J][sym].k.table[name]
-                            for name in basis[J][sym].k.table.dtype.names
+                            'prim': basis[J][sym].k.table['prim'],
+                            'stat': basis[J][sym].k.table['stat'],
+                            'c': csr_mat(basis[J][sym].k.table['c'], thresh)
                         }
                     }
                     for sym in basis[J].keys()

@@ -355,11 +355,10 @@ class CarTens():
                     ik1 = self.ind_k1[J1][sym1]
                     bm = bas[J1][sym1]['m']
                     bk = bas[J1][sym1]['k']
-                    bm['c'] = bm['c'][:, im1]
+                    bm['c'] = bm['c'].tocsc()[:, im1].tocsr()
                     bm['stat'] = bm['stat'][im1]
-                    bk['c'] = bk['c'][:, ik1]
+                    bk['c'] = bk['c'].tocsc()[:, ik1].tocsr()
                     bk['stat'] = bk['stat'][ik1]
-
 
         # truncate M and K tensors
 
@@ -1370,8 +1369,7 @@ class CarTens():
 
             # store attributes
 
-            exclude = ["mmat", "kmat", "molecule", "basis", "eigvec",
-                       "rotdens", "rotdens_kv"]
+            exclude = ["mmat", "kmat", "molecule", "basis", "eigvec", "symtop_basis"]
             try:
                 exclude = exclude + [elem for elem in self.store_exclude]
             except AttributeError:
@@ -1413,9 +1411,12 @@ class CarTens():
                         group_symtop_basis = group_sym.create_group('symtop_basis')
                         for key, val in self.symtop_basis[J1][sym1].items():
                             group_ = group_symtop_basis.create_group(key)
-                            group_.create_dataset('c', data=np.array(val['c']))
                             group_.attrs['prim'] = val['prim'].tolist()
                             group_.attrs['stat'] = val['stat'].tolist()
+                            group_.create_dataset("data", data=val['c'].data)
+                            group_.create_dataset("indices", data=val['c'].indices)
+                            group_.create_dataset("indptr", data=val['c'].indptr)
+                            group_.create_dataset("shape", data=val['c'].shape)
 
             # store eigenvectors
 
@@ -1705,7 +1706,12 @@ class CarTens():
                                         else:
                                             raise ValueError(f"Unknown key = '{key}' when reading 'symtop_basis' group " + \
                                                              f"for J = {J1} and symmetry = {sym1}, file = {filename}")
-                                        self.symtop_basis[J1][sym1][key]['c'] = np.array(val['c'][:, ind1])
+                                        data = val['data']
+                                        inds = val['indices']
+                                        ptrs = val['indptr']
+                                        sh = val['shape']
+                                        self.symtop_basis[J1][sym1][key]['c'] = \
+                                            csr_matrix((data, inds, ptrs), shape=sh).tocsc()[:, ind1].tocsr()
                                         self.symtop_basis[J1][sym1][key]['prim'] = val.attrs['prim']
                                         self.symtop_basis[J1][sym1][key]['stat'] = val.attrs['stat'][ind1]
                                 except KeyError:
