@@ -153,7 +153,7 @@ class LabTensor(CarTens):
         if isinstance(arg, Molecule):
             self.basis = basis # can be deprecated, replaced by `symtop_basis`
             self.symtop_basis = {
-                J: {
+                round(float(J), 1): {
                     sym: {
                         'm': {
                             name: basis[J][sym].m.table[name]

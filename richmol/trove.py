@@ -1,6 +1,6 @@
 from richmol.field import CarTens
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, coo_matrix
 from collections import defaultdict
 import re
 import sys
@@ -142,7 +142,7 @@ class CarTensTrove(CarTens):
             for J in Jlist
         }
         quanta_m = {
-            J : {sym : ["%4.1f"%m for m in mquanta[J]] for sym in symlist[J]}
+            J : {sym : [m for m in mquanta[J]] for sym in symlist[J]}
             for J in Jlist
         }
         quanta_k = {
@@ -201,9 +201,12 @@ class CarTensTrove(CarTens):
         # apply state selection filters
         self.filter(**kwargs)
 
-        # read richmol coefficients file, which is used only for approximating
-        # rotational probability density function
+        # read richmol coefficients file
+        #  this data shall be used only for estimations
+        #  of the rotational probability density function
+
         if coef_file is not None:
+
             # create set of unique k and v quanta
             kv = mydict()
             with open(coef_file, 'r') as fl:
@@ -236,18 +239,20 @@ class CarTensTrove(CarTens):
                     for ielem in range(nelem):
                         v = int(w[8+ielem*4])
                         k = int(w[9+ielem*4])
-                        kv[j][sym].append((k, v))
+                        kv[j][sym].append((j, k, v))
+
             # set of unique (k, v) quanta
-            kv = {j : {sym : np.array(list(set(kv[j][sym])))
-                       for sym in kv[j].keys()}
-                  for j in kv.keys()}
+            kv = {j: {sym: np.array(list(set(kv[j][sym]))) for sym in kv[j].keys()}
+                for j in kv.keys()}
             # map (k, v) to index
-            kv_ind = {j : {sym : {(k, v) : i
-                                  for i, (k, v) in enumerate(kv[j][sym])}
-                           for sym in kv[j].keys()}
-                      for j in kv.keys()}
+            kv_ind = {j: {sym: {(j, k, v): i for i, (j, k, v) in enumerate(kv[j][sym])}
+                for sym in kv[j].keys()}
+                for j in kv.keys()}
+
             # read coefficients
-            rotdens = mydict()
+            coo_ind = mydict()
+            coo_data = mydict()
+            stat = mydict()
             with open(coef_file, 'r') as fl:
                 for line in fl:
                     w = line.split()
@@ -263,25 +268,59 @@ class CarTensTrove(CarTens):
                         state_ind = self.ind_k1[j][sym].index(istate)
                     except (ValueError, KeyError):
                         continue
-                    if len(rotdens[j][sym]) == 0:
-                        rotdens[j][sym] = np.zeros((len(kv[j][sym]), self.dim_k1[j][sym]),
-                                                   dtype=np.complex128)
                     nelem = int(w[5])
-                    for ielem in range(nelem):
-                        coef = float(w[6+ielem*4])
-                        im = int(w[7+ielem*4])
-                        c = coef*{0:1,1:1j}[im]
-                        v = int(w[8+ielem*4])
-                        k = int(w[9+ielem*4])
-                        kvind = kv_ind[j][sym][(k, v)]
-                        rotdens[j][sym][kvind, state_ind] = c
-            # keep data in sparse format
-            self.rotdens = mydict()
-            self.rotdens_kv = mydict()
-            for j in rotdens.keys():
-                for sym in rotdens[j].keys():
-                    self.rotdens[j][sym] = csr_matrix(rotdens[j][sym])
-                    self.rotdens_kv[j][sym] = kv[j][sym]
+
+                    kv_vec = [(int(w[9+i*4]), int(w[8+i*4])) for i in range(nelem)]
+                    c_vec = [float(w[6+i*4])*{0:1, 1:1j}[int(w[7+i*4])] for i in range(nelem)]
+
+                    if len(coo_ind[j][sym]) == 0:
+                        coo_ind[j][sym] = []
+                        coo_data[j][sym] = []
+                    coo_ind[j][sym] += [(kv_ind[j][sym][(j, k, v)], state_ind) for (k, v) in kv_vec]
+                    coo_data[j][sym] += c_vec
+
+                    # state assignment
+                    nassign_max = 4
+                    nassign = min([nassign_max, len(c_vec)])
+                    if len(stat[j][sym]) == 0:
+                        stat[j][sym] = np.zeros((self.dim_k1[j][sym], nassign_max*4), dtype='U10')
+                    c2_vec = np.abs(c_vec)**2
+                    ind = np.argpartition(c2_vec, -nassign)[-nassign:]
+                    ind = ind[c2_vec[ind].argsort()[::-1]]
+                    k, v = np.array(kv_vec)[ind].T
+                    c2 = c2_vec[ind]
+                    st = [[j, k_, v_, "%6.4f"%c_] for k_, v_, c_ in zip(k, v, c2)]
+                    stat[j][sym][state_ind, :nassign*4] = [el for elem in st for el in elem]
+
+            coef_data = mydict()
+            for j in coo_data.keys():
+                for sym in coo_data[j].keys():
+                    if len(coo_data[j][sym]) == 0:
+                        del coo_data[j][sym]
+                        del coo_ind[j][sym]
+                        del stat[j][sym]
+                    coef_data[j][sym] = coo_matrix((coo_data[j][sym], np.array(coo_ind[j][sym]).T),
+                                                    shape=(len(kv[j][sym]), self.dim_k1[j][sym])).tocsr()
+
+            self.symtop_basis = {
+                round(float(j), 1): {
+                    sym: {
+                        'm': {
+                            'prim': [(round(float(j), 1), m) for m in range(-j, j+1)],
+                            'stat': np.array([(round(float(j), 1), m) for m in self.quanta_m1[j][sym]]),
+                            'c': csr_matrix(np.array([[1.0 if m1 == m2 else 0.0
+                                                         for m2 in self.quanta_m1[j][sym]]
+                                                         for m1 in range(-j, j+1)]))
+                        },
+                        'k': {
+                            'prim': kv[j][sym],
+                            'stat': stat[j][sym],
+                            'c': coef_data[j][sym]
+                        }
+                    }
+                    for sym in coef_data[j].keys()
+                } for j in coef_data.keys()
+            }
 
 
     def read_trans(self, filename, thresh=None, **kwargs):

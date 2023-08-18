@@ -150,6 +150,9 @@ class CarTens():
             M-tensor matrix elements contracted with field. Produced after
             multiplication of tensor with a vector of X, Y, and Z field values
             (see :py:func:`field`). Has the same structure as :py:attr:`kmat`.
+        symtop_basis: nested dict
+            Symmetric-top basis representation of wave functions.
+            Present if Cartesian tensor represents field-free solutions.
         eigvec : nested dict
             Eigenvectors (in dense matrix format) for different J quanta
             and different symmetries.
@@ -340,18 +343,18 @@ class CarTens():
         # truncate symmetric-top basis
         if hasattr(self, "symtop_basis"):
             bas = self.symtop_basis
-            for J in bas.keys():
-                if J not in self.Jlist1:
-                    del bas[J]
+            for J1 in bas.keys():
+                if J1 not in self.Jlist1:
+                    del bas[J1]
                     continue
-                for sym in bas[J].keys():
-                    if sym not in self.symlist1[J]:
-                        del bas[J][sym]
+                for sym1 in bas[J1].keys():
+                    if sym1 not in self.symlist1[J1]:
+                        del bas[J1][sym1]
                         continue
-                    im1 = self.ind_m1[J][sym]
-                    ik1 = self.ind_k1[J][sym]
-                    bm = bas[J][sym]['m']
-                    bk = bas[J][sym]['k']
+                    im1 = self.ind_m1[J1][sym1]
+                    ik1 = self.ind_k1[J1][sym1]
+                    bm = bas[J1][sym1]['m']
+                    bk = bas[J1][sym1]['k']
                     bm['c'] = bm['c'][:, im1]
                     bm['stat'] = bm['stat'][im1]
                     bk['c'] = bk['c'][:, ik1]
@@ -1700,8 +1703,8 @@ class CarTens():
                                         elif key == 'k':
                                             ind1 = ik1
                                         else:
-                                            raise ValueError(f"unknown key {key} when reading 'symtop_basis' group " + \
-                                                             f"for J = {J1} and symmetry = {sym1}")
+                                            raise ValueError(f"Unknown key = '{key}' when reading 'symtop_basis' group " + \
+                                                             f"for J = {J1} and symmetry = {sym1}, file = {filename}")
                                         self.symtop_basis[J1][sym1][key]['c'] = np.array(val['c'][:, ind1])
                                         self.symtop_basis[J1][sym1][key]['prim'] = val.attrs['prim']
                                         self.symtop_basis[J1][sym1][key]['stat'] = val.attrs['stat'][ind1]
