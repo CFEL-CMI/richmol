@@ -1413,10 +1413,10 @@ class CarTens():
                             group_ = group_symtop_basis.create_group(key)
                             group_.attrs['prim'] = val['prim'].tolist()
                             group_.attrs['stat'] = val['stat'].tolist()
-                            group_.create_dataset("data", data=val['c'].data)
-                            group_.create_dataset("indices", data=val['c'].indices)
-                            group_.create_dataset("indptr", data=val['c'].indptr)
-                            group_.create_dataset("shape", data=val['c'].shape)
+                            group_.create_dataset("c_data", data=val['c'].data)
+                            group_.create_dataset("c_indices", data=val['c'].indices)
+                            group_.create_dataset("c_indptr", data=val['c'].indptr)
+                            group_.create_dataset("c_shape", data=val['c'].shape)
 
             # store eigenvectors
 
@@ -1706,10 +1706,10 @@ class CarTens():
                                         else:
                                             raise ValueError(f"Unknown key = '{key}' when reading 'symtop_basis' group " + \
                                                              f"for J = {J1} and symmetry = {sym1}, file = {filename}")
-                                        data = val['data']
-                                        inds = val['indices']
-                                        ptrs = val['indptr']
-                                        sh = val['shape']
+                                        data = val['c_data']
+                                        inds = val['c_indices']
+                                        ptrs = val['c_indptr']
+                                        sh = val['c_shape']
                                         self.symtop_basis[J1][sym1][key]['c'] = \
                                             csr_matrix((data, inds, ptrs), shape=sh).tocsc()[:, ind1].tocsr()
                                         self.symtop_basis[J1][sym1][key]['prim'] = val.attrs['prim']

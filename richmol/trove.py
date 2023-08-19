@@ -1,9 +1,9 @@
 from richmol.field import CarTens
+from richmol.rot.wig import jy_eig
 import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
 from collections import defaultdict
 import re
-import sys
 import os
 
 
@@ -306,16 +306,16 @@ class CarTensTrove(CarTens):
                 J: {
                     sym: {
                         'm': {
-                            'prim': np.array([(J, round(float(m), 1)) for m in np.linspace(-J, J, int(2*J)+1)]),
+                            'prim': np.array([(J, m) for m in mquanta[J]]),
                             'stat': np.array([(J, m) for m in self.quanta_m1[J][sym]], dtype='U10'),
                             'c': csr_matrix(np.array([[1.0 if m1 == m2 else 0.0
                                                          for m2 in self.quanta_m1[J][sym]]
-                                                         for m1 in np.linspace(-J, J, int(2*J)+1)]))
+                                                         for m1 in mquanta[J]])),
                         },
                         'k': {
                             'prim': np.array(kv[J][sym]),
                             'stat': stat[J][sym],
-                            'c': coef_data[J][sym]
+                            'c': coef_data[J][sym],
                         }
                     }
                     for sym in coef_data[J].keys()

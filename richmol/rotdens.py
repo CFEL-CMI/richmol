@@ -1,8 +1,103 @@
+from richmol.field import CarTens
+from richmol.rot.wig import jy_eig
 import numpy as np
 import spherical
 import quaternionic
 from collections import defaultdict
-from typing import Callable
+from typing import Callable, Union, Any, Dict
+
+
+
+def psi_grid(h: CarTens,
+             alpha: np.ndarray,
+             beta: np.ndarray,
+             gamma: np.ndarray,
+             form: str = 'block') -> Union[Dict[Any, Any], np.ndarray]:
+    """
+    Computes wave functions on a grid of Euler angles (`alpha`, `beta`, `gamma`).
+
+    Args:
+        h (CarTens): Cartesian tensor representing rotational or rovibrational 
+                     field-free solutions.
+        alpha (np.ndarray): Values of the Euler alpha angle in radians.
+        beta (np.ndarray): Values of the Euler beta angle in radians.
+        gamma (np.ndarray): Values of the Euler gamma angle in radians.
+        form (str, optional): Determines the format of the output. 
+            - 'block': Returns a dictionary with wave functions grouped by J and symmetry.
+            - 'full': Returns wave functions concatenated across different J and symmetry.
+              Default is 'block'.
+
+    Returns:
+        Union[Dict[Any, Any], np.ndarray]: Wave functions on the grid of Euler angles. 
+        If `form` is 'block', it returns a dictionary. For 'full', it returns a 2D array.
+
+        Example for 'block':
+
+        .. code-block:: python
+
+            for J in psi.keys():
+                for sym in psi[J].keys():
+                    for istate, wf in enumerate(psi[J][sym]):
+                        print(J, sym, istate, wf[ia, ib, ic])
+                        # where `ia`, `ib`, and `ic` are indices of Euler angles
+
+        Example for 'full':
+
+        .. code-block:: python
+
+            for i, wf in enumerate(psi):
+                print(istate, wf[ia, ib, ic])
+    """
+
+    assert (form in ('full', 'block')), f"Unknown value of parameter 'form' = {form}"
+
+    try:
+        bas = h.symtop_basis
+    except AttributeError:
+        raise AttributeError(f"Input parameter 'h' has no attribute 'symtop_basis', " + \
+                             f"which is necessary to compute wave functions") from None
+
+    mydict = lambda: defaultdict(mydict)
+    psi = mydict()
+
+    na = len(alpha)
+    nb = len(beta)
+    ng = len(gamma)
+
+    for J in bas.keys():
+        mu = np.linspace(-int(J), int(J), int(2*J)+1)
+        wig = jy_eig(int(J), trid=True)
+        for sym in bas[J].keys():
+            kbas = bas[J][sym]['k']
+            k = np.array([int(_k) for (_, _k) in kbas['prim']]) # ============ NOTE: might be (j, k, v) ==============
+            k_ind = np.where(k[:, None] == mu)[1]
+            egamma = np.exp(1j * k[:, None] * gamma[None, :])
+            wig_k = np.einsum('kp,pi,pg->kig', kbas['c'].toarray().T, wig[k_ind, :],
+                              egamma, optimize='optimal')
+
+            mbas = bas[J][sym]['m']
+            m = np.array([int(_m) for (_, _m) in mbas['prim']])
+            m_ind = np.where(m[:, None] == mu)[1]
+            ealpha = np.exp(1j * m[:, None] * alpha[None, :])
+            wig_m = np.einsum('mp,pi,pa->mia', mbas['c'].toarray().T, np.conj(wig)[m_ind, :],
+                              ealpha, optimize='optimal')
+
+            ebeta = np.exp(-1j * mu[:, None] * beta[None, :])
+            res = np.einsum('mia,ib,kig->mkabg', wig_m, ebeta, wig_k, optimize='optimal')
+            psi[J][sym] = res.reshape(-1, len(alpha), len(beta), len(gamma))
+
+    if form == 'full':
+        psi = np.concatenate(
+            [ psi[J][sym]
+                if J in psi.keys()
+                    and sym in psi[J].keys()
+                else np.zeros((h.dim1[J][sym], na, nb, ng))
+                for J in h.Jlist1 for sym in h.symlist1[J]
+            ],
+            axis=0
+        )
+
+    return psi
 
 
 def _stateEulerGrid_basis(h, grid, m_val=None, state_filter: Callable = lambda **kw: True):

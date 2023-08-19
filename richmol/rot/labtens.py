@@ -5,6 +5,7 @@ from scipy.sparse import csr_matrix
 from richmol.field import CarTens
 from richmol.rot.molecule import Molecule, mol_frames
 from richmol.rot.solution import hamiltonian
+from richmol.rot.wig import jy_eig
 import collections
 from collections.abc import Callable
 import inspect
@@ -162,12 +163,12 @@ class LabTensor(CarTens):
                         'm': {
                             'prim': basis[J][sym].m.table['prim'],
                             'stat': basis[J][sym].m.table['stat'],
-                            'c': csr_mat(basis[J][sym].m.table['c'], thresh)
+                            'c': csr_mat(basis[J][sym].m.table['c'], thresh),
                         },
                         'k': {
                             'prim': basis[J][sym].k.table['prim'],
                             'stat': basis[J][sym].k.table['stat'],
-                            'c': csr_mat(basis[J][sym].k.table['c'], thresh)
+                            'c': csr_mat(basis[J][sym].k.table['c'], thresh),
                         }
                     }
                     for sym in basis[J].keys()
