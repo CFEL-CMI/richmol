@@ -1,5 +1,4 @@
 from richmol.field import CarTens
-from richmol.rot.wig import jy_eig
 import numpy as np
 from scipy.sparse import csr_matrix, coo_matrix
 from collections import defaultdict

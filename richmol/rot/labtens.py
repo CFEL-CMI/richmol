@@ -3,9 +3,8 @@ import math
 from richmol.rot.basis import PsiTableMK, PsiTable
 from scipy.sparse import csr_matrix
 from richmol.field import CarTens
-from richmol.rot.molecule import Molecule, mol_frames
+from richmol.rot.molecule import Molecule
 from richmol.rot.solution import hamiltonian
-from richmol.rot.wig import jy_eig
 import collections
 from collections.abc import Callable
 import inspect
