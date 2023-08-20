@@ -69,6 +69,10 @@ Rotational density (:code:`rotdens`)
    richmol.rotdens.psi_grid
 
 
+.. autofunction:: richmol.rotdens.dens_grid
+.. autofunction:: richmol.rotdens.psi_grid
+
+
 TROVE bindings (:code:`trove`)
 ------------------------------
 
