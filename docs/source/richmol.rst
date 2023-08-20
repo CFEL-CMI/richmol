@@ -60,6 +60,15 @@ Molecule-field interaction potential (:code:`field`)
 .. autofunction:: richmol.field.filter
 
 
+Rotational density (:code:`rotdens`)
+------------------------------------
+
+.. autosummary::
+
+   richmol.rotdens.dens_grid
+   richmol.rotdens.psi_grid
+
+
 TROVE bindings (:code:`trove`)
 ------------------------------
 

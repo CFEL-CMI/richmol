@@ -165,7 +165,7 @@ class LabTensor(CarTens):
                             'c': csr_mat(basis[J][sym].m.table['c'], thresh),
                         },
                         'k': {
-                            'prim': basis[J][sym].k.table['prim'],
+                            'prim': np.array([(j_, k_, 0) for (j_, k_) in basis[J][sym].k.table['prim']]),
                             'stat': basis[J][sym].k.table['stat'],
                             'c': csr_mat(basis[J][sym].k.table['c'], thresh),
                         }
