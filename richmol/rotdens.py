@@ -33,7 +33,9 @@ def dens_grid(h: CarTens,
 
     Returns:
         Union[Dict[Any, Any], np.ndarray]: Densitties on the grid of Euler angles. 
-        If `form` is 'block', it returns a dictionary. For 'full', it returns a 2D array.
+        If `form` is 'block', it returns a dictionary. For 'full', it returns a 5D array
+        if `diag_only` is False, and a 4D array if `diag_only` is True.
+        See examples below.
 
         Example for 'block':
 
@@ -171,7 +173,9 @@ def psi_grid(h: CarTens,
 
     Returns:
         Union[Dict[Any, Any], np.ndarray]: Wave functions on the grid of Euler angles. 
-        If `form` is 'block', it returns a dictionary. For 'full', it returns a 2D array.
+        If `form` is 'block', it returns a dictionary. For 'full', it returns a 5D array,
+        if `sum_over_vib` is False, and a 4D array, if `sum_over_vib` is True.
+        See examples below.
 
         Example for 'block':
 
