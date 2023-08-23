@@ -227,6 +227,7 @@ def psi_grid(h: CarTens,
     for J, bas_J in bas.items():
         mu = np.linspace(-int(J), int(J), int(2*J)+1)
         wig = jy_eig(int(J), trid=True)
+        fac = np.sqrt((2*J + 1)/(8*np.pi**2))
         for sym, bas_sym in bas_J.items():
             kbas = bas_sym['k']
             k, v = np.array([(int(k_), int(v_)) for (_, k_, v_) in kbas['prim']]).T
@@ -250,11 +251,11 @@ def psi_grid(h: CarTens,
 
             ealpha = np.exp(1j * m[None, :] * alpha[:, None])
             coef = mbas['c'].toarray()
-            wig_m = np.einsum('pm,pi,ap->ami',
-                              coef,
-                              np.conj(wig)[m_ind, :],
-                              ealpha,
-                              optimize='optimal')
+            wig_m = fac * np.einsum('pm,pi,ap->ami',
+                                    coef,
+                                    np.conj(wig)[m_ind, :],
+                                    ealpha,
+                                    optimize='optimal')
 
             ebeta = np.exp(-1j * mu[None, :] * beta[:, None])
             res = np.einsum('ami,bi,vgki->vabgmk', wig_m, ebeta, wig_k, optimize='optimal')
