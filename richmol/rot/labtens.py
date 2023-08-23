@@ -155,7 +155,7 @@ class LabTensor(CarTens):
 
             # self.basis = basis # can be deprecated, replaced by `symtop_basis`
 
-            csr_mat = lambda m, thr: csr_matrix(np.where(np.abs(m) > thr, m, 0))
+            csr_mat = lambda m, thr: csr_matrix(m) if thr==None else csr_matrix(np.where(np.abs(m) > thr, m, 0))
             self.symtop_basis = {
                 round(float(J), 1): {
                     sym: {
