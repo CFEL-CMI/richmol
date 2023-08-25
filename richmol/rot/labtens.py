@@ -301,7 +301,7 @@ class LabTensor(CarTens):
                 Defaults to 100.
             leb_ind (int): The index determining the Lebedev quadrature accuracy
                 (0 to 32). Defaults to 32.
-            thresh: Coefficients below this threshold are neglected.
+            thresh (float): Coefficients below this threshold are neglected.
                 If set to None, machine limit for double complex numbers is used.
 
         Returns:
