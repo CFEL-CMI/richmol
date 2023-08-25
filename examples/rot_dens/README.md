@@ -9,3 +9,6 @@ Content
 * [dens_sampling.py](dens_sampling.py) - calculation of expectation values of alignment functions
   using the rotational density (produced, e.g. in [ocs_alignment.py](ocs_alignment.py))
 
+The comparison of time-dependent alignment (and 'zero' orientation) of OCS calculated analytically
+and using Monte-Carlo sampling with rotational density,
+produced by [dens_sampling.py](dens_sampling.py): ![ocs_alignment_test.png](ocs_alignment_test.png)
