@@ -60,10 +60,10 @@ if __name__ == "__main__":
 
 
     # set up 800nm Gaussian pulse
-    def field(t):
+    def field(t, omega_nm):
         nm = 1e-9
         fwhm = 10.0 # ps
-        omega = 800 * nm # in nm
+        omega = omega_nm * nm # in nm
         omega = 2 * np.pi * speed_of_light / omega * 1e-12  # in 1/ps
         t0 = 2.5 * fwhm / 2
         amp = 1e10 # in V/m
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     
         # apply field to Hamiltonian
         thresh = 1e3 # thresh for considering field as zero
-        H.field(field(t), thresh=thresh)
+        H.field(field(t, 800), thresh=thresh)
     
         # update vector
         vecs, t_ = tdse.update(H, H0=h0, vecs=vecs, matvec_lib='scipy')
@@ -154,6 +154,7 @@ if __name__ == "__main__":
         fl.create_dataset("beta", data=beta)
         fl.create_dataset("gamma", data=gamma)
         fl.create_dataset("times", data=np.array(times))
+        fl.create_dataset("field", data=np.array([field(t, 1e10) for t in times]))
 
         # for comparison, also store the alignment functions
         fl.create_dataset("cos2theta", data=np.array(cos2th_ev))

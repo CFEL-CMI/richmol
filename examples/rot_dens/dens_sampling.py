@@ -91,6 +91,7 @@ if __name__ == '__main__':
         beta = fl['beta'][()]
         gamma = fl['gamma'][()]
         times = fl['times'][()]
+        field = fl['field'][()]
         cos2theta = fl['cos2theta'][()]
         costheta = fl['costheta'][()]
         cos2theta_wig = fl['cos2theta_wig'][()]
@@ -110,20 +111,32 @@ if __name__ == '__main__':
     # rotation matrix for Euler angle samples
     rotmat = [R.from_euler('zyz', pts).as_matrix() for pts in points]
 
+    # expectation values of alignment functions`
     costheta_, cos2theta_, costheta2d_, cos2theta2d_ = alignment(rotmat)
 
-    plt.plot(times, cos2theta, '-r', linewidth=2, label="$\cos^2\\theta$ analytic")
-    plt.plot(times, cos2theta_wig, '--g', linewidth=2, label="$\cos^2\\theta$ Wigner")
-    plt.plot(times, cos2theta_, ':b', linewidth=2, label="$\cos^2\\theta$ sampling")
+    # plot results
 
-    plt.plot(times, cos2theta2d_wig, '--g', linewidth=2, label="$\cos^2\\theta_{\\rm 2D}$ Wigner")
-    plt.plot(times, cos2theta2d_, ':b', linewidth=2, label="$\cos^2\\theta_{\\rm 2D}$ sampling")
+    fig, ax1 = plt.subplots()
 
-    plt.plot(times, costheta, '-r', linewidth=2, label="$\cos\\theta$ analytic")
-    plt.plot(times, costheta_, ':b', linewidth=2, label="$\cos\\theta$ sampling")
+    ax1.set_xlabel("Time in ps")
+    ax1.set_ylabel("Field in V/m")
+    ax1.plot(times, field, color='gray')
+    ax1.fill_between(times, field[:,-1], 0, color='gray', alpha=.1)
 
-    plt.xlabel("time in ps")
-    plt.legend()
+    ax2 = ax1.twinx()
+
+    ax2.set_ylabel("Alignment")
+    ax2.plot(times, cos2theta, '-r', linewidth=2, label="$\cos^2\\theta$ analytic")
+    ax2.plot(times, cos2theta_wig, '--g', linewidth=2, label="$\cos^2\\theta$ Wigner")
+    ax2.plot(times, cos2theta_, ':b', linewidth=2, label="$\cos^2\\theta$ Monte-Carlo")
+
+    ax2.plot(times, cos2theta2d_wig, '--b', linewidth=2, label="$\cos^2\\theta_{\\rm 2D}$ Wigner")
+    ax2.plot(times, cos2theta2d_, ':r', linewidth=2, label="$\cos^2\\theta_{\\rm 2D}$ Monte-Carlo")
+
+    ax2.plot(times, costheta, '-b', linewidth=2, label="$\cos\\theta$ analytic")
+    ax2.plot(times, costheta_, ':g', linewidth=2, label="$\cos\\theta$ Monte-Carlo")
+
+    plt.legend(loc='center left', bbox_to_anchor=(1.1, 0.5))
     plt.draw()
     plt.pause(0.0001)
-    plt.savefig(f"ocs_alignment_test.png")
+    plt.savefig(f"ocs_alignment_test.png", format = "png", dpi = 300, bbox_inches = "tight")
