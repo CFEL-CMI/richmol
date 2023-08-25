@@ -11,8 +11,8 @@ import inspect
 import py3nj
 # import quadpy
 from richmol_quad import lebedev, lebedev_npoints
-import quaternionic
-import spherical
+from richmol.rot.wig import jy_eig  
+from typing import Optional
 
 
 _sym_tol = 1e-12 # max difference between off-diagonal elements of symmetric matrix
@@ -282,15 +282,30 @@ class LabTensor(CarTens):
         self.Ux[np.abs(self.Ux) < thresh_] = 0
 
 
-    def init_tens_from_func(self, func, wig_jmax=100, leb_deg=131, leb_ind=32,
-                            thresh=None, **kwargs):
-        """Initializes components of lab-frame tensor from arbitrary function `func`(theta, phi)
-        of spherical angles
+    def init_tens_from_func(self, func: Callable, wig_jmax: int = 100,
+                            leb_ind: int = 32, thresh: Optional[float] = None,
+                            **_):
+        """
+        Initializes components of the lab-frame tensor using an arbitrary function
+        `func`(theta, phi) of spherical angles.
 
-        Expands function in terms of spherical-top functions |J,k=0,m> with J=0..`wig_jmax` and m=-J..J,
-        computes expansion coefficients <func|J,k=0,m> using Lebedev quadrature
-        defined by its index `leb_ind`=0..32 (formerly by degree `leb_deg`),
-        expansion coefficients smaller than `thresh` are neglected
+        The function is expanded in terms of Wigner D-functions D_{sigma,0}^{(omega)}
+        with omega ranging from 0 to `wig_jmax` and sigma from -omega to omega.
+        The integrals <func|D_{sigma,0}^{(omega)}> are computed using Lebedev
+        quadrature, determined by the index `leb_ind` (ranging from 0 to 32).
+        Expansion coefficients smaller than `thresh` are neglected.
+
+        Args:
+            func (callable): An arbitrary function of spherical angles (theta, phi).
+            wig_jmax (int): The maximum expansion order for Wigner D-functions.
+                Defaults to 100.
+            leb_ind (int): The index determining the Lebedev quadrature accuracy
+                (0 to 32). Defaults to 32.
+            thresh: Coefficients below this threshold are neglected.
+                If set to None, machine limit for double complex numbers is used.
+
+        Returns:
+            None
         """
         if thresh is None:
             thresh_ = np.finfo(np.complex128).eps
@@ -302,45 +317,41 @@ class LabTensor(CarTens):
         self.tens_flat = np.array([1], dtype=np.float64)
 
         # init Lebedev quadrature
-
-        ##### Using quadpy (which sadly is not free anymore)
-        # quad_name = "lebedev_" + str(leb_deg).zfill(3)
-        # try:
-        #     leb = quadpy.u3.schemes[quad_name]
-        # except KeyError:
-        #     raise KeyError(f"quadrature '{quad_name}' not found, available schemes: " + \
-        #         f"{[key for key in quadpy.u3.schemes.keys() if key.startswith('lebedev')]}") from None
-        # theta, phi = leb().theta_phi
-        # weights = leb().weights
-
-        ##### Using fortran implementation
         leb_npoints = lebedev_npoints(leb_ind)
         (theta, phi), weights = lebedev(leb_npoints)
 
-        # compute function on quadrature grid, multiply by quadrature weights
+        # compute user function on Lebedev quadrature grid
+        #   and multiply by quadrature weights
         f = func(theta, phi) * weights
 
-        # compute overlap integrals <func|J,k=0,m>
-        wigner = spherical.Wigner(wig_jmax)
-        R = quaternionic.array.from_spherical_coordinates(theta, phi)
-        ovlp = {J : np.zeros(2*J+1, dtype=np.complex128) for J in range(wig_jmax+1)}
-        for rr, ff in zip(R, f):
-            D = wigner.D(rr)
-            for J in range(wig_jmax+1):
-                ovlp[J] += np.array([np.conj(D[wigner.Dindex(J, m, 0)]) for m in range(-J, J+1)], dtype=np.complex128) * ff
+        # compute overlap integrals < D_{sigma,0}^{omega} | func >
+        ovlp = {}
+        for J in range(wig_jmax+1):
+            fac = (2*J+1) / (4*np.pi)
+            wig = jy_eig(J, trid=True)
+            sigma = np.linspace(-J, J, int(2*J)+1)
+            mu = sigma
+            ephi = np.exp(1j * sigma[:, None] * phi[None, :])
+            etheta = np.exp(-1j * mu[:, None] * theta[None, :])
+            ovlp[J] = fac * np.einsum('sm,m,sg,mg,g->s',
+                                      np.conj(wig),
+                                      wig[int(J), :],
+                                      ephi, etheta, f,
+                                      optimize='optimal')
+            ovlp[J][np.abs(ovlp[J]) < thresh_] = 0
 
         for J in range(wig_jmax+1):
-            ovlp[J] = ovlp[J] * 2*np.pi * np.sqrt((2*J+1)/(8*np.pi**2))
-            ovlp[J][np.abs(ovlp[J]) < thresh_] = 0
             if np.all(np.abs(ovlp[J] < thresh_)):
                 del ovlp[J]
 
         # initialize tensor Cartesian-to-spherical transformation
-        self.os = [(o, s) for o in ovlp.keys() for s in range(-o, o)]
+        self.os = [(o, s) for o in ovlp.keys() for s in range(-o, o+1)]
         self.Ux = np.zeros((1, len(self.os)), dtype=np.complex128)
         self.Us = np.zeros((len(self.os), 1), dtype=np.complex128)
-
-        ind_sigma = {(omega, sigma) : [s for s in range(-omega, omega+1)].index(sigma) for (omega, sigma) in self.os}
+        ind_sigma = {
+            (omega, sigma) : [s for s in range(-omega, omega+1)].index(sigma)
+            for (omega, sigma) in self.os
+        }
         for i,(omega, sigma) in enumerate(self.os):
             isigma = ind_sigma[(omega, sigma)]
             self.Ux[0, i] = ovlp[omega][isigma]
@@ -638,11 +649,7 @@ def cos2theta(theta, phi):
 
 
 def cos2theta2d(theta, phi):
-    tol = 1.0e-12
-    if abs(theta - np.pi/2.0) <= tol or abs(theta - 3.0*np.pi/2.0) <= tol:
-        if abs(phi) <= tol or abs(phi - np.pi) <= tol or abs(phi - 2.0*np.pi) <= tol:
-            return 1.0
-    return np.cos(theta)**2/(np.sin(theta)**2*np.sin(phi)**2 + np.cos(theta)**2)
+    return 1.0 / (1.0 + np.sin(phi)**2 * np.tan(theta)**2)
 
 
 def retrieve_name(var):
