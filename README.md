@@ -26,7 +26,7 @@ It is based on Python, some of its parts, for example, time-dependent propagatio
 Richmol can be used for predicting:
 * **Rotational energy levels and spectra** (`richmol.rot`, `richmol.spectrum`): Watson Hamiltonians in *A* and *S* reduction forms, user-built custom effective rotational Hamiltonians, electric dipole, magnetic dipole, electric quadrupole, and Raman spectra
 * **Rotational field-induced dynamics** (`richmol.field`, `richmol.tdse`): simulations of rotational dynamics and related properties of molecules placed in static and time-dependent fields
-* **Ro-vibrational dynamics and spectra** (currently via interface with [TROVE]([https://github.com/Trovemaster/TROVE](https://github.com/Trovemaster/TROVE/tree/develop))): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
+* **Ro-vibrational dynamics and spectra** (currently via interface with [TROVE](https://github.com/Trovemaster/TROVE/tree/develop)): simulations of spectra and ro-vibrational dynamics of molecules in static and time-dependent fields
 * **Non-adiabatic dynamics of diatomic molecules** (via interface with [Duo](https://github.com/Trovemaster/Duo)): field-induced dynamics of diatomic molecules including non-adiabatic and spin-orbit coupling effects
 
 We plan to include following new features in the next release:
