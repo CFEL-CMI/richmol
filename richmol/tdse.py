@@ -238,17 +238,15 @@ class TDSE():
             pass
 
         # eigenvectors of H
-        try:
-            x = H.mfmat
-            hmat = H.tomat(form="full", repres="dense")
-        except AttributeError:
+        if not hasattr(H, "mfmat"):
             raise AttributeError(
-                f"hamiltonian `H` has bad type (must be Hamiltonian)"
+                f"hamiltonian `H` has inappropriate type (must be Hamiltonian)"
             ) from None
         if H_is_diag:
-            enrs = np.sort(np.einsum('ii->i', hmat))
-            vecs = np.eye(hmat.shape[0])
+            enrs = H.tomat(form="full", repres="csr_matrix").diagonal()
+            vecs = np.eye(len(enrs))
         else:
+            hmat = H.tomat(form="full", repres="dense")
             enrs, vecs = np.linalg.eigh(hmat)
 
         # zero-point energy
