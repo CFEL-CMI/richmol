@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.constants as const
 import functools
-from scipy.sparse import diags
+from scipy.sparse import diags, csr_matrix
 from scipy.sparse.linalg import expm, onenormest
 import richmol
 from richmol import convert_units
@@ -174,7 +174,7 @@ class TDSE():
         return t_c
 
 
-    def init_state(self, H, **kwargs):
+    def init_state(self, H, temp=None, thresh=1e-3, zpe=None, sparse=False):
         """ Generates initial state vectors
 
             Initial state vectors are eigenfunctions of Hamiltonian `H`. If
@@ -186,8 +186,6 @@ class TDSE():
         Args:
             H : :py:class:`field.CarTens`
                 Hamiltonian operator
-
-        Kwargs:
             temp : float
                 Temperature in Kelvin
             thresh : float
@@ -195,38 +193,22 @@ class TDSE():
                 states
             zpe : float
                 Zero-point energy, by default lowest eigenvalue of H is taken
+            sparse : bool
+                If true, the resulting output vectors will be stored in sparse
+                'csr' format
 
         Returns:
-            vecs : numpy.ndarray
+            vecs : numpy.ndarray or scipy.sparse.csr_matrix
                 Initial state vectors (each row represents an initial state)
         """
 
         # temperature
-        if 'temp' in kwargs:
-            assert ( kwargs['temp'] is None \
-                     or type(kwargs['temp']) in [int, float] ), \
-                f"temperature `temp` has bad type: " \
-                    + f"'{type(kwargs['temp'])}', " \
-                    + f"(must be 'None', 'int', 'float')"
-            if type(kwargs['temp']) in [int, float]:
-                assert (kwargs['temp'] >= 0), \
-                    f"temperature `temp` has bad value: '{kwargs['temp']}', " \
-                        + f"(must be >= 0)"
-            temp = kwargs['temp']
-        else:
-            temp = None
+        if temp != None:
+            assert (temp >= 0), f"temperature `temp` has negative value: '{temp}'"
 
         # partition function threshold
-        if 'thresh' in kwargs:
-            assert (type(kwargs['thresh']) in [int, float]), \
-                f"partition function threshold `thresh` has bad type: " \
-                    + f"'{type(kwargs['thresh'])}', (must be 'int', 'float')"
-            assert (kwargs['thresh'] >= 0), \
-                f"partition function threshold `thresh` has bad value: " \
-                    + f"'{kwargs['thresh']}' (must be >= 0)"
-            thresh = kwargs['thresh']
-        else:
-            thresh = 1e-3
+        assert (thresh >= 0), f"partition function threshold `thresh` has " + \
+            f"negative or zero value: '{thresh}'"
 
         # convert field-free tensor into Hamiltonian
         H_is_diag = False
@@ -244,32 +226,26 @@ class TDSE():
             ) from None
         if H_is_diag:
             enrs = H.tomat(form="full", repres="csr_matrix").diagonal()
-            vecs = np.eye(len(enrs))
+            vecs = diags(np.ones(len(enrs)), format='csr')
         else:
             hmat = H.tomat(form="full", repres="dense")
             enrs, vecs = np.linalg.eigh(hmat)
+            vecs = csr_matrix(vecs)
 
         # zero-point energy
-        if 'zpe' in kwargs:
-            assert (type(kwargs['zpe']) in [int, float]), \
-                f"zero-point energy `zpe` has bad type: " \
-                    + f"'{type(kwargs['zpe'])}', " \
-                    + f"(must be 'int', 'float')"
-            assert (kwargs['zpe'] <= abs(enrs[0])), \
-                f"zero-point energy `zpe` has bad value: '{kwargs['zpe']}', " \
-                    + f"(must be <= '{abs(enrs[0])}')"
-            zpe = kwargs['zpe']
+        if zpe != None:
+            assert (zpe <= abs(enrs[0])), f"zero-point energy `zpe` has a value " + \
+                f"that is larger than the lowest energy: zpe = '{zpe}' > emin = '{enrs[0]}'"
         else:
             zpe = enrs[0]
 
         # Boltzmann weights
         enrs -= zpe
-        vecs = vecs.T
+        vecs = vecs.transpose()
         if temp is None:
             pass
         elif temp == 0:
-            vecs = vecs[0 : 1]
-            # weights = [np.exp(-beta * (enrs[0] - zpe))]
+            vecs = vecs.getrow(0)
         else:
             enrs *= self._enr_to_J
             beta = 1.0 / (const.value("Boltzmann constant") * temp) # (1/J)
@@ -277,8 +253,11 @@ class TDSE():
             weights /= np.sum(weights)
             inds = [ i for i in range(len(weights))
                      if (1 - np.sum(weights[: i + 1])) > thresh ]
-            # vecs = vecs[inds] * np.expand_dims(weights[inds], axis=1)
-            vecs = vecs[inds] * np.expand_dims(np.sqrt(weights[inds]), axis=1)
+            sqrt_weights = np.sqrt(weights[inds])
+            vecs = vecs[inds].multiply(sqrt_weights[:, None])
+
+        if not sparse:
+            vecs = vecs.toarray()
 
         return vecs.astype(np.complex128)
 
