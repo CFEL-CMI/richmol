@@ -1302,7 +1302,8 @@ class CarTens():
 
 
     def store(self, filename, name=None, comment=None, replace=False, replace_k=False,
-              replace_m=False, store_k=True, store_m=True, thresh=None):
+              replace_m=False, store_k=True, store_m=True, thresh=None,
+              store_basis=True):
         """ Stores object into HDF5 file
     
         Args:
@@ -1328,6 +1329,11 @@ class CarTens():
             thresh : float
                 Threshold for neglecting matrix elements (M and K tensors) when
                 writing into file.
+            store_basis : bool
+                If True, will also store the information about the symmetric-top
+                basis functions. For large basis sets (large J) this may lead
+                to problems with the HDF5 file format. This issue needs to be
+                properly addressed, the temporary fix is to set `store_basis` to False.
         """
         if name is None:
             name = retrieve_name(self)
@@ -1395,7 +1401,7 @@ class CarTens():
             #   but is more general as it's also used to store the TROVE
             #   wavefunctions in symmetric-top representation.
 
-            if hasattr(self, 'symtop_basis'):
+            if hasattr(self, 'symtop_basis') and store_basis:
                 for J1 in self.symtop_basis.keys():
                     for sym1 in self.symtop_basis[J1].keys():
                         try:
