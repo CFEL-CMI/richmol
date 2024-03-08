@@ -931,8 +931,8 @@ class CarTens():
 
     def mul(self, arg):
         """ In-place multiplication of tensor with a scalar `arg` """
-        scalar = ( int, float, complex, np.int, np.int8, np.int16, np.int32,
-                   np.int64, np.float, np.float16, np.float32, np.float64,
+        scalar = ( int, float, complex, np.int_, np.int8, np.int16, np.int32,
+                   np.int64, np.float_, np.float16, np.float32, np.float64,
                    np.complex64, np.complex128 )
         if isinstance(arg, scalar):
             # multiply K-tensor with a scalar
@@ -1249,8 +1249,8 @@ class CarTens():
         """ Multiplication with `scalar` (:py:func:`mul`), `field`
                 (:py:func:`field`) and `vector` (:py:func:`vec`)
         """
-        scalar = ( int, float, complex, np.int, np.int8, np.int16, np.int32,
-                   np.int64, np.float, np.float16, np.float32, np.float64,
+        scalar = ( int, float, complex, np.int_, np.int8, np.int16, np.int32,
+                   np.int64, np.float_, np.float16, np.float32, np.float64,
                    np.complex64, np.complex128 )
         if isinstance(arg, scalar):
             # multiply with a scalar
